@@ -33,8 +33,8 @@ impl Cpu {
 
         let instruction = Instruction::decode(opcode, self.is_thumb());
         println!(
-            "{:08x} @ {:08x} | {:032b}: {:<20}\n{}\n",
-            pc, opcode, opcode, instruction, self
+            "{:08x} @ {:08x} | {:032b}: {}",
+            pc, opcode, opcode, instruction
         );
 
         match instruction.opcode {
@@ -46,6 +46,8 @@ impl Cpu {
             Opcode::Mov | Opcode::Mvn => Handlers::move_data(&instruction, self, mmio),
             _ => todo!(),
         }
+
+        println!("{}\n", self);
     }
 
     pub fn read_register(&self, register: &Register) -> u32 {
