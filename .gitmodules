@@ -1,0 +1,3 @@
+[submodule "external/gba-tests"]
+	path = external/gba-tests
+	url = https://github.com/jsmolka/gba-tests
