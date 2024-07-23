@@ -179,6 +179,8 @@ pub enum Opcode {
     Stm,
     Push,
     Pop,
+    Ldr,
+    Str,
 }
 
 impl Opcode {
@@ -215,6 +217,8 @@ impl Display for Opcode {
             Opcode::Stm => write!(f, "stm"),
             Opcode::Push => write!(f, "push"),
             Opcode::Pop => write!(f, "pop"),
+            Opcode::Ldr => write!(f, "ldr"),
+            Opcode::Str => write!(f, "str"),
         }
     }
 }
@@ -369,7 +373,7 @@ impl Instruction {
 
                 let operand2 = if i == 0 {
                     // Register Operand 2
-                    let shift_amount = (z & 0b1111_1000_0000) >> 8;
+                    let shift_amount = (z & 0b1111_1000_0000) >> 7;
                     let shift_type = (z & 0b0000_0110_0000) >> 5;
 
                     /*
@@ -486,6 +490,40 @@ impl Instruction {
                     operand3: None,
                 }
             }
+            // Single Data Transfer (LDR/STR)
+            "cccc_01ip_ubwl_yyyy_xxxx_zzzz_zzzz_zzzz" => {
+                let condition = Condition::from(c);
+                let is_load = l == 1;
+                let base_register = Register::from(y);
+                let src_or_dst_register = Register::from(x);
+
+                let offset = if i == 0 {
+                    // Immediate Operand
+                    Operand::Immediate(z & 0b1111_1111_1111, None)
+                } else {
+                    // Register Operand 2
+                    let shift_amount = (z & 0b1111_1000_0000) >> 7;
+                    let shift_type = (z & 0b0000_0110_0000) >> 5;
+
+                    if shift_amount == 0 {
+                        Operand::Register(Register::from(z), None)
+                    } else {
+                        Operand::Register(
+                            Register::from(z),
+                            Some(ShiftType::from(shift_type, shift_amount)),
+                        )
+                    }
+                };
+
+                Instruction {
+                    opcode: if is_load { Opcode::Ldr } else { Opcode::Str },
+                    condition,
+                    set_condition_flags: false,
+                    operand1: Some(Operand::Register(src_or_dst_register, None)),
+                    operand2: Some(Operand::Register(base_register, None)),
+                    operand3: Some(offset),
+                }
+            }
             _ => panic!("Unknown instruction: {:08x} | {:32b}", opcode, opcode),
         }
     }
@@ -548,10 +586,18 @@ impl Display for Instruction {
             output = write!(f, " {}", operand);
         }
         if let Some(operand) = &self.operand2 {
-            output = write!(f, ", {}", operand);
+            if self.opcode == Opcode::Ldm || self.opcode == Opcode::Ldr {
+                output = write!(f, ", [{}", operand);
+            } else {
+                output = write!(f, ", {}", operand);
+            }
         }
         if let Some(operand) = &self.operand3 {
-            output = write!(f, ", {}", operand);
+            if self.opcode == Opcode::Ldm || self.opcode == Opcode::Ldr {
+                output = write!(f, ", {}]", operand);
+            } else {
+                output = write!(f, ", {}", operand);
+            }
         }
         output
     }
