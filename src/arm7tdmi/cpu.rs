@@ -1,4 +1,6 @@
-use std::fmt::{Debug, Display};
+use std::fmt::Display;
+
+use bitflags::Flags;
 
 use crate::{
     arm7tdmi::{decoder::Opcode, handlers::Handlers},
@@ -7,8 +9,31 @@ use crate::{
 
 use super::{
     decoder::{Instruction, Register},
-    registers::{Cpsr, Registers},
+    registers::{Psr, Registers},
 };
+
+#[derive(Debug)]
+pub enum ProcessorMode {
+    User,
+    Fiq,
+    Irq,
+    Supervisor,
+    Abort,
+    System,
+}
+
+impl Into<u32> for ProcessorMode {
+    fn into(self) -> u32 {
+        match self {
+            ProcessorMode::User => 0b10000,
+            ProcessorMode::Fiq => 0b10001,
+            ProcessorMode::Irq => 0b10010,
+            ProcessorMode::Supervisor => 0b10011,
+            ProcessorMode::Abort => 0b10111,
+            ProcessorMode::System => 0b11111,
+        }
+    }
+}
 
 pub struct Cpu {
     pub registers: Registers,
@@ -22,8 +47,8 @@ impl Cpu {
     }
 
     pub fn tick(&mut self, mmio: &mut Mmio) {
-        let pc = self.get_pc();
-        let opcode = mmio.read_u32(pc);
+        let real_pc = self.get_real_pc();
+        let opcode = mmio.read_u32(real_pc);
 
         if self.is_thumb() {
             self.registers.r[15] += 2;
@@ -34,7 +59,7 @@ impl Cpu {
         let instruction = Instruction::decode(opcode, self.is_thumb());
         println!(
             "{:08x} @ {:08x} | {:032b}: {}",
-            pc, opcode, opcode, instruction
+            real_pc, opcode, opcode, instruction
         );
 
         match instruction.opcode {
@@ -44,6 +69,13 @@ impl Cpu {
                 Handlers::test(&instruction, self, mmio)
             }
             Opcode::Mov | Opcode::Mvn => Handlers::move_data(&instruction, self, mmio),
+            Opcode::Ldm | Opcode::Stm | Opcode::Ldr | Opcode::Str => {
+                Handlers::load_store(&instruction, self, mmio)
+            }
+            Opcode::Mrs | Opcode::Msr => Handlers::psr_transfer(&instruction, self, mmio),
+            Opcode::Add | Opcode::Sub | Opcode::And | Opcode::Orr | Opcode::Eor | Opcode::Rsb => {
+                Handlers::alu(&instruction, self, mmio)
+            }
             _ => todo!(),
         }
 
@@ -68,6 +100,8 @@ impl Cpu {
             Register::R13 => self.registers.r[13],
             Register::R14 => self.registers.r[14],
             Register::R15 => self.registers.r[15],
+            Register::Cpsr => self.registers.cpsr.bits(),
+            Register::Spsr => self.read_from_current_spsr(),
             _ => todo!(),
         }
     }
@@ -90,11 +124,18 @@ impl Cpu {
             Register::R13 => self.registers.r[13] = value,
             Register::R14 => self.registers.r[14] = value,
             Register::R15 => self.registers.r[15] = value,
+            Register::Cpsr => self.registers.cpsr = Psr::from_bits_truncate(value),
+            Register::Spsr => self.write_to_current_spsr(value),
             _ => todo!(),
         }
     }
 
-    pub fn update_flag(&mut self, flag: Cpsr, value: bool) {
+    pub fn write_register_u8(&mut self, register: &Register, value: u8) {
+        let original_value = self.read_register(register);
+        self.write_register(register, (original_value & 0xffffff00) | value as u32);
+    }
+
+    pub fn update_flag(&mut self, flag: Psr, value: bool) {
         self.registers.cpsr.set(flag, value);
     }
 
@@ -112,8 +153,14 @@ impl Cpu {
         value
     }
 
-    // program counter
+    // program counter, pipeline effect. only account for 1 instruction
+    // 2nd instruction is accounted for in the tick function
     pub fn get_pc(&self) -> u32 {
+        self.registers.r[15] + 4
+    }
+
+    // program counter, real value
+    pub fn get_real_pc(&self) -> u32 {
         self.registers.r[15]
     }
 
@@ -127,8 +174,47 @@ impl Cpu {
         self.registers.r[13]
     }
 
+    pub fn get_processor_mode(&self) -> ProcessorMode {
+        let mode = self.registers.cpsr.bits() & Psr::M.bits();
+        match mode {
+            0b10000 => ProcessorMode::User,
+            0b10001 => ProcessorMode::Fiq,
+            0b10010 => ProcessorMode::Irq,
+            0b10011 => ProcessorMode::Supervisor,
+            0b10111 => ProcessorMode::Abort,
+            0b11111 => ProcessorMode::System,
+            _ => unreachable!(),
+        }
+    }
+
+    pub fn set_processor_mode(&mut self, mode: ProcessorMode) {
+        let mode: u32 = mode.into();
+        self.registers.cpsr =
+            Psr::from_bits_truncate((self.registers.cpsr.bits() & !Psr::M.bits()) | mode);
+    }
+
+    pub fn write_to_current_spsr(&mut self, value: u32) {
+        let mode = self.get_processor_mode();
+        match mode {
+            ProcessorMode::User | ProcessorMode::System => return,
+            _ => (),
+        }
+
+        let mode: u32 = mode.into();
+        let spsr = &mut self.registers.spsr[mode as usize - 0b10001];
+        *spsr = Psr::from_bits_truncate(value);
+    }
+
+    pub fn read_from_current_spsr(&self) -> u32 {
+        let mode = self.get_processor_mode();
+        match mode {
+            ProcessorMode::User | ProcessorMode::System => 0,
+            _ => self.registers.spsr[mode as usize - 0b10001].bits(),
+        }
+    }
+
     pub fn is_thumb(&self) -> bool {
-        self.registers.cpsr.contains(Cpsr::T)
+        self.registers.cpsr.contains(Psr::T)
     }
 }
 
@@ -156,13 +242,18 @@ impl Display for Cpu {
         )?;
         write!(
             f,
-            "spsr[0]: {}\nspsr[1]: {}\nspsr[2]: {}\nspsr[3]: {}\nspsr[4]: {}\n",
+            "cpsr: {} {{{:?}}}\n",
+            self.registers.cpsr,
+            self.get_processor_mode()
+        )?;
+        write!(
+            f,
+            "spsr[0]: {}\nspsr[1]: {}\nspsr[2]: {}\nspsr[3]: {}\nspsr[4]: {}",
             self.registers.spsr[0],
             self.registers.spsr[1],
             self.registers.spsr[2],
             self.registers.spsr[3],
             self.registers.spsr[4]
-        )?;
-        write!(f, "cpsr: {}", self.registers.cpsr)
+        )
     }
 }

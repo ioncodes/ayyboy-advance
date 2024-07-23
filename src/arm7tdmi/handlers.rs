@@ -1,9 +1,9 @@
-use crate::memory::mmio::Mmio;
+use crate::{arm7tdmi::decoder::TransferLength, memory::mmio::Mmio};
 
 use super::{
     cpu::Cpu,
     decoder::{Condition, Instruction, Opcode, Operand, ShiftType},
-    registers::Cpsr,
+    registers::Psr,
 };
 
 macro_rules! check_condition {
@@ -17,42 +17,6 @@ macro_rules! check_condition {
 pub struct Handlers {}
 
 impl Handlers {
-    fn check_condition(cpu: &Cpu, condition: &Condition) -> bool {
-        match condition {
-            Condition::Always => true,
-            Condition::Equal => cpu.registers.cpsr.contains(Cpsr::Z), // Z == 1
-            Condition::NotEqual => !cpu.registers.cpsr.contains(Cpsr::Z), // Z == 0
-            Condition::UnsignedHigherOrSame => cpu.registers.cpsr.contains(Cpsr::C), // C == 1
-            Condition::UnsignedLower => !cpu.registers.cpsr.contains(Cpsr::C), // C == 0
-            Condition::Negative => cpu.registers.cpsr.contains(Cpsr::N), // N == 1
-            Condition::PositiveOrZero => !cpu.registers.cpsr.contains(Cpsr::N), // N == 0
-            Condition::Overflow => cpu.registers.cpsr.contains(Cpsr::V), // V == 1
-            Condition::NoOverflow => !cpu.registers.cpsr.contains(Cpsr::V), // V == 0
-            Condition::UnsignedHigher => {
-                cpu.registers.cpsr.contains(Cpsr::C) && !cpu.registers.cpsr.contains(Cpsr::Z)
-            } // C == 1 and Z == 0
-            Condition::UnsignedLowerOrSame => {
-                !cpu.registers.cpsr.contains(Cpsr::C) || cpu.registers.cpsr.contains(Cpsr::Z)
-            } // C == 0 or Z == 1
-            Condition::GreaterOrEqual => {
-                cpu.registers.cpsr.contains(Cpsr::N) == cpu.registers.cpsr.contains(Cpsr::V)
-            } // N == V
-            Condition::LessThan => {
-                cpu.registers.cpsr.contains(Cpsr::N) != cpu.registers.cpsr.contains(Cpsr::V)
-            } // N != V
-            Condition::GreaterThan => {
-                !cpu.registers.cpsr.contains(Cpsr::Z)
-                    && (cpu.registers.cpsr.contains(Cpsr::N)
-                        == cpu.registers.cpsr.contains(Cpsr::V))
-            } // Z == 0 and N == V
-            Condition::LessThanOrEqual => {
-                cpu.registers.cpsr.contains(Cpsr::Z)
-                    || (cpu.registers.cpsr.contains(Cpsr::N)
-                        != cpu.registers.cpsr.contains(Cpsr::V))
-            } // Z == 1 or N != V
-        }
-    }
-
     pub fn branch(instr: &Instruction, cpu: &mut Cpu, mmio: &mut Mmio) {
         check_condition!(cpu, instr);
 
@@ -81,6 +45,8 @@ impl Handlers {
     }
 
     pub fn push_pop(instr: &Instruction, cpu: &mut Cpu, mmio: &mut Mmio) {
+        check_condition!(cpu, instr);
+
         match instr {
             Instruction {
                 opcode: Opcode::Push,
@@ -106,6 +72,8 @@ impl Handlers {
     }
 
     pub fn test(instr: &Instruction, cpu: &mut Cpu, mmio: &mut Mmio) {
+        check_condition!(cpu, instr);
+
         match instr {
             Instruction {
                 opcode: Opcode::Cmp,
@@ -116,10 +84,24 @@ impl Handlers {
                 let lhs = cpu.read_register(lhs);
                 let rhs = Handlers::resolve_operand(rhs, cpu);
                 let (result, carry) = lhs.overflowing_sub(rhs);
-                cpu.update_flag(Cpsr::N, result > lhs);
-                cpu.update_flag(Cpsr::Z, lhs == rhs);
-                cpu.update_flag(Cpsr::C, carry);
-                cpu.update_flag(Cpsr::V, (lhs as i32) < (rhs as i32));
+                cpu.update_flag(Psr::N, result > lhs);
+                cpu.update_flag(Psr::Z, lhs == rhs);
+                cpu.update_flag(Psr::C, carry);
+                cpu.update_flag(Psr::V, (lhs as i32) < (rhs as i32));
+            }
+            Instruction {
+                opcode: Opcode::Teq,
+                operand1: Some(Operand::Register(lhs, None)),
+                operand2: Some(rhs),
+                ..
+            } => {
+                let lhs = cpu.read_register(lhs) as u8;
+                let rhs = Handlers::resolve_operand(rhs, cpu) as u8;
+                let result = lhs ^ rhs;
+                cpu.update_flag(Psr::N, result & 0x80 != 0);
+                cpu.update_flag(Psr::Z, result == 0);
+                cpu.update_flag(Psr::C, false);
+                cpu.update_flag(Psr::V, false);
             }
             _ => todo!("{:?}", instr),
         }
@@ -137,6 +119,146 @@ impl Handlers {
             } => {
                 let value = Handlers::resolve_operand(src, cpu);
                 cpu.write_register(dst, value);
+            }
+            _ => todo!("{:?}", instr),
+        }
+    }
+
+    pub fn load_store(instr: &Instruction, cpu: &mut Cpu, mmio: &mut Mmio) {
+        check_condition!(cpu, instr);
+
+        match instr {
+            Instruction {
+                opcode: Opcode::Ldr,
+                operand1: Some(Operand::Register(dst, None)),
+                operand2: Some(src_base),
+                operand3: Some(src_offset),
+                transfer_length: Some(length),
+                ..
+            } => {
+                let src_base = Handlers::resolve_operand(src_base, cpu);
+                let src_offset = Handlers::resolve_operand(src_offset, cpu);
+                let address = src_base.wrapping_add(src_offset);
+
+                match length {
+                    TransferLength::Byte => {
+                        let value = mmio.read(address);
+                        cpu.write_register_u8(dst, value);
+                    }
+                    TransferLength::Word => {
+                        let value = mmio.read_u32(address);
+                        cpu.write_register(dst, value);
+                    }
+                    _ => todo!("{:?}", length),
+                }
+            }
+            Instruction {
+                opcode: Opcode::Str,
+                operand1: Some(Operand::Register(src, None)),
+                operand2: Some(dst_base),
+                operand3: Some(dst_offset),
+                transfer_length: Some(length),
+                ..
+            } => {
+                let dst_base = Handlers::resolve_operand(dst_base, cpu);
+                let dst_offset = Handlers::resolve_operand(dst_offset, cpu);
+                let address = dst_base.wrapping_add(dst_offset);
+
+                match length {
+                    TransferLength::Byte => {
+                        let value = cpu.read_register(src) as u8;
+                        mmio.write(address, value);
+                    }
+                    TransferLength::Word => {
+                        let value = cpu.read_register(src);
+                        mmio.write_u32(address, value);
+                    }
+                    _ => todo!("{:?}", length),
+                }
+            }
+            _ => todo!("{:?}", instr),
+        }
+    }
+
+    pub fn psr_transfer(instr: &Instruction, cpu: &mut Cpu, mmio: &mut Mmio) {
+        check_condition!(cpu, instr);
+
+        match instr {
+            Instruction {
+                opcode: Opcode::Msr | Opcode::Mrs,
+                operand1: Some(Operand::Register(dst, None)),
+                operand2: Some(Operand::Register(src, None)),
+                ..
+            } => {
+                cpu.write_register(dst, cpu.read_register(src));
+            }
+            _ => todo!("{:?}", instr),
+        }
+    }
+
+    pub fn alu(instr: &Instruction, cpu: &mut Cpu, mmio: &mut Mmio) {
+        check_condition!(cpu, instr);
+
+        match instr {
+            Instruction {
+                opcode: Opcode::Add,
+                operand1: Some(Operand::Register(dst, None)),
+                operand2: Some(src),
+                ..
+            } => {
+                let value = Handlers::resolve_operand(src, cpu);
+                let result = cpu.read_register(dst).wrapping_add(value);
+                cpu.write_register(dst, result);
+            }
+            Instruction {
+                opcode: Opcode::Sub,
+                operand1: Some(Operand::Register(dst, None)),
+                operand2: Some(src),
+                ..
+            } => {
+                let value = Handlers::resolve_operand(src, cpu);
+                let result = cpu.read_register(dst).wrapping_sub(value);
+                cpu.write_register(dst, result);
+            }
+            Instruction {
+                opcode: Opcode::And,
+                operand1: Some(Operand::Register(dst, None)),
+                operand2: Some(src),
+                ..
+            } => {
+                let value = Handlers::resolve_operand(src, cpu);
+                let result = cpu.read_register(dst) & value;
+                cpu.write_register(dst, result);
+            }
+            Instruction {
+                opcode: Opcode::Orr,
+                operand1: Some(Operand::Register(dst, None)),
+                operand2: Some(src),
+                ..
+            } => {
+                let value = Handlers::resolve_operand(src, cpu);
+                let result = cpu.read_register(dst) | value;
+                cpu.write_register(dst, result);
+            }
+            Instruction {
+                opcode: Opcode::Eor,
+                operand1: Some(Operand::Register(dst, None)),
+                operand2: Some(src),
+                ..
+            } => {
+                let value = Handlers::resolve_operand(src, cpu);
+                let result = cpu.read_register(dst) ^ value;
+                cpu.write_register(dst, result);
+            }
+            Instruction {
+                opcode: Opcode::Rsb,
+                operand1: Some(Operand::Register(dst, None)),
+                operand2: Some(src),
+                ..
+            } => {
+                let value = Handlers::resolve_operand(src, cpu);
+                let result = value.wrapping_sub(cpu.read_register(dst));
+                cpu.write_register(dst, result);
             }
             _ => todo!("{:?}", instr),
         }
@@ -160,6 +282,40 @@ impl Handlers {
             ShiftType::LogicalRight(shift) => value.wrapping_shr(*shift),
             ShiftType::ArithmeticRight(shift) => value.wrapping_shr(*shift),
             ShiftType::RotateRight(shift) => value.rotate_right(*shift),
+        }
+    }
+
+    fn check_condition(cpu: &Cpu, condition: &Condition) -> bool {
+        match condition {
+            Condition::Always => true,
+            Condition::Equal => cpu.registers.cpsr.contains(Psr::Z), // Z == 1
+            Condition::NotEqual => !cpu.registers.cpsr.contains(Psr::Z), // Z == 0
+            Condition::UnsignedHigherOrSame => cpu.registers.cpsr.contains(Psr::C), // C == 1
+            Condition::UnsignedLower => !cpu.registers.cpsr.contains(Psr::C), // C == 0
+            Condition::Negative => cpu.registers.cpsr.contains(Psr::N), // N == 1
+            Condition::PositiveOrZero => !cpu.registers.cpsr.contains(Psr::N), // N == 0
+            Condition::Overflow => cpu.registers.cpsr.contains(Psr::V), // V == 1
+            Condition::NoOverflow => !cpu.registers.cpsr.contains(Psr::V), // V == 0
+            Condition::UnsignedHigher => {
+                cpu.registers.cpsr.contains(Psr::C) && !cpu.registers.cpsr.contains(Psr::Z)
+            } // C == 1 and Z == 0
+            Condition::UnsignedLowerOrSame => {
+                !cpu.registers.cpsr.contains(Psr::C) || cpu.registers.cpsr.contains(Psr::Z)
+            } // C == 0 or Z == 1
+            Condition::GreaterOrEqual => {
+                cpu.registers.cpsr.contains(Psr::N) == cpu.registers.cpsr.contains(Psr::V)
+            } // N == V
+            Condition::LessThan => {
+                cpu.registers.cpsr.contains(Psr::N) != cpu.registers.cpsr.contains(Psr::V)
+            } // N != V
+            Condition::GreaterThan => {
+                !cpu.registers.cpsr.contains(Psr::Z)
+                    && (cpu.registers.cpsr.contains(Psr::N) == cpu.registers.cpsr.contains(Psr::V))
+            } // Z == 0 and N == V
+            Condition::LessThanOrEqual => {
+                cpu.registers.cpsr.contains(Psr::Z)
+                    || (cpu.registers.cpsr.contains(Psr::N) != cpu.registers.cpsr.contains(Psr::V))
+            } // Z == 1 or N != V
         }
     }
 }

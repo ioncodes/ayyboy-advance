@@ -187,6 +187,10 @@ impl Opcode {
     pub fn is_test(&self) -> bool {
         *self == Opcode::Cmp || *self == Opcode::Tst || *self == Opcode::Teq || *self == Opcode::Cmn
     }
+
+    pub fn is_load_store(&self) -> bool {
+        *self == Opcode::Ldr || *self == Opcode::Str || *self == Opcode::Ldm || *self == Opcode::Stm
+    }
 }
 
 impl Display for Opcode {
@@ -223,6 +227,12 @@ impl Display for Opcode {
     }
 }
 
+#[derive(PartialEq, Debug)]
+pub enum TransferLength {
+    Byte,
+    Word,
+}
+
 #[derive(Debug)]
 pub struct Instruction {
     pub opcode: Opcode,
@@ -231,6 +241,7 @@ pub struct Instruction {
     pub operand1: Option<Operand>,
     pub operand2: Option<Operand>,
     pub operand3: Option<Operand>,
+    pub transfer_length: Option<TransferLength>,
 }
 
 impl Instruction {
@@ -240,10 +251,6 @@ impl Instruction {
         } else {
             Instruction::decode_armv4t(opcode)
         }
-    }
-
-    pub fn is_test_opcode(&self) -> bool {
-        self.opcode.is_test()
     }
 
     #[allow(unused_variables)]
@@ -263,16 +270,18 @@ impl Instruction {
                     operand1: Some(Operand::Register(register, None)),
                     operand2: None,
                     operand3: None,
+                    ..Instruction::default()
                 }
             }
             // Branch (B) and Branch with Link (BL)
             "cccc_101l_oooo_oooo_oooo_oooo_oooo_oooo" => {
                 // 101 = Branch, l = has link
                 let condition = Condition::from(c);
-                let offset = 4 + ((o as i32) * 4);
+                let offset = (o as i32) * 4;
 
                 // branch target is calculated by PC + (offset * 4)
                 // this requires PC to be ahead at time of decode to be correct
+                // pc should be 2 instructions ahead
 
                 Instruction {
                     opcode: if l == 1 { Opcode::Bl } else { Opcode::B },
@@ -281,6 +290,7 @@ impl Instruction {
                     operand1: Some(Operand::Offset(offset)),
                     operand2: None,
                     operand3: None,
+                    ..Instruction::default()
                 }
             }
             // PSR Transfer (MRS)
@@ -300,16 +310,13 @@ impl Instruction {
                     operand1: Some(Operand::Register(destination, None)),
                     operand2: Some(Operand::Register(source, None)),
                     operand3: None,
+                    ..Instruction::default()
                 }
             }
             // PSR Transfer (MSR) for register contents
             "cccc_0001_0d10_1001_1111_0000_0000_ssss" => {
                 let condition = Condition::from(c);
-                let source = if s == 1 {
-                    Register::Spsr
-                } else {
-                    Register::Cpsr
-                };
+                let source = Register::from(s);
                 let destination = if d == 1 {
                     Register::Spsr
                 } else {
@@ -323,6 +330,7 @@ impl Instruction {
                     operand1: Some(Operand::Register(destination, None)),
                     operand2: Some(Operand::Register(source, None)),
                     operand3: None,
+                    ..Instruction::default()
                 }
             }
             // PSR Transfer (MSR) for register contents or immediate value to PSR flags
@@ -355,6 +363,7 @@ impl Instruction {
                     operand1: Some(Operand::Register(destination, None)),
                     operand2: Some(operand2),
                     operand3: None,
+                    ..Instruction::default()
                 }
             }
             // Data Processing
@@ -417,6 +426,7 @@ impl Instruction {
                         operand1: rn,
                         operand2: Some(operand2),
                         operand3: None,
+                        ..Instruction::default()
                     };
                 }
 
@@ -429,6 +439,7 @@ impl Instruction {
                         operand1: Some(dst),
                         operand2: Some(operand2),
                         operand3: None,
+                        ..Instruction::default()
                     };
                 } else {
                     return Instruction {
@@ -438,6 +449,7 @@ impl Instruction {
                         operand1: Some(dst),
                         operand2: rn,
                         operand3: Some(operand2),
+                        ..Instruction::default()
                     };
                 }
             }
@@ -488,6 +500,7 @@ impl Instruction {
                     operand1,
                     operand2,
                     operand3: None,
+                    ..Instruction::default()
                 }
             }
             // Single Data Transfer (LDR/STR)
@@ -522,6 +535,11 @@ impl Instruction {
                     operand1: Some(Operand::Register(src_or_dst_register, None)),
                     operand2: Some(Operand::Register(base_register, None)),
                     operand3: Some(offset),
+                    transfer_length: if b == 1 {
+                        Some(TransferLength::Byte)
+                    } else {
+                        Some(TransferLength::Word)
+                    },
                 }
             }
             _ => panic!("Unknown instruction: {:08x} | {:32b}", opcode, opcode),
@@ -529,7 +547,7 @@ impl Instruction {
     }
 
     #[bitmatch]
-    fn decode_thumb(opcode: u32) -> Instruction {
+    fn decode_thumb(_opcode: u32) -> Instruction {
         panic!("Thumb decoding not implemented yet");
     }
 
@@ -566,6 +584,20 @@ impl Instruction {
     }
 }
 
+impl Default for Instruction {
+    fn default() -> Self {
+        Instruction {
+            opcode: Opcode::And,
+            condition: Condition::Always,
+            set_condition_flags: false,
+            operand1: None,
+            operand2: None,
+            operand3: None,
+            transfer_length: None,
+        }
+    }
+}
+
 impl Display for Instruction {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         // Note to self: only show condition flags if not a test instruction,
@@ -573,10 +605,18 @@ impl Display for Instruction {
 
         let mut output = write!(
             f,
-            "{}{}{}",
+            "{}{}{}{}",
             self.opcode,
+            if let Some(len) = &self.transfer_length {
+                match len {
+                    TransferLength::Byte => "b",
+                    TransferLength::Word => "", // w is implied
+                }
+            } else {
+                ""
+            },
             self.condition,
-            if self.set_condition_flags && !self.is_test_opcode() {
+            if self.set_condition_flags && !self.opcode.is_test() {
                 "s"
             } else {
                 ""
@@ -586,14 +626,14 @@ impl Display for Instruction {
             output = write!(f, " {}", operand);
         }
         if let Some(operand) = &self.operand2 {
-            if self.opcode == Opcode::Ldm || self.opcode == Opcode::Ldr {
+            if self.opcode.is_load_store() {
                 output = write!(f, ", [{}", operand);
             } else {
                 output = write!(f, ", {}", operand);
             }
         }
         if let Some(operand) = &self.operand3 {
-            if self.opcode == Opcode::Ldm || self.opcode == Opcode::Ldr {
+            if self.opcode.is_load_store() {
                 output = write!(f, ", {}]", operand);
             } else {
                 output = write!(f, ", {}", operand);
