@@ -48,19 +48,27 @@ impl Cpu {
 
     pub fn tick(&mut self, mmio: &mut Mmio) {
         let real_pc = self.get_real_pc();
-        let opcode = mmio.read_u32(real_pc);
 
-        if self.is_thumb() {
+        let opcode = if self.is_thumb() {
             self.registers.r[15] += 2;
+            mmio.read_u16(real_pc) as u32
         } else {
             self.registers.r[15] += 4;
-        }
+            mmio.read_u32(real_pc)
+        };
 
         let instruction = Instruction::decode(opcode, self.is_thumb());
-        println!(
-            "{:08x} @ {:08x} | {:032b}: {}",
-            real_pc, opcode, opcode, instruction
-        );
+        if self.is_thumb() {
+            println!(
+                "{:08x} @ {:04x} | {:016b}: {}",
+                real_pc, opcode, opcode, instruction
+            );
+        } else {
+            println!(
+                "{:08x} @ {:08x} | {:032b}: {}",
+                real_pc, opcode, opcode, instruction
+            );
+        }
 
         match instruction.opcode {
             Opcode::B | Opcode::Bl | Opcode::Bx => Handlers::branch(&instruction, self, mmio),
@@ -242,13 +250,14 @@ impl Display for Cpu {
         )?;
         write!(
             f,
-            "cpsr: {} {{{:?}}}\n",
+            "cpsr: {} {{{:?},{}}}\n",
             self.registers.cpsr,
-            self.get_processor_mode()
+            self.get_processor_mode(),
+            if self.is_thumb() { "Thumb" } else { "Arm" }
         )?;
         write!(
             f,
-            "spsr[0]: {}\nspsr[1]: {}\nspsr[2]: {}\nspsr[3]: {}\nspsr[4]: {}",
+            "spsr[0]: {}\nspsr[1]: {}\nspsr[2]: {}\nspsr[3]: {}\nspsr[4]: {}\n",
             self.registers.spsr[0],
             self.registers.spsr[1],
             self.registers.spsr[2],

@@ -244,6 +244,7 @@ pub struct Instruction {
     pub transfer_length: Option<TransferLength>,
 }
 
+#[allow(unused_variables)]
 impl Instruction {
     pub fn decode(opcode: u32, is_thumb: bool) -> Instruction {
         if is_thumb {
@@ -253,7 +254,6 @@ impl Instruction {
         }
     }
 
-    #[allow(unused_variables)]
     #[bitmatch]
     fn decode_armv4t(opcode: u32) -> Instruction {
         #[bitmatch]
@@ -542,13 +542,26 @@ impl Instruction {
                     },
                 }
             }
-            _ => panic!("Unknown instruction: {:08x} | {:32b}", opcode, opcode),
+            _ => panic!("Unknown instruction: {:08x} | {:032b}", opcode, opcode),
         }
     }
 
     #[bitmatch]
-    fn decode_thumb(_opcode: u32) -> Instruction {
-        panic!("Thumb decoding not implemented yet");
+    fn decode_thumb(opcode: u32) -> Instruction {
+        #[bitmatch]
+        match opcode {
+            // Push and Pop
+            "1011_l10r_xxxx_xxxx" => Instruction {
+                opcode: if l == 0 { Opcode::Push } else { Opcode::Pop },
+                condition: Condition::Always,
+                set_condition_flags: false,
+                operand1: Some(Operand::RegisterList(Instruction::extract_register_list(x))),
+                operand2: None,
+                operand3: None,
+                ..Instruction::default()
+            },
+            _ => panic!("Unknown instruction: {:08x} | {:016b}", opcode, opcode),
+        }
     }
 
     fn translate_opcode(opcode: u32) -> Opcode {

@@ -1,3 +1,5 @@
+use bitflags::Flags;
+
 use crate::{arm7tdmi::decoder::TransferLength, memory::mmio::Mmio};
 
 use super::{
@@ -39,6 +41,15 @@ impl Handlers {
                 let dst = pc.wrapping_add_signed(*offset);
                 cpu.registers.r[14] = pc;
                 cpu.registers.r[15] = dst;
+            }
+            Instruction {
+                opcode: Opcode::Bx,
+                operand1: Some(Operand::Register(register, None)),
+                ..
+            } => {
+                let address = cpu.read_register(register);
+                cpu.registers.cpsr.set(Psr::T, (address & 1) != 0);
+                cpu.registers.r[15] = address;
             }
             _ => todo!("{:?}", instr),
         }
