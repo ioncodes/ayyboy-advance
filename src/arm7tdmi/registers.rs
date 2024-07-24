@@ -1,8 +1,6 @@
-use std::fmt::Display;
-
-use bitflags::bitflags;
-
 use super::cpu::ProcessorMode;
+use bitflags::bitflags;
+use std::fmt::Display;
 
 bitflags! {
     #[derive(Copy, Clone, Default)]

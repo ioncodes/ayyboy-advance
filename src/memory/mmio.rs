@@ -1,7 +1,12 @@
+use crate::video::ppu::Ppu;
+
+use super::device::IoDevice;
+
 pub struct Mmio {
     pub ínternal_memory: Box<[u8; 0x04FFFFFF + 1]>,
     pub display_memory: Box<[u8; (0x07FFFFFF - 0x05000000) + 1]>,
     pub external_memory: Box<[u8; (0x0FFFFFFF - 0x08000000) + 1]>,
+    pub ppu: Ppu,
 }
 
 impl Mmio {
@@ -14,11 +19,17 @@ impl Mmio {
             ínternal_memory: unsafe { internal_memory.assume_init() },
             display_memory: unsafe { display_memory.assume_init() },
             external_memory: unsafe { external_memory.assume_init() },
+            ppu: Ppu::new(),
         }
+    }
+
+    pub fn tick_components(&mut self) {
+        self.ppu.tick();
     }
 
     pub fn read(&self, addr: u32) -> u8 {
         match addr {
+            0x04000000..=0x04000056 => panic!("8bit read from PPU register: {:08x}", addr),
             0x00000000..=0x04FFFFFF => self.ínternal_memory[addr as usize],
             0x05000000..=0x07FFFFFF => self.display_memory[(addr - 0x05000000) as usize],
             0x08000000..=0x0FFFFFFF => self.external_memory[(addr - 0x08000000) as usize],
@@ -31,6 +42,11 @@ impl Mmio {
     }
 
     pub fn read_u32(&self, addr: u32) -> u32 {
+        match addr {
+            0x04000000..=0x04000056 => return self.ppu.read(addr - 0x04000000) as u32,
+            _ => {}
+        }
+
         u32::from_le_bytes([
             self.read(addr),
             self.read(addr + 1),

@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use bitflags::Flags;
+use log::{debug, trace};
 
 use crate::{
     arm7tdmi::{decoder::Opcode, handlers::Handlers},
@@ -8,7 +8,7 @@ use crate::{
 };
 
 use super::{
-    decoder::{Instruction, Register},
+    decoder::Register,
     pipeline::Pipeline,
     registers::{Psr, Registers},
 };
@@ -54,12 +54,12 @@ impl Cpu {
 
         if let Some((instruction, state)) = self.pipeline.pop() {
             if self.is_thumb() {
-                println!(
+                debug!(
                     "{:08x} @ {:04x} | {:016b}: {}",
                     state.pc, state.opcode, state.opcode, instruction
                 );
             } else {
-                println!(
+                debug!(
                     "{:08x} @ {:08x} | {:032b}: {}",
                     state.pc, state.opcode, state.opcode, instruction
                 );
@@ -85,7 +85,7 @@ impl Cpu {
                 _ => todo!(),
             }
 
-            println!("{}\n", self);
+            trace!("{}\n", self);
         }
 
         if self.is_thumb() {
