@@ -9,6 +9,7 @@ use crate::{
 
 use super::{
     decoder::{Instruction, Register},
+    pipeline::Pipeline,
     registers::{Psr, Registers},
 };
 
@@ -37,57 +38,61 @@ impl Into<u32> for ProcessorMode {
 
 pub struct Cpu {
     pub registers: Registers,
+    pub pipeline: Pipeline,
 }
 
 impl Cpu {
     pub fn new() -> Cpu {
         Cpu {
             registers: Registers::default(),
+            pipeline: Pipeline::new(),
         }
     }
 
     pub fn tick(&mut self, mmio: &mut Mmio) {
-        let real_pc = self.get_real_pc();
+        self.pipeline.advance(self.get_pc(), self.is_thumb(), mmio);
 
-        let opcode = if self.is_thumb() {
+        if let Some((instruction, state)) = self.pipeline.pop() {
+            if self.is_thumb() {
+                println!(
+                    "{:08x} @ {:04x} | {:016b}: {}",
+                    state.pc, state.opcode, state.opcode, instruction
+                );
+            } else {
+                println!(
+                    "{:08x} @ {:08x} | {:032b}: {}",
+                    state.pc, state.opcode, state.opcode, instruction
+                );
+            }
+
+            match instruction.opcode {
+                Opcode::B | Opcode::Bl | Opcode::Bx => Handlers::branch(&instruction, self, mmio),
+                Opcode::Push | Opcode::Pop => Handlers::push_pop(&instruction, self, mmio),
+                Opcode::Cmp | Opcode::Tst | Opcode::Teq | Opcode::Cmn => {
+                    Handlers::test(&instruction, self, mmio)
+                }
+                Opcode::Mov | Opcode::Mvn => Handlers::move_data(&instruction, self, mmio),
+                Opcode::Ldm | Opcode::Stm | Opcode::Ldr | Opcode::Str => {
+                    Handlers::load_store(&instruction, self, mmio)
+                }
+                Opcode::Mrs | Opcode::Msr => Handlers::psr_transfer(&instruction, self, mmio),
+                Opcode::Add
+                | Opcode::Sub
+                | Opcode::And
+                | Opcode::Orr
+                | Opcode::Eor
+                | Opcode::Rsb => Handlers::alu(&instruction, self, mmio),
+                _ => todo!(),
+            }
+
+            println!("{}\n", self);
+        }
+
+        if self.is_thumb() {
             self.registers.r[15] += 2;
-            mmio.read_u16(real_pc) as u32
         } else {
             self.registers.r[15] += 4;
-            mmio.read_u32(real_pc)
-        };
-
-        let instruction = Instruction::decode(opcode, self.is_thumb());
-        if self.is_thumb() {
-            println!(
-                "{:08x} @ {:04x} | {:016b}: {}",
-                real_pc, opcode, opcode, instruction
-            );
-        } else {
-            println!(
-                "{:08x} @ {:08x} | {:032b}: {}",
-                real_pc, opcode, opcode, instruction
-            );
         }
-
-        match instruction.opcode {
-            Opcode::B | Opcode::Bl | Opcode::Bx => Handlers::branch(&instruction, self, mmio),
-            Opcode::Push | Opcode::Pop => Handlers::push_pop(&instruction, self, mmio),
-            Opcode::Cmp | Opcode::Tst | Opcode::Teq | Opcode::Cmn => {
-                Handlers::test(&instruction, self, mmio)
-            }
-            Opcode::Mov | Opcode::Mvn => Handlers::move_data(&instruction, self, mmio),
-            Opcode::Ldm | Opcode::Stm | Opcode::Ldr | Opcode::Str => {
-                Handlers::load_store(&instruction, self, mmio)
-            }
-            Opcode::Mrs | Opcode::Msr => Handlers::psr_transfer(&instruction, self, mmio),
-            Opcode::Add | Opcode::Sub | Opcode::And | Opcode::Orr | Opcode::Eor | Opcode::Rsb => {
-                Handlers::alu(&instruction, self, mmio)
-            }
-            _ => todo!(),
-        }
-
-        println!("{}\n", self);
     }
 
     pub fn read_register(&self, register: &Register) -> u32 {
@@ -131,7 +136,12 @@ impl Cpu {
             Register::R12 => self.registers.r[12] = value,
             Register::R13 => self.registers.r[13] = value,
             Register::R14 => self.registers.r[14] = value,
-            Register::R15 => self.registers.r[15] = value,
+            Register::R15 => {
+                // since PC is a GP register, we need to flush the pipeline
+                // when it's written to
+                self.registers.r[15] = value;
+                self.pipeline.flush();
+            }
             Register::Cpsr => self.registers.cpsr = Psr::from_bits_truncate(value),
             Register::Spsr => self.write_to_current_spsr(value),
             _ => todo!(),
@@ -166,14 +176,8 @@ impl Cpu {
         value
     }
 
-    // program counter, pipeline effect. only account for 1 instruction
-    // 2nd instruction is accounted for in the tick function
+    // program counter, pipeline effect
     pub fn get_pc(&self) -> u32 {
-        self.registers.r[15] + 4
-    }
-
-    // program counter, real value
-    pub fn get_real_pc(&self) -> u32 {
         self.registers.r[15]
     }
 

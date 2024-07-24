@@ -1,5 +1,3 @@
-use bitflags::Flags;
-
 use crate::{arm7tdmi::decoder::TransferLength, memory::mmio::Mmio};
 
 use super::{
@@ -53,6 +51,8 @@ impl Handlers {
             }
             _ => todo!("{:?}", instr),
         }
+
+        cpu.pipeline.flush();
     }
 
     pub fn push_pop(instr: &Instruction, cpu: &mut Cpu, mmio: &mut Mmio) {
