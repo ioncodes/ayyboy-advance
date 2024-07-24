@@ -37,7 +37,9 @@ impl Handlers {
             } => {
                 let pc = cpu.get_pc();
                 let dst = pc.wrapping_add_signed(*offset);
-                cpu.registers.r[14] = pc;
+                // the pipeline is 2 instructions ahead
+                // but we want to store the address of the next instruction
+                cpu.registers.r[14] = pc - 4;
                 cpu.registers.r[15] = dst;
             }
             Instruction {
