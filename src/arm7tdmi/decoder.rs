@@ -288,7 +288,7 @@ impl Instruction {
             "cccc_101l_oooo_oooo_oooo_oooo_oooo_oooo" => {
                 // 101 = Branch, l = has link
                 let condition = Condition::from(c);
-                let offset = ((o << 2) as i32) << 6 >> 6; // sign extend 24-bit offset
+                let offset = (((o << 2) as i32) << 6) >> 6; // sign extend 24-bit offset
 
                 // branch target is calculated by PC + (offset * 4)
                 // this requires PC to be ahead at time of decode to be correct
