@@ -143,6 +143,7 @@ impl Cpu {
                 self.pipeline.flush();
             }
             Register::Cpsr => self.registers.cpsr = Psr::from_bits_truncate(value),
+            Register::CpsrFlag => self.update_flag(Psr::from_bits_truncate(value), true),
             Register::Spsr => self.write_to_current_spsr(value),
             _ => todo!(),
         }

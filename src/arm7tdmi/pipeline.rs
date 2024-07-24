@@ -1,6 +1,6 @@
 use crate::memory::mmio::Mmio;
 
-use super::{cpu::Cpu, decoder::Instruction};
+use super::decoder::Instruction;
 
 pub struct State {
     pub pc: u32,

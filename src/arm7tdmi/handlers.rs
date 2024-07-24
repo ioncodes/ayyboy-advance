@@ -1,10 +1,9 @@
-use crate::{arm7tdmi::decoder::TransferLength, memory::mmio::Mmio};
-
 use super::{
     cpu::Cpu,
     decoder::{Condition, Instruction, Opcode, Operand, ShiftType},
     registers::Psr,
 };
+use crate::{arm7tdmi::decoder::TransferLength, memory::mmio::Mmio};
 
 macro_rules! check_condition {
     ($cpu:expr, $instr:expr) => {
@@ -116,6 +115,20 @@ impl Handlers {
                 cpu.update_flag(Psr::C, false);
                 cpu.update_flag(Psr::V, false);
             }
+            Instruction {
+                opcode: Opcode::Tst,
+                operand1: Some(Operand::Register(lhs, None)),
+                operand2: Some(rhs),
+                ..
+            } => {
+                let lhs = cpu.read_register(lhs);
+                let rhs = Handlers::resolve_operand(rhs, cpu);
+                let result = lhs & rhs;
+                cpu.update_flag(Psr::N, result & 0x8000_0000 != 0);
+                cpu.update_flag(Psr::Z, result == 0);
+                cpu.update_flag(Psr::C, false);
+                cpu.update_flag(Psr::V, false);
+            }
             _ => todo!("{:?}", instr),
         }
     }
@@ -208,10 +221,11 @@ impl Handlers {
             Instruction {
                 opcode: Opcode::Msr | Opcode::Mrs,
                 operand1: Some(Operand::Register(dst, None)),
-                operand2: Some(Operand::Register(src, None)),
+                operand2: Some(src),
                 ..
             } => {
-                cpu.write_register(dst, cpu.read_register(src));
+                let src = Handlers::resolve_operand(src, cpu);
+                cpu.write_register(dst, src);
             }
             _ => todo!("{:?}", instr),
         }

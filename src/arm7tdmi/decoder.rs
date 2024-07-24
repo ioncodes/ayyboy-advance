@@ -288,7 +288,7 @@ impl Instruction {
             "cccc_101l_oooo_oooo_oooo_oooo_oooo_oooo" => {
                 // 101 = Branch, l = has link
                 let condition = Condition::from(c);
-                let offset = (o as i32) * 4;
+                let offset = ((o << 2) as i32) << 6 >> 6; // sign extend 24-bit offset
 
                 // branch target is calculated by PC + (offset * 4)
                 // this requires PC to be ahead at time of decode to be correct
@@ -431,6 +431,7 @@ impl Instruction {
                     // Register Operand 2
                     let shift_amount = (z & 0b1111_1000_0000) >> 7;
                     let shift_type = (z & 0b0000_0110_0000) >> 5;
+                    let register = z & 0b0001_1111;
 
                     /*
                        When the second operand is specified to be a shifted register, the operation of the
@@ -443,10 +444,10 @@ impl Instruction {
                     */
 
                     if shift_amount == 0 {
-                        Operand::Register(Register::from(z), None)
+                        Operand::Register(Register::from(register), None)
                     } else {
                         Operand::Register(
-                            Register::from(z),
+                            Register::from(register),
                             Some(ShiftType::from(shift_type, shift_amount)),
                         )
                     }
