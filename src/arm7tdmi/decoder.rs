@@ -108,7 +108,7 @@ impl Register {
             0b1101 => Register::R13,
             0b1110 => Register::R14,
             0b1111 => Register::R15,
-            _ => panic!("Unknown register code: {}", value),
+            _ => panic!("Unknown register code: {:b}", value),
         }
     }
 }
@@ -230,7 +230,18 @@ impl Display for Opcode {
 #[derive(PartialEq, Debug)]
 pub enum TransferLength {
     Byte,
+    HalfWord,
     Word,
+}
+
+impl Display for TransferLength {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            TransferLength::Byte => write!(f, "b"),
+            TransferLength::HalfWord => write!(f, "h"),
+            TransferLength::Word => write!(f, ""), // word is implied
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -364,6 +375,42 @@ impl Instruction {
                     operand2: Some(operand2),
                     operand3: None,
                     ..Instruction::default()
+                }
+            }
+            // Halfword Data Transfer (LDRH/STRH)
+            "cccc_000p_uiwl_yyyy_xxxx_oooo_1sh1_zzzz" => {
+                let condition = Condition::from(c);
+                let dst = Register::from(x);
+                let src = Register::from(y);
+                let is_load = l == 1;
+
+                let offset = if i == 1 {
+                    // Immediate Operand
+                    let z = z & 0b1111;
+                    Operand::Immediate(z, None)
+                } else {
+                    // Register Operand 2
+                    let shift_amount = (z & 0b1111_1000_0000) >> 7;
+                    let shift_type = (z & 0b0000_0110_0000) >> 5;
+
+                    if shift_amount == 0 {
+                        Operand::Register(Register::from(z), None)
+                    } else {
+                        Operand::Register(
+                            Register::from(z),
+                            Some(ShiftType::from(shift_type, shift_amount)),
+                        )
+                    }
+                };
+
+                Instruction {
+                    opcode: if is_load { Opcode::Ldr } else { Opcode::Str },
+                    condition,
+                    set_condition_flags: false,
+                    operand1: Some(Operand::Register(dst, None)),
+                    operand2: Some(Operand::Register(src, None)),
+                    operand3: Some(offset),
+                    transfer_length: Some(TransferLength::HalfWord),
                 }
             }
             // Data Processing
@@ -616,43 +663,43 @@ impl Display for Instruction {
         // Note to self: only show condition flags if not a test instruction,
         // they are always set, aka implicite
 
-        let mut output = write!(
+        write!(
             f,
             "{}{}{}{}",
             self.opcode,
-            if let Some(len) = &self.transfer_length {
-                match len {
-                    TransferLength::Byte => "b",
-                    TransferLength::Word => "", // w is implied
-                }
-            } else {
-                ""
-            },
+            self.transfer_length
+                .as_ref()
+                .unwrap_or(&TransferLength::Word),
             self.condition,
             if self.set_condition_flags && !self.opcode.is_test() {
                 "s"
             } else {
                 ""
             }
-        );
+        )?;
         if let Some(operand) = &self.operand1 {
-            output = write!(f, " {}", operand);
+            write!(f, " {}", operand)?;
         }
+
         if let Some(operand) = &self.operand2 {
+            write!(f, ", ")?;
+
             if self.opcode.is_load_store() {
-                output = write!(f, ", [{}", operand);
-            } else {
-                output = write!(f, ", {}", operand);
+                write!(f, "[")?;
             }
+
+            write!(f, "{}", operand)?;
         }
+
         if let Some(operand) = &self.operand3 {
-            if self.opcode.is_load_store() {
-                output = write!(f, ", {}]", operand);
-            } else {
-                output = write!(f, ", {}", operand);
-            }
+            write!(f, ", {}", operand)?;
         }
-        output
+
+        if self.opcode.is_load_store() {
+            write!(f, "]")?;
+        }
+
+        Ok(())
     }
 }
 

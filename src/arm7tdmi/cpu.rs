@@ -143,6 +143,11 @@ impl Cpu {
         self.write_register(register, (original_value & 0xffffff00) | value as u32);
     }
 
+    pub fn write_register_u16(&mut self, register: &Register, value: u16) {
+        let original_value = self.read_register(register);
+        self.write_register(register, (original_value & 0xffff0000) | value as u32);
+    }
+
     pub fn update_flag(&mut self, flag: Psr, value: bool) {
         self.registers.cpsr.set(flag, value);
     }

@@ -156,6 +156,10 @@ impl Handlers {
                         let value = mmio.read(address);
                         cpu.write_register_u8(dst, value);
                     }
+                    TransferLength::HalfWord => {
+                        let value = mmio.read_u16(address);
+                        cpu.write_register_u16(dst, value);
+                    }
                     TransferLength::Word => {
                         let value = mmio.read_u32(address);
                         cpu.write_register(dst, value);
@@ -179,6 +183,10 @@ impl Handlers {
                     TransferLength::Byte => {
                         let value = cpu.read_register(src) as u8;
                         mmio.write(address, value);
+                    }
+                    TransferLength::HalfWord => {
+                        let value = cpu.read_register(src) as u16;
+                        mmio.write_u16(address, value);
                     }
                     TransferLength::Word => {
                         let value = cpu.read_register(src);
@@ -214,62 +222,87 @@ impl Handlers {
             Instruction {
                 opcode: Opcode::Add,
                 operand1: Some(Operand::Register(dst, None)),
-                operand2: Some(src),
+                operand2: Some(x),
+                operand3: Some(y),
                 ..
             } => {
-                let value = Handlers::resolve_operand(src, cpu);
-                let result = cpu.read_register(dst).wrapping_add(value);
+                let x = Handlers::resolve_operand(x, cpu);
+                let y = Handlers::resolve_operand(y, cpu);
+                let result = x.wrapping_add(y);
                 cpu.write_register(dst, result);
+
+                cpu.update_flag(Psr::N, result > x);
+                cpu.update_flag(Psr::Z, result == 0);
+                cpu.update_flag(Psr::C, result < x);
+                cpu.update_flag(Psr::V, (x as i32).overflowing_add(y as i32).1);
             }
             Instruction {
                 opcode: Opcode::Sub,
                 operand1: Some(Operand::Register(dst, None)),
-                operand2: Some(src),
+                operand2: Some(x),
+                operand3: Some(y),
                 ..
             } => {
-                let value = Handlers::resolve_operand(src, cpu);
-                let result = cpu.read_register(dst).wrapping_sub(value);
+                let x = Handlers::resolve_operand(x, cpu);
+                let y = Handlers::resolve_operand(y, cpu);
+                let result = x.wrapping_sub(y);
                 cpu.write_register(dst, result);
+
+                cpu.update_flag(Psr::N, result > x);
+                cpu.update_flag(Psr::Z, result == 0);
+                cpu.update_flag(Psr::C, result < x);
+                cpu.update_flag(Psr::V, (x as i32).overflowing_sub(y as i32).1);
             }
             Instruction {
                 opcode: Opcode::And,
                 operand1: Some(Operand::Register(dst, None)),
-                operand2: Some(src),
+                operand2: Some(x),
+                operand3: Some(y),
                 ..
             } => {
-                let value = Handlers::resolve_operand(src, cpu);
-                let result = cpu.read_register(dst) & value;
+                let x = Handlers::resolve_operand(x, cpu);
+                let y = Handlers::resolve_operand(y, cpu);
+                let result = x & y;
                 cpu.write_register(dst, result);
+
+                cpu.update_flag(Psr::N, result & 0x8000_0000 != 0);
+                cpu.update_flag(Psr::Z, result == 0);
+                cpu.update_flag(Psr::C, false);
+                cpu.update_flag(Psr::V, false);
             }
             Instruction {
                 opcode: Opcode::Orr,
                 operand1: Some(Operand::Register(dst, None)),
-                operand2: Some(src),
+                operand2: Some(x),
+                operand3: Some(y),
                 ..
             } => {
-                let value = Handlers::resolve_operand(src, cpu);
-                let result = cpu.read_register(dst) | value;
+                let x = Handlers::resolve_operand(x, cpu);
+                let y = Handlers::resolve_operand(y, cpu);
+                let result = x | y;
                 cpu.write_register(dst, result);
+
+                cpu.update_flag(Psr::N, result & 0x8000_0000 != 0);
+                cpu.update_flag(Psr::Z, result == 0);
+                cpu.update_flag(Psr::C, false);
+                cpu.update_flag(Psr::V, false);
             }
             Instruction {
                 opcode: Opcode::Eor,
                 operand1: Some(Operand::Register(dst, None)),
-                operand2: Some(src),
+                operand2: Some(x),
+                operand3: Some(y),
                 ..
             } => {
-                let value = Handlers::resolve_operand(src, cpu);
-                let result = cpu.read_register(dst) ^ value;
+                let x = Handlers::resolve_operand(x, cpu);
+                let y = Handlers::resolve_operand(y, cpu);
+                let result = x ^ y;
                 cpu.write_register(dst, result);
-            }
-            Instruction {
-                opcode: Opcode::Rsb,
-                operand1: Some(Operand::Register(dst, None)),
-                operand2: Some(src),
-                ..
-            } => {
-                let value = Handlers::resolve_operand(src, cpu);
-                let result = value.wrapping_sub(cpu.read_register(dst));
-                cpu.write_register(dst, result);
+
+                cpu.update_flag(Psr::N, result & 0x8000_0000 != 0);
+                cpu.update_flag(Psr::Z, result == 0);
+                cpu.update_flag(Psr::C, false);
+                cpu.update_flag(Psr::V, false);
             }
             _ => todo!("{:?}", instr),
         }
