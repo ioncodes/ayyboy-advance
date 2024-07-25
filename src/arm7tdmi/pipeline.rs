@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use crate::memory::mmio::Mmio;
 
 use super::decoder::Instruction;
@@ -48,5 +50,24 @@ impl Pipeline {
     pub fn flush(&mut self) {
         self.fetch = None;
         self.decode = None;
+    }
+}
+
+impl Display for Pipeline {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "Fetch{{{}}}, Decode{{{}}}",
+            match self.fetch {
+                Some(Item::Instruction(_, _)) => "Instruction",
+                Some(Item::Data(_, _)) => "Data",
+                None => "Empty",
+            },
+            match self.decode {
+                Some(Item::Instruction(_, _)) => "Instruction",
+                Some(Item::Data(_, _)) => "Data",
+                None => "Empty",
+            },
+        )
     }
 }

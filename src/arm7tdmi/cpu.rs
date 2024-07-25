@@ -50,19 +50,16 @@ impl Cpu {
     }
 
     pub fn tick(&mut self, mmio: &mut Mmio) {
+        trace!("Pipeline: {}", self.pipeline);
         self.pipeline.advance(self.get_pc(), self.is_thumb(), mmio);
 
         if let Some((instruction, state)) = self.pipeline.pop() {
             if self.is_thumb() {
-                debug!(
-                    "{:08x} @ {:04x} | {:016b}: {}",
-                    state.pc, state.opcode, state.opcode, instruction
-                );
+                trace!("Opcode: {:04x} | {:016b}", state.opcode, state.opcode);
+                debug!("{:08x}: {}", state.pc, instruction);
             } else {
-                debug!(
-                    "{:08x} @ {:08x} | {:032b}: {}",
-                    state.pc, state.opcode, state.opcode, instruction
-                );
+                trace!("Opcode: {:08x} | {:032b}", state.opcode, state.opcode);
+                debug!("{:08x}: {}", state.pc, instruction);
             }
 
             match instruction.opcode {
@@ -85,7 +82,7 @@ impl Cpu {
                 _ => todo!(),
             }
 
-            trace!("{}\n", self);
+            trace!("\n{}", self);
         }
 
         if self.is_thumb() {
@@ -267,7 +264,7 @@ impl Display for Cpu {
         )?;
         write!(
             f,
-            "spsr[0]: {}\nspsr[1]: {}\nspsr[2]: {}\nspsr[3]: {}\nspsr[4]: {}\n",
+            "spsr[0]: {}\nspsr[1]: {}\nspsr[2]: {}\nspsr[3]: {}\nspsr[4]: {}",
             self.registers.spsr[0],
             self.registers.spsr[1],
             self.registers.spsr[2],

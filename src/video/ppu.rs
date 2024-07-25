@@ -6,6 +6,7 @@ pub struct Ppu {
     pub h_counter: u16,
     pub scanline: u16,
     lcd_status: DispStat,
+    vblank_raised_for_frame: bool,
 }
 
 impl Ppu {
@@ -14,6 +15,7 @@ impl Ppu {
             h_counter: 0,
             scanline: 0,
             lcd_status: DispStat::empty(),
+            vblank_raised_for_frame: false,
         }
     }
 
@@ -25,12 +27,14 @@ impl Ppu {
             self.scanline += 1;
         }
 
-        if self.scanline == 160 {
-            self.lcd_status.insert(DispStat::VBLANK_FLAG);
-        }
-
         if self.scanline == 228 {
             self.scanline = 0;
+            self.vblank_raised_for_frame = false;
+        }
+
+        if self.scanline >= 160 && !self.vblank_raised_for_frame {
+            self.lcd_status.insert(DispStat::VBLANK_FLAG);
+            self.vblank_raised_for_frame = true;
         }
     }
 }

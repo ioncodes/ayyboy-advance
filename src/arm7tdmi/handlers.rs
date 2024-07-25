@@ -15,6 +15,7 @@ macro_rules! check_condition {
 
 pub struct Handlers {}
 
+#[allow(unused_variables)]
 impl Handlers {
     pub fn branch(instr: &Instruction, cpu: &mut Cpu, mmio: &mut Mmio) {
         check_condition!(cpu, instr);
@@ -179,7 +180,6 @@ impl Handlers {
                         let value = mmio.read_u32(address);
                         cpu.write_register(dst, value);
                     }
-                    _ => todo!("{:?}", length),
                 }
             }
             Instruction {
@@ -207,7 +207,6 @@ impl Handlers {
                         let value = cpu.read_register(src);
                         mmio.write_u32(address, value);
                     }
-                    _ => todo!("{:?}", length),
                 }
             }
             _ => todo!("{:?}", instr),
