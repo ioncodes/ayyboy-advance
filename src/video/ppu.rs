@@ -40,11 +40,7 @@ impl Ppu {
             self.vblank_raised_for_frame = true;
         }
 
-        trace!(
-            "PPU: scanline={}, h_counter={}",
-            self.scanline,
-            self.h_counter
-        );
+        trace!("scanline={}, h_counter={}", self.scanline, self.h_counter);
     }
 }
 
