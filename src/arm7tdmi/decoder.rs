@@ -181,6 +181,7 @@ pub enum Opcode {
     Pop,
     Ldr,
     Str,
+    Svc,
 }
 
 impl Opcode {
@@ -223,6 +224,7 @@ impl Display for Opcode {
             Opcode::Pop => write!(f, "pop"),
             Opcode::Ldr => write!(f, "ldr"),
             Opcode::Str => write!(f, "str"),
+            Opcode::Svc => write!(f, "svc"),
         }
     }
 }
@@ -269,6 +271,16 @@ impl Instruction {
     fn decode_armv4t(opcode: u32) -> Instruction {
         #[bitmatch]
         match opcode {
+            // Supervisor Call (SVC)
+            "1110_1111_iiii_iiii_iiii_iiii_iiii_iiii" => Instruction {
+                opcode: Opcode::Svc,
+                condition: Condition::Always,
+                set_condition_flags: false,
+                operand1: Some(Operand::Immediate(i, None)),
+                operand2: None,
+                operand3: None,
+                ..Instruction::default()
+            },
             // Branch and Exchange (BX)
             "cccc_0001_0010_1111_1111_1111_0001_rrrr" => {
                 let condition = Condition::from(c);

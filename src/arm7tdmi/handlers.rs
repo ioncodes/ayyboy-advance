@@ -3,7 +3,13 @@ use super::{
     decoder::{Condition, Instruction, Opcode, Operand, ShiftType},
     registers::Psr,
 };
-use crate::{arm7tdmi::decoder::TransferLength, memory::mmio::Mmio};
+use crate::{
+    arm7tdmi::{
+        cpu::ProcessorMode,
+        decoder::{Register, TransferLength},
+    },
+    memory::mmio::Mmio,
+};
 
 macro_rules! check_condition {
     ($cpu:expr, $instr:expr) => {
@@ -50,6 +56,31 @@ impl Handlers {
                 let address = cpu.read_register(register);
                 cpu.registers.cpsr.set(Psr::T, (address & 1) != 0);
                 cpu.registers.r[15] = address;
+            }
+            _ => todo!("{:?}", instr),
+        }
+
+        cpu.pipeline.flush();
+    }
+
+    pub fn supervisor_call(instr: &Instruction, cpu: &mut Cpu, mmio: &mut Mmio) {
+        check_condition!(cpu, instr);
+
+        match instr {
+            Instruction {
+                opcode: Opcode::Svc,
+                operand1: Some(Operand::Immediate(value, None)),
+                ..
+            } => {
+                let pc = cpu.get_pc();
+                cpu.registers.r[14] = pc - 4;
+                cpu.registers.r[15] = 0x08;
+
+                // copy the current cpsr to spsr[current_mode]
+                cpu.write_register(&Register::Spsr, cpu.read_register(&Register::Cpsr));
+
+                // set the current mode to supervisor
+                cpu.set_processor_mode(ProcessorMode::Supervisor);
             }
             _ => todo!("{:?}", instr),
         }

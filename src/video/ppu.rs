@@ -1,3 +1,5 @@
+use log::trace;
+
 use crate::memory::device::IoDevice;
 
 use super::registers::DispStat;
@@ -30,12 +32,19 @@ impl Ppu {
         if self.scanline == 228 {
             self.scanline = 0;
             self.vblank_raised_for_frame = false;
+            self.lcd_status.remove(DispStat::VBLANK_FLAG);
         }
 
         if self.scanline >= 160 && !self.vblank_raised_for_frame {
             self.lcd_status.insert(DispStat::VBLANK_FLAG);
             self.vblank_raised_for_frame = true;
         }
+
+        trace!(
+            "PPU: scanline={}, h_counter={}",
+            self.scanline,
+            self.h_counter
+        );
     }
 }
 

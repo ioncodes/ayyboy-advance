@@ -57,7 +57,7 @@ impl Mmio {
 
     pub fn write(&mut self, addr: u32, value: u8) {
         match addr {
-            0x00000000..=0x04FFFFFF => self.ínternal_memory[(addr) as usize] = value,
+            0x00000000..=0x04FFFFFF => self.ínternal_memory[addr as usize] = value,
             0x05000000..=0x07FFFFFF => self.display_memory[(addr - 0x05000000) as usize] = value,
             0x08000000..=0x0FFFFFFF => self.external_memory[(addr - 0x08000000) as usize] = value,
             _ => panic!("Invalid memory address: {:08x}", addr),

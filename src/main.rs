@@ -4,7 +4,7 @@ mod arm7tdmi;
 mod memory;
 mod video;
 
-use arm7tdmi::cpu::Cpu;
+use arm7tdmi::cpu::{Cpu, ProcessorMode};
 use memory::mmio::Mmio;
 
 const ARM_TEST: &[u8] = include_bytes!("../external/gba-tests/arm/arm.gba");
@@ -20,6 +20,7 @@ fn main() {
     let mut cpu = Cpu::new();
     cpu.registers.r[13] = 0x03007f00; // sp
     cpu.registers.r[15] = 0x08000000; // pc
+    cpu.set_processor_mode(ProcessorMode::User);
 
     loop {
         cpu.tick(&mut mmio);
