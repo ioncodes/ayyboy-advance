@@ -80,6 +80,7 @@ impl Cpu {
                 }
                 Opcode::Mrs | Opcode::Msr => Handlers::psr_transfer(&instruction, self, mmio),
                 Opcode::Add
+                | Opcode::Adc
                 | Opcode::Sub
                 | Opcode::And
                 | Opcode::Orr

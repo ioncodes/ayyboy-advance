@@ -10,10 +10,12 @@ use crate::{
     },
     memory::mmio::Mmio,
 };
+use log::trace; // Import the `trace` macro from the `log` crate
 
 macro_rules! check_condition {
     ($cpu:expr, $instr:expr) => {
         if !Handlers::check_condition($cpu, &$instr.condition) {
+            trace!("Skipping instruction due to condition");
             return;
         }
     };
@@ -278,40 +280,73 @@ impl Handlers {
                 operand1: Some(Operand::Register(dst, None)),
                 operand2: Some(x),
                 operand3: Some(y),
+                set_condition_flags,
                 ..
             } => {
                 let x = Handlers::resolve_operand(x, cpu);
                 let y = Handlers::resolve_operand(y, cpu);
-                let result = x.wrapping_add(y);
+                let (result, carry) = x.overflowing_add(y);
+                let (_, overflow) = (x as i32).overflowing_add(y as i32);
                 cpu.write_register(dst, result);
 
-                cpu.update_flag(Psr::N, result > x);
-                cpu.update_flag(Psr::Z, result == 0);
-                cpu.update_flag(Psr::C, result < x);
-                cpu.update_flag(Psr::V, (x as i32).overflowing_add(y as i32).1);
+                if *set_condition_flags {
+                    cpu.update_flag(Psr::N, result & 0x8000_0000 != 0);
+                    cpu.update_flag(Psr::Z, result == 0);
+                    cpu.update_flag(Psr::C, carry);
+                    cpu.update_flag(Psr::V, overflow);
+                }
+            }
+            Instruction {
+                opcode: Opcode::Adc,
+                operand1: Some(Operand::Register(dst, None)),
+                operand2: Some(x),
+                operand3: Some(y),
+                set_condition_flags,
+                ..
+            } => {
+                let x = Handlers::resolve_operand(x, cpu);
+                let y = Handlers::resolve_operand(y, cpu);
+                let carry = cpu.registers.cpsr.contains(Psr::C) as u32;
+                let (result, carry1) = x.overflowing_add(y);
+                let (result, carry2) = result.overflowing_add(carry);
+                let (_, overflow1) = (x as i32).overflowing_add(y as i32);
+                let (_, overflow2) = (x as i32).overflowing_add(carry as i32);
+                cpu.write_register(dst, result);
+
+                if *set_condition_flags {
+                    cpu.update_flag(Psr::N, result & 0x8000_0000 != 0);
+                    cpu.update_flag(Psr::Z, result == 0);
+                    cpu.update_flag(Psr::C, carry1 || carry2);
+                    cpu.update_flag(Psr::V, overflow1 || overflow2);
+                }
             }
             Instruction {
                 opcode: Opcode::Sub,
                 operand1: Some(Operand::Register(dst, None)),
                 operand2: Some(x),
                 operand3: Some(y),
+                set_condition_flags,
                 ..
             } => {
                 let x = Handlers::resolve_operand(x, cpu);
                 let y = Handlers::resolve_operand(y, cpu);
-                let result = x.wrapping_sub(y);
+                let (result, borrow) = x.overflowing_sub(y);
+                let (_, overflow) = (x as i32).overflowing_sub(y as i32);
                 cpu.write_register(dst, result);
 
-                cpu.update_flag(Psr::N, result > x);
-                cpu.update_flag(Psr::Z, result == 0);
-                cpu.update_flag(Psr::C, result < x);
-                cpu.update_flag(Psr::V, (x as i32).overflowing_sub(y as i32).1);
+                if *set_condition_flags {
+                    cpu.update_flag(Psr::N, result & 0x8000_0000 != 0);
+                    cpu.update_flag(Psr::Z, result == 0);
+                    cpu.update_flag(Psr::C, !borrow);
+                    cpu.update_flag(Psr::V, overflow);
+                }
             }
             Instruction {
                 opcode: Opcode::And,
                 operand1: Some(Operand::Register(dst, None)),
                 operand2: Some(x),
                 operand3: Some(y),
+                set_condition_flags,
                 ..
             } => {
                 let x = Handlers::resolve_operand(x, cpu);
@@ -319,16 +354,17 @@ impl Handlers {
                 let result = x & y;
                 cpu.write_register(dst, result);
 
-                cpu.update_flag(Psr::N, result & 0x8000_0000 != 0);
-                cpu.update_flag(Psr::Z, result == 0);
-                cpu.update_flag(Psr::C, false);
-                cpu.update_flag(Psr::V, false);
+                if *set_condition_flags {
+                    cpu.update_flag(Psr::N, result & 0x8000_0000 != 0);
+                    cpu.update_flag(Psr::Z, result == 0);
+                }
             }
             Instruction {
                 opcode: Opcode::Orr,
                 operand1: Some(Operand::Register(dst, None)),
                 operand2: Some(x),
                 operand3: Some(y),
+                set_condition_flags,
                 ..
             } => {
                 let x = Handlers::resolve_operand(x, cpu);
@@ -336,16 +372,17 @@ impl Handlers {
                 let result = x | y;
                 cpu.write_register(dst, result);
 
-                cpu.update_flag(Psr::N, result & 0x8000_0000 != 0);
-                cpu.update_flag(Psr::Z, result == 0);
-                cpu.update_flag(Psr::C, false);
-                cpu.update_flag(Psr::V, false);
+                if *set_condition_flags {
+                    cpu.update_flag(Psr::N, result & 0x8000_0000 != 0);
+                    cpu.update_flag(Psr::Z, result == 0);
+                }
             }
             Instruction {
                 opcode: Opcode::Eor,
                 operand1: Some(Operand::Register(dst, None)),
                 operand2: Some(x),
                 operand3: Some(y),
+                set_condition_flags,
                 ..
             } => {
                 let x = Handlers::resolve_operand(x, cpu);
@@ -353,10 +390,31 @@ impl Handlers {
                 let result = x ^ y;
                 cpu.write_register(dst, result);
 
-                cpu.update_flag(Psr::N, result & 0x8000_0000 != 0);
-                cpu.update_flag(Psr::Z, result == 0);
-                cpu.update_flag(Psr::C, false);
-                cpu.update_flag(Psr::V, false);
+                if *set_condition_flags {
+                    cpu.update_flag(Psr::N, result & 0x8000_0000 != 0);
+                    cpu.update_flag(Psr::Z, result == 0);
+                }
+            }
+            Instruction {
+                opcode: Opcode::Rsb,
+                operand1: Some(Operand::Register(dst, None)),
+                operand2: Some(x),
+                operand3: Some(y),
+                set_condition_flags,
+                ..
+            } => {
+                let x = Handlers::resolve_operand(x, cpu);
+                let y = Handlers::resolve_operand(y, cpu);
+                let (result, borrow) = y.overflowing_sub(x);
+                let (_, overflow) = (y as i32).overflowing_sub(x as i32);
+                cpu.write_register(dst, result);
+
+                if *set_condition_flags {
+                    cpu.update_flag(Psr::N, result & 0x8000_0000 != 0);
+                    cpu.update_flag(Psr::Z, result == 0);
+                    cpu.update_flag(Psr::C, !borrow);
+                    cpu.update_flag(Psr::V, overflow);
+                }
             }
             _ => todo!("{:?}", instr),
         }

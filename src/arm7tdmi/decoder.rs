@@ -704,7 +704,7 @@ impl Display for Instruction {
                 .unwrap_or(&TransferLength::Word),
             self.condition,
             if self.set_condition_flags && !self.opcode.is_test() {
-                "s"
+                ".s"
             } else {
                 ""
             }
