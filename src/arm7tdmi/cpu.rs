@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use log::{debug, trace};
+use log::{debug, error, trace};
 
 use crate::{
     arm7tdmi::{decoder::Opcode, handlers::Handlers},
@@ -212,7 +212,10 @@ impl Cpu {
     pub fn write_to_current_spsr(&mut self, value: u32) {
         let mode = self.get_processor_mode();
         match mode {
-            ProcessorMode::User | ProcessorMode::System => return,
+            ProcessorMode::User | ProcessorMode::System => {
+                error!("Attempted to write to SPSR in User/System mode");
+                return;
+            }
             _ => (),
         }
 
@@ -225,7 +228,10 @@ impl Cpu {
         let mode = self.get_processor_mode();
         match mode {
             ProcessorMode::User | ProcessorMode::System => 0,
-            _ => self.registers.spsr[mode as usize - 0b10001].bits(),
+            _ => {
+                let mode: u32 = mode.into();
+                self.registers.spsr[(mode - 0b10001) as usize].bits()
+            }
         }
     }
 
