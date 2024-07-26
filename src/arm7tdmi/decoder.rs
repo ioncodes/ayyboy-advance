@@ -246,6 +246,12 @@ impl Display for TransferLength {
     }
 }
 
+#[derive(PartialEq, Debug)]
+pub enum OffsetOperation {
+    Add,
+    Sub,
+}
+
 #[derive(Debug)]
 pub struct Instruction {
     pub opcode: Opcode,
@@ -255,6 +261,7 @@ pub struct Instruction {
     pub operand2: Option<Operand>,
     pub operand3: Option<Operand>,
     pub transfer_length: Option<TransferLength>,
+    pub offset_direction: Option<OffsetOperation>,
 }
 
 #[allow(unused_variables)]
@@ -423,6 +430,11 @@ impl Instruction {
                     operand2: Some(Operand::Register(src, None)),
                     operand3: Some(offset),
                     transfer_length: Some(TransferLength::HalfWord),
+                    offset_direction: if u == 1 {
+                        Some(OffsetOperation::Add)
+                    } else {
+                        Some(OffsetOperation::Sub)
+                    },
                 }
             }
             // Data Processing
@@ -577,12 +589,13 @@ impl Instruction {
                     // Register Operand 2
                     let shift_amount = (z & 0b1111_1000_0000) >> 7;
                     let shift_type = (z & 0b0000_0110_0000) >> 5;
+                    let register = z & 0b0001_1111;
 
                     if shift_amount == 0 {
-                        Operand::Register(Register::from(z), None)
+                        Operand::Register(Register::from(register), None)
                     } else {
                         Operand::Register(
-                            Register::from(z),
+                            Register::from(register),
                             Some(ShiftType::from(shift_type, shift_amount)),
                         )
                     }
@@ -599,6 +612,11 @@ impl Instruction {
                         Some(TransferLength::Byte)
                     } else {
                         Some(TransferLength::Word)
+                    },
+                    offset_direction: if u == 1 {
+                        Some(OffsetOperation::Add)
+                    } else {
+                        Some(OffsetOperation::Sub)
                     },
                 }
             }
@@ -667,6 +685,7 @@ impl Default for Instruction {
             operand2: None,
             operand3: None,
             transfer_length: None,
+            offset_direction: None,
         }
     }
 }
@@ -705,7 +724,19 @@ impl Display for Instruction {
         }
 
         if let Some(operand) = &self.operand3 {
-            write!(f, ", {}", operand)?;
+            write!(
+                f,
+                ", {}{}",
+                if let Some(op) = &self.offset_direction {
+                    match op {
+                        OffsetOperation::Add => "",
+                        OffsetOperation::Sub => "-",
+                    }
+                } else {
+                    ""
+                },
+                operand
+            )?;
         }
 
         if self.opcode.is_load_store() {

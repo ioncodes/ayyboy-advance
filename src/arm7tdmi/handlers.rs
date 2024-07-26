@@ -6,7 +6,7 @@ use super::{
 use crate::{
     arm7tdmi::{
         cpu::ProcessorMode,
-        decoder::{Register, TransferLength},
+        decoder::{OffsetOperation, Register, TransferLength},
     },
     memory::mmio::Mmio,
 };
@@ -192,11 +192,15 @@ impl Handlers {
                 operand2: Some(src_base),
                 operand3: Some(src_offset),
                 transfer_length: Some(length),
+                offset_direction: Some(operation),
                 ..
             } => {
                 let src_base = Handlers::resolve_operand(src_base, cpu);
                 let src_offset = Handlers::resolve_operand(src_offset, cpu);
-                let address = src_base.wrapping_add(src_offset);
+                let address = match operation {
+                    OffsetOperation::Add => src_base.wrapping_add(src_offset),
+                    OffsetOperation::Sub => src_base.wrapping_sub(src_offset),
+                };
 
                 match length {
                     TransferLength::Byte => {
@@ -219,11 +223,15 @@ impl Handlers {
                 operand2: Some(dst_base),
                 operand3: Some(dst_offset),
                 transfer_length: Some(length),
+                offset_direction: Some(operation),
                 ..
             } => {
                 let dst_base = Handlers::resolve_operand(dst_base, cpu);
                 let dst_offset = Handlers::resolve_operand(dst_offset, cpu);
-                let address = dst_base.wrapping_add(dst_offset);
+                let address = match operation {
+                    OffsetOperation::Add => dst_base.wrapping_add(dst_offset),
+                    OffsetOperation::Sub => dst_base.wrapping_sub(dst_offset),
+                };
 
                 match length {
                     TransferLength::Byte => {
