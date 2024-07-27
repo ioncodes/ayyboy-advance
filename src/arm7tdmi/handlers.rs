@@ -175,10 +175,31 @@ impl Handlers {
                 opcode: Opcode::Mov,
                 operand1: Some(Operand::Register(dst, None)),
                 operand2: Some(src),
+                set_condition_flags,
                 ..
             } => {
                 let value = Handlers::resolve_operand(src, cpu);
                 cpu.write_register(dst, value);
+
+                if *set_condition_flags {
+                    cpu.update_flag(Psr::N, value & 0x8000_0000 != 0);
+                    cpu.update_flag(Psr::Z, value == 0);
+                }
+            }
+            Instruction {
+                opcode: Opcode::Mvn,
+                operand1: Some(Operand::Register(dst, None)),
+                operand2: Some(src),
+                set_condition_flags,
+                ..
+            } => {
+                let value = !Handlers::resolve_operand(src, cpu); // bitwise not
+                cpu.write_register(dst, value);
+
+                if *set_condition_flags {
+                    cpu.update_flag(Psr::N, value & 0x8000_0000 != 0);
+                    cpu.update_flag(Psr::Z, value == 0);
+                }
             }
             _ => todo!("{:?}", instr),
         }
@@ -195,6 +216,7 @@ impl Handlers {
                 operand3: Some(src_offset),
                 transfer_length: Some(length),
                 offset_direction: Some(operation),
+                set_condition_flags,
                 ..
             } => {
                 let src_base = Handlers::resolve_operand(src_base, cpu);
@@ -208,14 +230,26 @@ impl Handlers {
                     TransferLength::Byte => {
                         let value = mmio.read(address);
                         cpu.write_register_u8(dst, value);
+                        if *set_condition_flags {
+                            cpu.update_flag(Psr::N, value & 0x80 != 0);
+                            cpu.update_flag(Psr::Z, value == 0);
+                        }
                     }
                     TransferLength::HalfWord => {
                         let value = mmio.read_u16(address);
                         cpu.write_register_u16(dst, value);
+                        if *set_condition_flags {
+                            cpu.update_flag(Psr::N, value & 0x8000 != 0);
+                            cpu.update_flag(Psr::Z, value == 0);
+                        }
                     }
                     TransferLength::Word => {
                         let value = mmio.read_u32(address);
                         cpu.write_register(dst, value);
+                        if *set_condition_flags {
+                            cpu.update_flag(Psr::N, value & 0x8000_0000 != 0);
+                            cpu.update_flag(Psr::Z, value == 0);
+                        }
                     }
                 }
             }
@@ -226,6 +260,7 @@ impl Handlers {
                 operand3: Some(dst_offset),
                 transfer_length: Some(length),
                 offset_direction: Some(operation),
+                set_condition_flags,
                 ..
             } => {
                 let dst_base = Handlers::resolve_operand(dst_base, cpu);
@@ -239,14 +274,26 @@ impl Handlers {
                     TransferLength::Byte => {
                         let value = cpu.read_register(src) as u8;
                         mmio.write(address, value);
+                        if *set_condition_flags {
+                            cpu.update_flag(Psr::N, value & 0x80 != 0);
+                            cpu.update_flag(Psr::Z, value == 0);
+                        }
                     }
                     TransferLength::HalfWord => {
                         let value = cpu.read_register(src) as u16;
                         mmio.write_u16(address, value);
+                        if *set_condition_flags {
+                            cpu.update_flag(Psr::N, value & 0x8000 != 0);
+                            cpu.update_flag(Psr::Z, value == 0);
+                        }
                     }
                     TransferLength::Word => {
                         let value = cpu.read_register(src);
                         mmio.write_u32(address, value);
+                        if *set_condition_flags {
+                            cpu.update_flag(Psr::N, value & 0x8000_0000 != 0);
+                            cpu.update_flag(Psr::Z, value == 0);
+                        }
                     }
                 }
             }
@@ -339,6 +386,30 @@ impl Handlers {
                     cpu.update_flag(Psr::Z, result == 0);
                     cpu.update_flag(Psr::C, !borrow);
                     cpu.update_flag(Psr::V, overflow);
+                }
+            }
+            Instruction {
+                opcode: Opcode::Sbc,
+                operand1: Some(Operand::Register(dst, None)),
+                operand2: Some(x),
+                operand3: Some(y),
+                set_condition_flags,
+                ..
+            } => {
+                let x = Handlers::resolve_operand(x, cpu);
+                let y = Handlers::resolve_operand(y, cpu);
+                let carry = cpu.registers.cpsr.contains(Psr::C) as u32;
+                let (result, borrow1) = x.overflowing_sub(y);
+                let (result, borrow2) = result.overflowing_sub(carry);
+                let (_, overflow1) = (x as i32).overflowing_sub(y as i32);
+                let (_, overflow2) = (x as i32).overflowing_sub(carry as i32);
+                cpu.write_register(dst, result);
+
+                if *set_condition_flags {
+                    cpu.update_flag(Psr::N, result & 0x8000_0000 != 0);
+                    cpu.update_flag(Psr::Z, result == 0);
+                    cpu.update_flag(Psr::C, !borrow1 && !borrow2);
+                    cpu.update_flag(Psr::V, overflow1 && overflow2);
                 }
             }
             Instruction {

@@ -502,7 +502,7 @@ impl Instruction {
                     };
                 }
 
-                if opcode == Opcode::Mov {
+                if opcode == Opcode::Mov || opcode == Opcode::Mvn {
                     // MOV and MVN do not have a source register
                     return Instruction {
                         opcode,
