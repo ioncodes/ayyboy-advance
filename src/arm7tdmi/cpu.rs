@@ -142,7 +142,13 @@ impl Cpu {
                 self.pipeline.flush();
             }
             Register::Cpsr => self.registers.cpsr = Psr::from_bits_truncate(value),
-            Register::CpsrFlag => self.update_flag(Psr::from_bits_truncate(value), true),
+            Register::CpsrFlag => {
+                let cpsr = Psr::from_bits_truncate(value);
+                self.update_flag(Psr::N, cpsr.contains(Psr::N));
+                self.update_flag(Psr::Z, cpsr.contains(Psr::Z));
+                self.update_flag(Psr::C, cpsr.contains(Psr::C));
+                self.update_flag(Psr::V, cpsr.contains(Psr::V));
+            }
             Register::Spsr => self.write_to_current_spsr(value),
             _ => todo!(),
         }

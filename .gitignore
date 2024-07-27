@@ -2,3 +2,4 @@
 external/gba_bios.bin
 *.log
 .DS_Store
+.vscode/

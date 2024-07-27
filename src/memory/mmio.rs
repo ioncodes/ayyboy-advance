@@ -1,4 +1,4 @@
-use log::error;
+use log::{error, warn};
 
 use crate::video::ppu::Ppu;
 
@@ -62,7 +62,13 @@ impl Mmio {
     pub fn write(&mut self, addr: u32, value: u8) {
         match addr {
             0x00000000..=0x04FFFFFF => self.internal_memory[addr as usize] = value,
-            0x05000000..=0x07FFFFFF => self.display_memory[(addr - 0x05000000) as usize] = value,
+            0x05000000..=0x07FFFFFF => {
+                warn!(
+                    "Writing to VRAM with unimplemented PPU: {:08x} = {:02x}",
+                    addr, value
+                );
+                self.display_memory[(addr - 0x05000000) as usize] = value
+            }
             0x08000000..=0x0FFFFFFF => self.external_memory[(addr - 0x08000000) as usize] = value,
             _ => panic!("Invalid memory address: {:08x}", addr),
         }
