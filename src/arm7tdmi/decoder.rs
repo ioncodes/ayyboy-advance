@@ -718,6 +718,24 @@ impl Instruction {
                     ..Instruction::default()
                 }
             }
+            // load address
+            "1010_sddd_cccc_cccc" => {
+                let source = match s {
+                    0 => Register::R15,
+                    1 => Register::R13,
+                    _ => unreachable!(),
+                };
+                let destination = Register::from(d);
+                let offset = c << 2;
+
+                Instruction {
+                    opcode: Opcode::Add,
+                    operand1: Some(Operand::Register(destination, None)),
+                    operand2: Some(Operand::Register(source, None)),
+                    operand3: Some(Operand::Immediate(offset, None)),
+                    ..Instruction::default()
+                }
+            }
             // Push and Pop
             "1011_l10r_xxxx_xxxx" => Instruction {
                 opcode: if l == 0 { Opcode::Push } else { Opcode::Pop },
