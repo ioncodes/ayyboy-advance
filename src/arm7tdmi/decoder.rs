@@ -628,6 +628,26 @@ impl Instruction {
     fn decode_thumb(opcode: u32) -> Instruction {
         #[bitmatch]
         match opcode {
+            // Move shifted register
+            // "000o_oiii_iiss_dddd" => {
+            //     let opcode = if o == 0 { Opcode::Lsl } else { Opcode::Lsr };
+            //     let source = Register::from(s);
+            //     let destination = Register::from(d);
+            //     let shift_amount = i;
+
+            //     Instruction {
+            //         opcode,
+            //         condition: Condition::Always,
+            //         set_condition_flags: false,
+            //         operand1: Some(Operand::Register(destination, None)),
+            //         operand2: Some(Operand::Register(
+            //             source,
+            //             Some(ShiftType::LogicalLeft(shift_amount)),
+            //         )),
+            //         operand3: None,
+            //         ..Instruction::default()
+            //     }
+            // }
             // Push and Pop
             "1011_l10r_xxxx_xxxx" => Instruction {
                 opcode: if l == 0 { Opcode::Push } else { Opcode::Pop },

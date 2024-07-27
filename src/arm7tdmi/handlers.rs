@@ -57,7 +57,7 @@ impl Handlers {
             } => {
                 let address = cpu.read_register(register);
                 cpu.registers.cpsr.set(Psr::T, (address & 1) != 0);
-                cpu.registers.r[15] = address;
+                cpu.registers.r[15] = address & !1; // mask off last bit
             }
             _ => todo!("{:?}", instr),
         }
