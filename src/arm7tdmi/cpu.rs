@@ -104,37 +104,16 @@ impl Cpu {
             Register::R5 => self.registers.r[5],
             Register::R6 => self.registers.r[6],
             Register::R7 => self.registers.r[7],
-            Register::R8 if !self.is_thumb() => self.registers.r[8],
-            Register::R9 if !self.is_thumb() => self.registers.r[9],
-            Register::R10 if !self.is_thumb() => self.registers.r[10],
-            Register::R11 if !self.is_thumb() => self.registers.r[11],
-            Register::R12 if !self.is_thumb() => self.registers.r[12],
+            Register::R8 => self.registers.r[8],
+            Register::R9 => self.registers.r[9],
+            Register::R10 => self.registers.r[10],
+            Register::R11 => self.registers.r[11],
+            Register::R12 => self.registers.r[12],
             Register::R13 => self.registers.r[13],
             Register::R14 => self.registers.r[14],
             Register::R15 => self.registers.r[15],
             Register::Cpsr => self.registers.cpsr.bits(),
             Register::Spsr => self.read_from_current_spsr(),
-            // R8-R12 are not accessible in Thumb mode
-            Register::R8 if self.is_thumb() => {
-                error!("Attempted to read from R8 in Thumb mode");
-                0
-            }
-            Register::R9 if self.is_thumb() => {
-                error!("Attempted to read from R9 in Thumb mode");
-                0
-            }
-            Register::R10 if self.is_thumb() => {
-                error!("Attempted to read from R10 in Thumb mode");
-                0
-            }
-            Register::R11 if self.is_thumb() => {
-                error!("Attempted to read from R11 in Thumb mode");
-                0
-            }
-            Register::R12 if self.is_thumb() => {
-                error!("Attempted to read from R12 in Thumb mode");
-                0
-            }
             _ => todo!(),
         }
     }
@@ -149,11 +128,11 @@ impl Cpu {
             Register::R5 => self.registers.r[5] = value,
             Register::R6 => self.registers.r[6] = value,
             Register::R7 => self.registers.r[7] = value,
-            Register::R8 if !self.is_thumb() => self.registers.r[8] = value,
-            Register::R9 if !self.is_thumb() => self.registers.r[9] = value,
-            Register::R10 if !self.is_thumb() => self.registers.r[10] = value,
-            Register::R11 if !self.is_thumb() => self.registers.r[11] = value,
-            Register::R12 if !self.is_thumb() => self.registers.r[12] = value,
+            Register::R8 => self.registers.r[8] = value,
+            Register::R9 => self.registers.r[9] = value,
+            Register::R10 => self.registers.r[10] = value,
+            Register::R11 => self.registers.r[11] = value,
+            Register::R12 => self.registers.r[12] = value,
             Register::R13 => self.registers.r[13] = value,
             Register::R14 => self.registers.r[14] = value,
             Register::R15 => {
@@ -171,12 +150,6 @@ impl Cpu {
                 self.update_flag(Psr::V, cpsr.contains(Psr::V));
             }
             Register::Spsr => self.write_to_current_spsr(value),
-            // R8-R12 are not accessible in Thumb mode
-            Register::R8 if self.is_thumb() => error!("Attempted to write to R8 in Thumb mode"),
-            Register::R9 if self.is_thumb() => error!("Attempted to write to R9 in Thumb mode"),
-            Register::R10 if self.is_thumb() => error!("Attempted to write to R10 in Thumb mode"),
-            Register::R11 if self.is_thumb() => error!("Attempted to write to R11 in Thumb mode"),
-            Register::R12 if self.is_thumb() => error!("Attempted to write to R12 in Thumb mode"),
             _ => todo!(),
         }
     }

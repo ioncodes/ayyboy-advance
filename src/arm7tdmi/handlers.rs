@@ -10,7 +10,7 @@ use crate::{
     },
     memory::mmio::Mmio,
 };
-use log::trace; // Import the `trace` macro from the `log` crate
+use log::trace;
 
 macro_rules! check_condition {
     ($cpu:expr, $instr:expr) => {
