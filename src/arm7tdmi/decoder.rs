@@ -268,7 +268,7 @@ pub struct Instruction {
 impl Instruction {
     pub fn decode(opcode: u32, is_thumb: bool) -> Instruction {
         if is_thumb {
-            Instruction::decode_thumb(opcode)
+            Instruction::decode_thumb(opcode & 0xffff)
         } else {
             Instruction::decode_armv4t(opcode)
         }
@@ -440,7 +440,7 @@ impl Instruction {
             // Data Processing
             "cccc_00io_ooos_yyyy_xxxx_zzzz_zzzz_zzzz" => {
                 let condition = Condition::from(c);
-                let opcode = Instruction::translate_opcode(o);
+                let opcode = Instruction::translate_opcode_armv4t(o);
                 let set_condition_flags = s == 1;
 
                 let dst = Operand::Register(Register::from(x), None);
@@ -628,26 +628,96 @@ impl Instruction {
     fn decode_thumb(opcode: u32) -> Instruction {
         #[bitmatch]
         match opcode {
-            // Move shifted register
-            // "000o_oiii_iiss_dddd" => {
-            //     let opcode = if o == 0 { Opcode::Lsl } else { Opcode::Lsr };
-            //     let source = Register::from(s);
-            //     let destination = Register::from(d);
-            //     let shift_amount = i;
+            // move/compare/add/subtract immediate
+            "001o_orrr_iiii_iiii" => {
+                let opcode = match o {
+                    0b00 => Opcode::Mov,
+                    0b01 => Opcode::Cmp,
+                    0b10 => Opcode::Add,
+                    0b11 => Opcode::Sub,
+                    _ => unreachable!(),
+                };
+                let operand1 = Register::from(r);
+                let operand2 = Operand::Immediate(i, None);
 
-            //     Instruction {
-            //         opcode,
-            //         condition: Condition::Always,
-            //         set_condition_flags: false,
-            //         operand1: Some(Operand::Register(destination, None)),
-            //         operand2: Some(Operand::Register(
-            //             source,
-            //             Some(ShiftType::LogicalLeft(shift_amount)),
-            //         )),
-            //         operand3: None,
-            //         ..Instruction::default()
-            //     }
-            // }
+                Instruction {
+                    opcode,
+                    condition: Condition::Always,
+                    set_condition_flags: false,
+                    operand1: Some(Operand::Register(operand1, None)),
+                    operand2: Some(operand2),
+                    operand3: None,
+                    ..Instruction::default()
+                }
+            }
+            // Hi register operations/branch exchange
+            "0100_01oo_xyss_sddd" => {
+                let (opcode, operand1, operand2) = match (o, x, y) {
+                    (0b00, 0, 1) => (
+                        Opcode::Add,
+                        Some(Operand::Register(Register::from(d), None)),
+                        Some(Operand::Register(Register::from(8 + s), None)),
+                    ),
+                    (0b00, 1, 0) => (
+                        Opcode::Add,
+                        Some(Operand::Register(Register::from(8 + d), None)),
+                        Some(Operand::Register(Register::from(s), None)),
+                    ),
+                    (0b00, 1, 1) => (
+                        Opcode::Add,
+                        Some(Operand::Register(Register::from(8 + d), None)),
+                        Some(Operand::Register(Register::from(8 + s), None)),
+                    ),
+                    (0b01, 0, 1) => (
+                        Opcode::Cmp,
+                        Some(Operand::Register(Register::from(d), None)),
+                        Some(Operand::Register(Register::from(8 + s), None)),
+                    ),
+                    (0b01, 1, 0) => (
+                        Opcode::Cmp,
+                        Some(Operand::Register(Register::from(8 + d), None)),
+                        Some(Operand::Register(Register::from(s), None)),
+                    ),
+                    (0b01, 1, 1) => (
+                        Opcode::Cmp,
+                        Some(Operand::Register(Register::from(8 + d), None)),
+                        Some(Operand::Register(Register::from(8 + s), None)),
+                    ),
+                    (0b10, 0, 1) => (
+                        Opcode::Mov,
+                        Some(Operand::Register(Register::from(d), None)),
+                        Some(Operand::Register(Register::from(8 + s), None)),
+                    ),
+                    (0b10, 1, 0) => (
+                        Opcode::Mov,
+                        Some(Operand::Register(Register::from(8 + d), None)),
+                        Some(Operand::Register(Register::from(s), None)),
+                    ),
+                    (0b10, 1, 1) => (
+                        Opcode::Mov,
+                        Some(Operand::Register(Register::from(8 + d), None)),
+                        Some(Operand::Register(Register::from(8 + s), None)),
+                    ),
+                    (0b11, 0, 0) => (
+                        Opcode::Bx,
+                        Some(Operand::Register(Register::from(s), None)),
+                        None,
+                    ),
+                    (0b11, 0, 1) => (
+                        Opcode::Bx,
+                        Some(Operand::Register(Register::from(8 + s), None)),
+                        None,
+                    ),
+                    _ => unreachable!(),
+                };
+
+                Instruction {
+                    opcode,
+                    operand1,
+                    operand2,
+                    ..Instruction::default()
+                }
+            }
             // Push and Pop
             "1011_l10r_xxxx_xxxx" => Instruction {
                 opcode: if l == 0 { Opcode::Push } else { Opcode::Pop },
@@ -658,11 +728,11 @@ impl Instruction {
                 operand3: None,
                 ..Instruction::default()
             },
-            _ => panic!("Unknown instruction: {:08x} | {:016b}", opcode, opcode),
+            _ => panic!("Unknown instruction: {:04x} | {:016b}", opcode, opcode),
         }
     }
 
-    fn translate_opcode(opcode: u32) -> Opcode {
+    fn translate_opcode_armv4t(opcode: u32) -> Opcode {
         match opcode {
             0b0000 => Opcode::And,
             0b0001 => Opcode::Eor,
