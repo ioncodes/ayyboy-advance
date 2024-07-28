@@ -398,7 +398,7 @@ impl Handlers {
             } => {
                 let x = Handlers::resolve_operand(x, cpu);
                 let y = Handlers::resolve_operand(y, cpu);
-                let carry = cpu.registers.cpsr.contains(Psr::C) as u32;
+                let carry = 1 - (cpu.registers.cpsr.contains(Psr::C) as u32);
                 let (result, borrow1) = x.overflowing_sub(y);
                 let (result, borrow2) = result.overflowing_sub(carry);
                 let (_, overflow1) = (x as i32).overflowing_sub(y as i32);
