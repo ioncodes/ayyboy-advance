@@ -1,3 +1,6 @@
 [submodule "external/gba-tests"]
 	path = external/gba-tests
 	url = https://github.com/jsmolka/gba-tests
+[submodule "external/gba-div-test"]
+	path = external/gba-div-test
+	url = https://github.com/ioncodes/gba-div-test
