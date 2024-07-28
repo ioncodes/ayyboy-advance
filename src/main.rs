@@ -13,7 +13,7 @@ use log::info;
 use memory::mmio::Mmio;
 
 use tokio::sync::watch::{self, Receiver, Sender};
-use video::{Frame, INTERNAL_HEIGHT, INTERNAL_WIDTH};
+use video::{Frame, SCREEN_HEIGHT, SCREEN_WIDTH};
 
 const ARM_TEST: &[u8] = include_bytes!("../external/gba-tests/arm/arm.gba");
 //const ARM_TEST: &[u8] = include_bytes!("../external/gba-div-test/out/rom.gba");
@@ -22,7 +22,7 @@ const BIOS: &[u8] = include_bytes!("../external/gba_bios.bin");
 fn main() {
     env_logger::builder().format_timestamp(None).init();
 
-    let frame = [[(0u8, 0u8, 0u8); INTERNAL_WIDTH]; INTERNAL_HEIGHT];
+    let frame = [[(0u8, 0u8, 0u8); SCREEN_WIDTH]; SCREEN_HEIGHT];
     let (tx, rx): (Sender<Frame>, Receiver<Frame>) = watch::channel(frame);
 
     std::thread::spawn(move || {
@@ -48,8 +48,8 @@ fn main() {
     let native_options = NativeOptions {
         viewport: ViewportBuilder::default()
             .with_inner_size([
-                (INTERNAL_WIDTH * SCALE) as f32,
-                (INTERNAL_HEIGHT * SCALE) as f32,
+                (SCREEN_WIDTH * SCALE) as f32,
+                (SCREEN_HEIGHT * SCALE) as f32,
             ])
             .with_resizable(true),
         ..Default::default()

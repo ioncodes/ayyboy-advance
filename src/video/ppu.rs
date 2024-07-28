@@ -2,7 +2,7 @@ use log::{trace, warn};
 
 use crate::memory::device::{Addressable, IoDevice};
 
-use super::{registers::DispStat, INTERNAL_HEIGHT, INTERNAL_WIDTH};
+use super::{registers::DispStat, Frame, SCREEN_HEIGHT, SCREEN_WIDTH};
 
 pub struct Ppu {
     pub h_counter: u16,
@@ -47,14 +47,14 @@ impl Ppu {
         trace!("scanline={}, h_counter={}", self.scanline, self.h_counter);
     }
 
-    pub fn get_frame(&self) -> [[(u8, u8, u8); 256]; 256] {
+    pub fn get_frame(&self) -> Frame {
         // background mode 4
 
-        let mut frame = [[(0, 0, 0); 256]; 256];
+        let mut frame = [[(0, 0, 0); SCREEN_WIDTH]; SCREEN_HEIGHT];
 
-        for y in 0..INTERNAL_HEIGHT {
-            for x in 0..INTERNAL_WIDTH {
-                let pixel_address = 0x06000000 + (y * INTERNAL_HEIGHT + x) as u32;
+        for y in 0..SCREEN_HEIGHT {
+            for x in 0..SCREEN_WIDTH {
+                let pixel_address = 0x06000000 + (y * SCREEN_WIDTH + x) as u32;
                 let pixel_index = self.read(pixel_address) as u32;
                 let rgb = self.read_u16(0x05000000 + (2 * pixel_index));
                 let (r, g, b) = (
@@ -62,14 +62,11 @@ impl Ppu {
                     (((rgb & 0b0000_0011_1110_0000) >> 5) as u8),
                     (((rgb & 0b0111_1100_0000_0000) >> 10) as u8),
                 );
-                frame[x][y] = (
+                frame[y][x] = (
                     (r << 3) | (r >> 2),
                     (g << 3) | (g >> 2),
                     (b << 3) | (b >> 2),
                 );
-                if pixel_index > 0 {
-                    println!("Pixel at {:x} is {:x}", pixel_address, pixel_index);
-                }
             }
         }
 
