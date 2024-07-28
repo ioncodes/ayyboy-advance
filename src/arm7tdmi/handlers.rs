@@ -228,10 +228,6 @@ impl Handlers {
                     }
                 };
 
-                if *writeback && *indexing == Indexing::Pre {
-                    cpu.write_register(src, address);
-                }
-
                 match length {
                     TransferLength::Byte => {
                         let value = mmio.read(address);
@@ -259,12 +255,16 @@ impl Handlers {
                     }
                 }
 
-                if *writeback && *indexing == Indexing::Post {
+                if *indexing == Indexing::Post {
                     if *operation == Direction::Up {
-                        cpu.write_register(src, address.wrapping_add(step));
+                        address = address.wrapping_add(step);
                     } else {
-                        cpu.write_register(src, address.wrapping_sub(step));
+                        address = address.wrapping_sub(step);
                     }
+                }
+
+                if *writeback {
+                    cpu.write_register(src, address);
                 }
             }
             Instruction {
@@ -289,10 +289,6 @@ impl Handlers {
                         address = address.wrapping_sub(step)
                     }
                 };
-
-                if *writeback && *indexing == Indexing::Pre {
-                    cpu.write_register(dst, address);
-                }
 
                 match length {
                     TransferLength::Byte => {
@@ -321,12 +317,16 @@ impl Handlers {
                     }
                 }
 
-                if *writeback && *indexing == Indexing::Post {
+                if *indexing == Indexing::Post {
                     if *operation == Direction::Up {
-                        cpu.write_register(dst, address.wrapping_add(step));
+                        address = address.wrapping_add(step);
                     } else {
-                        cpu.write_register(dst, address.wrapping_sub(step));
+                        address = address.wrapping_sub(step);
                     }
+                }
+
+                if *writeback {
+                    cpu.write_register(dst, address);
                 }
             }
             Instruction {
