@@ -6,7 +6,7 @@ use super::{
 use crate::{
     arm7tdmi::{
         cpu::ProcessorMode,
-        decoder::{OffsetOperation, Register, TransferLength},
+        decoder::{Direction, Indexing, Register, TransferLength},
     },
     memory::mmio::Mmio,
 };
@@ -208,19 +208,29 @@ impl Handlers {
             Instruction {
                 opcode: Opcode::Ldr,
                 operand1: Some(Operand::Register(dst, None)),
-                operand2: Some(src_base),
-                operand3: Some(src_offset),
+                operand2: Some(Operand::Register(src, None)),
+                operand3: Some(step),
                 transfer_length: Some(length),
                 offset_direction: Some(operation),
                 set_condition_flags,
+                indexing: Some(indexing),
+                writeback,
                 ..
             } => {
-                let src_base = Handlers::resolve_operand(src_base, cpu);
-                let src_offset = Handlers::resolve_operand(src_offset, cpu);
-                let address = match operation {
-                    OffsetOperation::Add => src_base.wrapping_add(src_offset),
-                    OffsetOperation::Sub => src_base.wrapping_sub(src_offset),
+                let mut address = cpu.read_register(src);
+                let step = Handlers::resolve_operand(step, cpu);
+
+                if *indexing == Indexing::Pre {
+                    if *operation == Direction::Up {
+                        address = address.wrapping_add(step)
+                    } else {
+                        address = address.wrapping_sub(step)
+                    }
                 };
+
+                if *writeback && *indexing == Indexing::Pre {
+                    cpu.write_register(src, address);
+                }
 
                 match length {
                     TransferLength::Byte => {
@@ -248,6 +258,14 @@ impl Handlers {
                         }
                     }
                 }
+
+                if *writeback && *indexing == Indexing::Post {
+                    if *operation == Direction::Up {
+                        cpu.write_register(src, address.wrapping_add(step));
+                    } else {
+                        cpu.write_register(src, address.wrapping_sub(step));
+                    }
+                }
             }
             Instruction {
                 opcode: Opcode::Str,
@@ -257,9 +275,24 @@ impl Handlers {
                 transfer_length: Some(length),
                 offset_direction: Some(operation),
                 set_condition_flags,
+                indexing: Some(indexing),
+                writeback,
                 ..
             } => {
-                let address = cpu.read_register(dst);
+                let mut address = cpu.read_register(dst);
+                let step = Handlers::resolve_operand(step, cpu);
+
+                if *indexing == Indexing::Pre {
+                    if *operation == Direction::Up {
+                        address = address.wrapping_add(step)
+                    } else {
+                        address = address.wrapping_sub(step)
+                    }
+                };
+
+                if *writeback && *indexing == Indexing::Pre {
+                    cpu.write_register(dst, address);
+                }
 
                 match length {
                     TransferLength::Byte => {
@@ -288,12 +321,12 @@ impl Handlers {
                     }
                 }
 
-                // TODO: This assumes post indexing
-                let step = Handlers::resolve_operand(step, cpu);
-                if *operation == OffsetOperation::Add {
-                    cpu.write_register(dst, address.wrapping_add(step));
-                } else {
-                    cpu.write_register(dst, address.wrapping_sub(step));
+                if *writeback && *indexing == Indexing::Post {
+                    if *operation == Direction::Up {
+                        cpu.write_register(dst, address.wrapping_add(step));
+                    } else {
+                        cpu.write_register(dst, address.wrapping_sub(step));
+                    }
                 }
             }
             Instruction {

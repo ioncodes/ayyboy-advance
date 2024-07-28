@@ -247,9 +247,15 @@ impl Display for TransferLength {
 }
 
 #[derive(PartialEq, Debug)]
-pub enum OffsetOperation {
-    Add,
-    Sub,
+pub enum Direction {
+    Up,
+    Down,
+}
+
+#[derive(PartialEq, Debug)]
+pub enum Indexing {
+    Pre,
+    Post,
 }
 
 #[derive(Debug)]
@@ -261,7 +267,9 @@ pub struct Instruction {
     pub operand2: Option<Operand>,
     pub operand3: Option<Operand>,
     pub transfer_length: Option<TransferLength>,
-    pub offset_direction: Option<OffsetOperation>,
+    pub offset_direction: Option<Direction>,
+    pub writeback: bool,
+    pub indexing: Option<Indexing>,
 }
 
 #[allow(unused_variables)]
@@ -431,10 +439,16 @@ impl Instruction {
                     operand3: Some(offset),
                     transfer_length: Some(TransferLength::HalfWord),
                     offset_direction: if u == 1 {
-                        Some(OffsetOperation::Add)
+                        Some(Direction::Up)
                     } else {
-                        Some(OffsetOperation::Sub)
+                        Some(Direction::Down)
                     },
+                    indexing: if p == 1 {
+                        Some(Indexing::Pre)
+                    } else {
+                        Some(Indexing::Post)
+                    },
+                    writeback: w == 1,
                 }
             }
             // Data Processing
@@ -614,10 +628,16 @@ impl Instruction {
                         Some(TransferLength::Word)
                     },
                     offset_direction: if u == 1 {
-                        Some(OffsetOperation::Add)
+                        Some(Direction::Up)
                     } else {
-                        Some(OffsetOperation::Sub)
+                        Some(Direction::Down)
                     },
+                    indexing: if p == 1 {
+                        Some(Indexing::Pre)
+                    } else {
+                        Some(Indexing::Post)
+                    },
+                    writeback: w == 1,
                 }
             }
             _ => panic!("Unknown instruction: {:08x} | {:032b}", opcode, opcode),
@@ -794,6 +814,8 @@ impl Default for Instruction {
             operand3: None,
             transfer_length: None,
             offset_direction: None,
+            writeback: false,
+            indexing: None,
         }
     }
 }
@@ -837,8 +859,8 @@ impl Display for Instruction {
                 ", {}{}",
                 if let Some(op) = &self.offset_direction {
                     match op {
-                        OffsetOperation::Add => "",
-                        OffsetOperation::Sub => "-",
+                        Direction::Up => "",
+                        Direction::Down => "-",
                     }
                 } else {
                     ""
