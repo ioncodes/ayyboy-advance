@@ -6,7 +6,12 @@ pub trait IoDevice {
 pub trait Addressable {
     fn read(&self, addr: u32) -> u8;
     fn write(&mut self, addr: u32, value: u8);
-    fn load(&mut self, addr: u32, data: &[u8]);
+
+    fn load(&mut self, addr: u32, data: &[u8]) {
+        for (i, &byte) in data.iter().enumerate() {
+            self.write(addr + i as u32, byte);
+        }
+    }
 
     fn read_u16(&self, addr: u32) -> u16 {
         u16::from_le_bytes([self.read(addr), self.read(addr + 1)])

@@ -252,19 +252,14 @@ impl Handlers {
             Instruction {
                 opcode: Opcode::Str,
                 operand1: Some(Operand::Register(src, None)),
-                operand2: Some(dst_base),
-                operand3: Some(dst_offset),
+                operand2: Some(Operand::Register(dst, None)),
+                operand3: Some(step),
                 transfer_length: Some(length),
                 offset_direction: Some(operation),
                 set_condition_flags,
                 ..
             } => {
-                let dst_base = Handlers::resolve_operand(dst_base, cpu);
-                let dst_offset = Handlers::resolve_operand(dst_offset, cpu);
-                let address = match operation {
-                    OffsetOperation::Add => dst_base.wrapping_add(dst_offset),
-                    OffsetOperation::Sub => dst_base.wrapping_sub(dst_offset),
-                };
+                let address = cpu.read_register(dst);
 
                 match length {
                     TransferLength::Byte => {
@@ -291,6 +286,14 @@ impl Handlers {
                             cpu.update_flag(Psr::Z, value == 0);
                         }
                     }
+                }
+
+                // TODO: This assumes post indexing
+                let step = Handlers::resolve_operand(step, cpu);
+                if *operation == OffsetOperation::Add {
+                    cpu.write_register(dst, address.wrapping_add(step));
+                } else {
+                    cpu.write_register(dst, address.wrapping_sub(step));
                 }
             }
             Instruction {
