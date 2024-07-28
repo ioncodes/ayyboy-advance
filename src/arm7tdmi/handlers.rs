@@ -354,17 +354,19 @@ impl Handlers {
                 let x = Handlers::resolve_operand(x, cpu);
                 let y = Handlers::resolve_operand(y, cpu);
                 let carry = cpu.registers.cpsr.contains(Psr::C) as u32;
+
                 let (result, carry1) = x.overflowing_add(y);
                 let (result, carry2) = result.overflowing_add(carry);
-                let (_, overflow1) = (x as i32).overflowing_add(y as i32);
-                let (_, overflow2) = (x as i32).overflowing_add(carry as i32);
+
                 cpu.write_register(dst, result);
 
                 if *set_condition_flags {
                     cpu.update_flag(Psr::N, result & 0x8000_0000 != 0);
                     cpu.update_flag(Psr::Z, result == 0);
                     cpu.update_flag(Psr::C, carry1 || carry2);
-                    cpu.update_flag(Psr::V, overflow1 || overflow2);
+
+                    let overflow = ((x ^ result) & (y ^ result) & 0x8000_0000) != 0;
+                    cpu.update_flag(Psr::V, overflow);
                 }
             }
             Instruction {
@@ -398,18 +400,20 @@ impl Handlers {
             } => {
                 let x = Handlers::resolve_operand(x, cpu);
                 let y = Handlers::resolve_operand(y, cpu);
-                let carry = 1 - (cpu.registers.cpsr.contains(Psr::C) as u32);
+                let carry = cpu.registers.cpsr.contains(Psr::C) as u32;
+
                 let (result, borrow1) = x.overflowing_sub(y);
-                let (result, borrow2) = result.overflowing_sub(carry);
-                let (_, overflow1) = (x as i32).overflowing_sub(y as i32);
-                let (_, overflow2) = (x as i32).overflowing_sub(carry as i32);
+                let (result, borrow2) = result.overflowing_sub(1 - carry);
+
                 cpu.write_register(dst, result);
 
                 if *set_condition_flags {
                     cpu.update_flag(Psr::N, result & 0x8000_0000 != 0);
                     cpu.update_flag(Psr::Z, result == 0);
                     cpu.update_flag(Psr::C, !borrow1 && !borrow2);
-                    cpu.update_flag(Psr::V, overflow1 && overflow2);
+
+                    let overflow = ((x ^ y) & (x ^ result) & 0x8000_0000) != 0;
+                    cpu.update_flag(Psr::V, overflow);
                 }
             }
             Instruction {
