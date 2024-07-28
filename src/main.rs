@@ -7,8 +7,8 @@ mod video;
 use arm7tdmi::cpu::{Cpu, ProcessorMode};
 use memory::mmio::Mmio;
 
-//const ARM_TEST: &[u8] = include_bytes!("../external/gba-tests/arm/arm.gba");
-const ARM_TEST: &[u8] = include_bytes!("../external/gba-div-test/out/rom.gba");
+const ARM_TEST: &[u8] = include_bytes!("../external/gba-tests/arm/arm.gba");
+//const ARM_TEST: &[u8] = include_bytes!("../external/gba-div-test/out/rom.gba");
 const BIOS: &[u8] = include_bytes!("../external/gba_bios.bin");
 
 fn main() {

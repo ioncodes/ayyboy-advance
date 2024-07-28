@@ -293,6 +293,22 @@ impl Handlers {
                     }
                 }
             }
+            Instruction {
+                opcode: Opcode::Ldm,
+                operand1: Some(Operand::Register(dst_base, None)),
+                operand2: Some(Operand::RegisterList(registers)),
+                ..
+            } => {
+                let mut address = cpu.read_register(dst_base);
+
+                for register in registers {
+                    let value = mmio.read_u32(address);
+                    cpu.write_register(register, value);
+                    address += 4;
+                }
+
+                cpu.write_register(dst_base, address);
+            }
             _ => todo!("{:?}", instr),
         }
     }

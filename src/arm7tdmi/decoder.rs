@@ -190,7 +190,7 @@ impl Opcode {
     }
 
     pub fn is_load_store(&self) -> bool {
-        *self == Opcode::Ldr || *self == Opcode::Str || *self == Opcode::Ldm || *self == Opcode::Stm
+        *self == Opcode::Ldr || *self == Opcode::Str
     }
 }
 
