@@ -130,10 +130,10 @@ impl Handlers {
                 let lhs = cpu.read_register(lhs);
                 let rhs = Handlers::resolve_operand(rhs, cpu);
                 let (result, carry) = lhs.overflowing_sub(rhs);
-                cpu.update_flag(Psr::N, result > lhs);
-                cpu.update_flag(Psr::Z, lhs == rhs);
-                cpu.update_flag(Psr::C, carry);
-                cpu.update_flag(Psr::V, (lhs as i32) < (rhs as i32));
+                cpu.update_flag(Psr::N, (result as i32) < 0);
+                cpu.update_flag(Psr::Z, result == 0);
+                cpu.update_flag(Psr::C, !carry);
+                cpu.update_flag(Psr::V, ((lhs ^ rhs) & (lhs ^ result) & 0x8000_0000) != 0);
             }
             Instruction {
                 opcode: Opcode::Teq,
@@ -141,13 +141,11 @@ impl Handlers {
                 operand2: Some(rhs),
                 ..
             } => {
-                let lhs = cpu.read_register(lhs) as u8;
-                let rhs = Handlers::resolve_operand(rhs, cpu) as u8;
+                let lhs = cpu.read_register(lhs);
+                let rhs = Handlers::resolve_operand(rhs, cpu);
                 let result = lhs ^ rhs;
-                cpu.update_flag(Psr::N, result & 0x80 != 0);
+                cpu.update_flag(Psr::N, result & 0x8000_0000 != 0);
                 cpu.update_flag(Psr::Z, result == 0);
-                cpu.update_flag(Psr::C, false);
-                cpu.update_flag(Psr::V, false);
             }
             Instruction {
                 opcode: Opcode::Tst,
@@ -160,8 +158,6 @@ impl Handlers {
                 let result = lhs & rhs;
                 cpu.update_flag(Psr::N, result & 0x8000_0000 != 0);
                 cpu.update_flag(Psr::Z, result == 0);
-                cpu.update_flag(Psr::C, false);
-                cpu.update_flag(Psr::V, false);
             }
             _ => todo!("{:?}", instr),
         }
