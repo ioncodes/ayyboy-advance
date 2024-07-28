@@ -1,21 +1,25 @@
-use log::trace;
+use log::{trace, warn};
 
-use crate::memory::device::IoDevice;
+use crate::memory::device::{Addressable, IoDevice};
 
-use super::registers::DispStat;
+use super::{registers::DispStat, INTERNAL_HEIGHT, INTERNAL_WIDTH};
 
 pub struct Ppu {
     pub h_counter: u16,
     pub scanline: u16,
+    vram: Box<[u8; (0x07FFFFFF - 0x05000000) + 1]>,
     lcd_status: DispStat,
     vblank_raised_for_frame: bool,
 }
 
 impl Ppu {
     pub fn new() -> Ppu {
+        let vram = Box::<[u8; (0x07FFFFFF - 0x05000000) + 1]>::new_zeroed();
+
         Ppu {
             h_counter: 0,
             scanline: 0,
+            vram: unsafe { vram.assume_init() },
             lcd_status: DispStat::empty(),
             vblank_raised_for_frame: false,
         }
@@ -42,20 +46,72 @@ impl Ppu {
 
         trace!("scanline={}, h_counter={}", self.scanline, self.h_counter);
     }
+
+    pub fn get_frame(&self) -> [[(u8, u8, u8); 256]; 256] {
+        // background mode 4
+
+        let mut frame = [[(0, 0, 0); 256]; 256];
+
+        for y in 0..INTERNAL_HEIGHT {
+            for x in 0..INTERNAL_WIDTH {
+                let pixel_address = 0x06000000 + (y * INTERNAL_HEIGHT + x) as u32;
+                let pixel_index = self.read(pixel_address) as u32;
+                let rgb = self.read_u16(0x05000000 + (2 * pixel_index));
+                let (r, g, b) = (
+                    ((rgb & 0b0000_0000_0001_1111) as u8),
+                    (((rgb & 0b0000_0011_1110_0000) >> 5) as u8),
+                    (((rgb & 0b0111_1100_0000_0000) >> 10) as u8),
+                );
+                frame[x][y] = (
+                    (r << 3) | (r >> 2),
+                    (g << 3) | (g >> 2),
+                    (b << 3) | (b >> 2),
+                );
+                if pixel_index > 0 {
+                    println!("Pixel at {:x} is {:x}", pixel_address, pixel_index);
+                }
+            }
+        }
+
+        frame
+    }
 }
 
 impl IoDevice for Ppu {
-    fn read(&self, addr: u32) -> u16 {
+    fn read_io(&self, addr: u32) -> u16 {
         match addr {
             0x4 => self.lcd_status.bits(),
             _ => panic!("Invalid PPU read: {:08x}", addr),
         }
     }
 
-    fn write(&mut self, addr: u32, value: u16) {
+    fn write_io(&mut self, addr: u32, value: u16) {
         match addr {
             0x4 => self.lcd_status = DispStat::from_bits_truncate(value),
             _ => panic!("Invalid PPU write: {:08x}", addr),
+        }
+    }
+}
+
+impl Addressable for Ppu {
+    fn read(&self, addr: u32) -> u8 {
+        match addr {
+            0x05000000..=0x07FFFFFF => self.vram[(addr - 0x05000000) as usize],
+            _ => unreachable!(),
+        }
+    }
+
+    fn write(&mut self, addr: u32, value: u8) {
+        warn!("write to PPU VRAM: {:08x} = {:02x}", addr, value);
+        match addr {
+            0x05000000..=0x07FFFFFF => self.vram[(addr - 0x05000000) as usize] = value,
+            _ => unreachable!(),
+        }
+    }
+
+    fn load(&mut self, addr: u32, data: &[u8]) {
+        for (i, &byte) in data.iter().enumerate() {
+            self.write(addr + i as u32, byte);
         }
     }
 }
