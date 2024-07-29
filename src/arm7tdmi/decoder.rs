@@ -252,6 +252,15 @@ pub enum Direction {
     Down,
 }
 
+impl Display for Direction {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            Direction::Up => write!(f, "+"),
+            Direction::Down => write!(f, "-"),
+        }
+    }
+}
+
 #[derive(PartialEq, Debug)]
 pub enum Indexing {
     Pre,
@@ -430,6 +439,11 @@ impl Instruction {
                     }
                 };
 
+                // "In the case of post-indexed addressing, the write back bit is redundant and
+                // is always set to zero, since the old base value can be retained if necessary by setting
+                // the offset to zero. Therefore post-indexed data transfers always write back the
+                // modified base."
+
                 Instruction {
                     opcode: if is_load { Opcode::Ldr } else { Opcode::Str },
                     condition,
@@ -448,7 +462,7 @@ impl Instruction {
                     } else {
                         Some(Indexing::Post)
                     },
-                    writeback: w == 1,
+                    writeback: w == 1 || p == 0,
                 }
             }
             // Data Processing
@@ -615,6 +629,11 @@ impl Instruction {
                     }
                 };
 
+                // "In the case of post-indexed addressing, the write back bit is redundant and
+                // is always set to zero, since the old base value can be retained if necessary by setting
+                // the offset to zero. Therefore post-indexed data transfers always write back the
+                // modified base."
+
                 Instruction {
                     opcode: if is_load { Opcode::Ldr } else { Opcode::Str },
                     condition,
@@ -637,7 +656,7 @@ impl Instruction {
                     } else {
                         Some(Indexing::Post)
                     },
-                    writeback: w == 1,
+                    writeback: w == 1 || p == 0,
                 }
             }
             _ => panic!("Unknown instruction: {:08x} | {:032b}", opcode, opcode),
@@ -825,52 +844,114 @@ impl Display for Instruction {
         // Note to self: only show condition flags if not a test instruction,
         // they are always set, aka implicite
 
-        write!(
-            f,
-            "{}{}{}{}",
-            self.opcode,
-            self.transfer_length
-                .as_ref()
-                .unwrap_or(&TransferLength::Word),
-            self.condition,
-            if self.set_condition_flags && !self.opcode.is_test() {
-                ".s"
-            } else {
-                ""
-            }
-        )?;
-        if let Some(operand) = &self.operand1 {
-            write!(f, " {}", operand)?;
-        }
+        match self.opcode {
+            Opcode::Ldr | Opcode::Str if self.indexing == Some(Indexing::Post) => {
+                write!(
+                    f,
+                    "{}{}{}{} {}",
+                    self.opcode,
+                    self.transfer_length
+                        .as_ref()
+                        .unwrap_or(&TransferLength::Word),
+                    self.condition,
+                    if self.set_condition_flags && !self.opcode.is_test() {
+                        ".s"
+                    } else {
+                        ""
+                    },
+                    self.operand1.as_ref().unwrap(),
+                )?;
 
-        if let Some(operand) = &self.operand2 {
-            write!(f, ", ")?;
-
-            if self.opcode.is_load_store() {
-                write!(f, "[")?;
-            }
-
-            write!(f, "{}", operand)?;
-        }
-
-        if let Some(operand) = &self.operand3 {
-            write!(
-                f,
-                ", {}{}",
-                if let Some(op) = &self.offset_direction {
-                    match op {
-                        Direction::Up => "",
-                        Direction::Down => "-",
-                    }
+                if self.writeback {
+                    write!(
+                        f,
+                        ", [{}], {}{}",
+                        self.operand2.as_ref().unwrap(),
+                        self.offset_direction.as_ref().unwrap(),
+                        self.operand3.as_ref().unwrap()
+                    )?;
                 } else {
-                    ""
-                },
-                operand
-            )?;
-        }
+                    write!(f, ", [{}]", self.operand2.as_ref().unwrap())?;
+                }
+            }
+            Opcode::Ldr | Opcode::Str if self.indexing == Some(Indexing::Pre) => {
+                write!(
+                    f,
+                    "{}{}{}{} {}",
+                    self.opcode,
+                    self.transfer_length
+                        .as_ref()
+                        .unwrap_or(&TransferLength::Word),
+                    self.condition,
+                    if self.set_condition_flags && !self.opcode.is_test() {
+                        ".s"
+                    } else {
+                        ""
+                    },
+                    self.operand1.as_ref().unwrap(),
+                )?;
 
-        if self.opcode.is_load_store() {
-            write!(f, "]")?;
+                write!(
+                    f,
+                    ", [{}, {}{}]",
+                    self.operand2.as_ref().unwrap(),
+                    self.offset_direction.as_ref().unwrap(),
+                    self.operand3.as_ref().unwrap()
+                )?;
+
+                if self.writeback {
+                    write!(f, "!")?;
+                }
+            }
+            _ => {
+                write!(
+                    f,
+                    "{}{}{}{}",
+                    self.opcode,
+                    self.transfer_length
+                        .as_ref()
+                        .unwrap_or(&TransferLength::Word),
+                    self.condition,
+                    if self.set_condition_flags && !self.opcode.is_test() {
+                        ".s"
+                    } else {
+                        ""
+                    }
+                )?;
+                if let Some(operand) = &self.operand1 {
+                    write!(f, " {}", operand)?;
+                }
+
+                if let Some(operand) = &self.operand2 {
+                    write!(f, ", ")?;
+
+                    if self.opcode.is_load_store() {
+                        write!(f, "[")?;
+                    }
+
+                    write!(f, "{}", operand)?;
+                }
+
+                if let Some(operand) = &self.operand3 {
+                    write!(
+                        f,
+                        ", {}{}",
+                        if let Some(op) = &self.offset_direction {
+                            match op {
+                                Direction::Up => "",
+                                Direction::Down => "-",
+                            }
+                        } else {
+                            ""
+                        },
+                        operand
+                    )?;
+                }
+
+                if self.opcode.is_load_store() {
+                    write!(f, "]")?;
+                }
+            }
         }
 
         Ok(())

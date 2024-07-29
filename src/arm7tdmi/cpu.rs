@@ -60,6 +60,7 @@ impl Cpu {
         }
 
         if let Some((instruction, state)) = self.pipeline.pop() {
+            trace!("Instruction: {:?}", instruction);
             if self.is_thumb() {
                 trace!("Opcode: {:04x} | {:016b}", state.opcode, state.opcode);
                 debug!("{:08x}: {}", state.pc, instruction);

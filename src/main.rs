@@ -7,16 +7,16 @@ mod video;
 
 use arm7tdmi::cpu::{Cpu, ProcessorMode};
 use eframe::NativeOptions;
-use egui::{Style, ViewportBuilder};
+use egui::ViewportBuilder;
 use frontend::renderer::{Renderer, SCALE};
-use log::info;
 use memory::mmio::Mmio;
 
 use tokio::sync::watch::{self, Receiver, Sender};
 use video::{Frame, SCREEN_HEIGHT, SCREEN_WIDTH};
 
-const ARM_TEST: &[u8] = include_bytes!("../external/gba-tests/arm/arm.gba");
-//const ARM_TEST: &[u8] = include_bytes!("../external/gba-div-test/out/rom.gba");
+// const ARM_TEST: &[u8] = include_bytes!("../external/gba-tests/arm/arm.gba");
+// const ARM_TEST: &[u8] = include_bytes!("../external/gba-div-test/out/rom.gba");
+const ARM_TEST: &[u8] = include_bytes!("../external/discord/panda.gba");
 const BIOS: &[u8] = include_bytes!("../external/gba_bios.bin");
 
 fn main() {

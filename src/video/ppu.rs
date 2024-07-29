@@ -52,21 +52,38 @@ impl Ppu {
 
         let mut frame = [[(0, 0, 0); SCREEN_WIDTH]; SCREEN_HEIGHT];
 
+        // for y in 0..SCREEN_HEIGHT {
+        //     for x in 0..SCREEN_WIDTH {
+        //         let pixel_address = 0x06000000 + (y * SCREEN_WIDTH + x) as u32;
+        //         let pixel_index = self.read(pixel_address) as u32;
+        //         let rgb = self.read_u16(0x05000000 + (2 * pixel_index));
+        //         let (r, g, b) = (
+        //             ((rgb & 0b0000_0000_0001_1111) as u8),
+        //             (((rgb & 0b0000_0011_1110_0000) >> 5) as u8),
+        //             (((rgb & 0b0111_1100_0000_0000) >> 10) as u8),
+        //         );
+        //         frame[y][x] = (
+        //             (r << 3) | (r >> 2),
+        //             (g << 3) | (g >> 2),
+        //             (b << 3) | (b >> 2),
+        //         );
+        //     }
+        // }
+
+        // mode 3
+
         for y in 0..SCREEN_HEIGHT {
             for x in 0..SCREEN_WIDTH {
-                let pixel_address = 0x06000000 + (y * SCREEN_WIDTH + x) as u32;
-                let pixel_index = self.read(pixel_address) as u32;
-                let rgb = self.read_u16(0x05000000 + (2 * pixel_index));
-                let (r, g, b) = (
-                    ((rgb & 0b0000_0000_0001_1111) as u8),
-                    (((rgb & 0b0000_0011_1110_0000) >> 5) as u8),
-                    (((rgb & 0b0111_1100_0000_0000) >> 10) as u8),
-                );
-                frame[y][x] = (
-                    (r << 3) | (r >> 2),
-                    (g << 3) | (g >> 2),
-                    (b << 3) | (b >> 2),
-                );
+                // 2 bytes per pixel
+
+                let addr = 0x06000000 + ((y * SCREEN_WIDTH + x) as u32 * 2);
+                let rgb = self.read_u16(addr);
+
+                let r = (rgb & 0b0000_0000_0001_1111) as u8;
+                let g = ((rgb & 0b0000_0011_1110_0000) >> 5) as u8;
+                let b = ((rgb & 0b0111_1100_0000_0000) >> 10) as u8;
+
+                frame[y][x] = (r << 3, g << 3, b << 3);
             }
         }
 
@@ -103,12 +120,6 @@ impl Addressable for Ppu {
         match addr {
             0x05000000..=0x07FFFFFF => self.vram[(addr - 0x05000000) as usize] = value,
             _ => unreachable!(),
-        }
-    }
-
-    fn load(&mut self, addr: u32, data: &[u8]) {
-        for (i, &byte) in data.iter().enumerate() {
-            self.write(addr + i as u32, byte);
         }
     }
 }
