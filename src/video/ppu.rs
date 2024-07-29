@@ -1,31 +1,30 @@
-use log::{error, trace, warn};
+use log::{error, trace};
 
-use crate::memory::device::{Addressable, IoDevice};
+use crate::{memory::device::Addressable, video::DISPSTAT_ADDR};
 
 use super::{
     registers::{DispCnt, DispStat},
-    Frame, SCREEN_HEIGHT, SCREEN_WIDTH,
+    Frame, DISPCNT_ADDR, SCREEN_HEIGHT, SCREEN_WIDTH,
 };
 
 pub struct Ppu {
     pub h_counter: u16,
     pub scanline: u16,
     vram: Box<[u8; (0x07FFFFFF - 0x05000000) + 1]>,
-    lcd_status: DispStat,
-    lcd_control: DispCnt,
+    io: Box<[u8; (0x4000056 - 0x4000000) + 1]>,
     vblank_raised_for_frame: bool,
 }
 
 impl Ppu {
     pub fn new() -> Ppu {
         let vram = Box::<[u8; (0x07FFFFFF - 0x05000000) + 1]>::new_zeroed();
+        let io = Box::<[u8; (0x4000056 - 0x4000000) + 1]>::new_zeroed();
 
         Ppu {
             h_counter: 0,
             scanline: 0,
             vram: unsafe { vram.assume_init() },
-            lcd_status: DispStat::empty(),
-            lcd_control: DispCnt::empty(),
+            io: unsafe { io.assume_init() },
             vblank_raised_for_frame: false,
         }
     }
@@ -41,11 +40,18 @@ impl Ppu {
         if self.scanline == 228 {
             self.scanline = 0;
             self.vblank_raised_for_frame = false;
-            self.lcd_status.remove(DispStat::VBLANK_FLAG);
+
+            self.write_u16(
+                DISPSTAT_ADDR,
+                self.read_u16(DISPSTAT_ADDR) & DispStat::VBLANK_FLAG.bits(),
+            );
         }
 
         if self.scanline >= 160 && !self.vblank_raised_for_frame {
-            self.lcd_status.insert(DispStat::VBLANK_FLAG);
+            self.write_u16(
+                DISPSTAT_ADDR,
+                self.read_u16(DISPSTAT_ADDR) | DispStat::VBLANK_FLAG.bits(),
+            );
             self.vblank_raised_for_frame = true;
         }
 
@@ -53,11 +59,12 @@ impl Ppu {
     }
 
     pub fn get_frame(&self) -> Frame {
-        match self.lcd_control.bg_mode() {
+        let lcd_control = self.read_as::<DispCnt>(DISPCNT_ADDR);
+        match lcd_control.bg_mode() {
             3 => self.render_background_mode3(),
             4 => self.render_background_mode4(),
             mode => {
-                warn!("Unsupported PPU mode: {}", mode);
+                error!("Unsupported PPU mode: {}", mode);
                 [[(0, 0, 0); SCREEN_WIDTH]; SCREEN_HEIGHT]
             }
         }
@@ -107,38 +114,18 @@ impl Ppu {
     }
 }
 
-impl IoDevice for Ppu {
-    fn read_io(&self, addr: u32) -> u16 {
-        match addr {
-            0x0 => self.lcd_control.bits(),
-            0x4 => self.lcd_status.bits(),
-            _ => {
-                error!("Invalid PPU read: {:08x}", addr);
-                0x6969
-            }
-        }
-    }
-
-    fn write_io(&mut self, addr: u32, value: u16) {
-        match addr {
-            0x0 => self.lcd_control = DispCnt::from_bits_truncate(value),
-            0x4 => self.lcd_status = DispStat::from_bits_truncate(value),
-            _ => error!("Invalid PPU write: {:08x} = {:04x}", addr, value),
-        }
-    }
-}
-
 impl Addressable for Ppu {
     fn read(&self, addr: u32) -> u8 {
         match addr {
+            0x04000000..=0x04000056 => self.io[(addr - 0x04000000) as usize],
             0x05000000..=0x07FFFFFF => self.vram[(addr - 0x05000000) as usize],
             _ => unreachable!(),
         }
     }
 
     fn write(&mut self, addr: u32, value: u8) {
-        warn!("write to PPU VRAM: {:08x} = {:02x}", addr, value);
         match addr {
+            0x04000000..=0x04000056 => self.io[(addr - 0x04000000) as usize] = value,
             0x05000000..=0x07FFFFFF => self.vram[(addr - 0x05000000) as usize] = value,
             _ => unreachable!(),
         }

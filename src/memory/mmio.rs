@@ -1,8 +1,6 @@
-use log::error;
-
 use crate::video::ppu::Ppu;
 
-use super::device::{Addressable, IoDevice};
+use super::device::Addressable;
 
 pub struct Mmio {
     pub internal_memory: Box<[u8; 0x04FFFFFF + 1]>,
@@ -28,6 +26,7 @@ impl Mmio {
 
     pub fn read(&self, addr: u32) -> u8 {
         match addr {
+            0x04000000..=0x04000056 => self.ppu.read(addr), // PPU I/O
             0x00000000..=0x04FFFFFF => self.internal_memory[addr as usize],
             0x05000000..=0x07FFFFFF => self.ppu.read(addr),
             0x08000000..=0x0FFFFFFF => self.external_memory[(addr - 0x08000000) as usize],
@@ -36,10 +35,7 @@ impl Mmio {
     }
 
     pub fn read_u16(&self, addr: u32) -> u16 {
-        match addr {
-            0x04000000..=0x040003FE => self.handle_io_read(addr),
-            _ => u16::from_le_bytes([self.read(addr), self.read(addr + 1)]),
-        }
+        u16::from_le_bytes([self.read(addr), self.read(addr + 1)])
     }
 
     pub fn read_u32(&self, addr: u32) -> u32 {
@@ -53,7 +49,7 @@ impl Mmio {
 
     pub fn write(&mut self, addr: u32, value: u8) {
         match addr {
-            0x04000000..=0x040003FE => self.handle_io_write(addr, value as u16),
+            0x04000000..=0x04000056 => self.ppu.write(addr, value), // PPU I/O
             0x00000000..=0x04FFFFFF => self.internal_memory[addr as usize] = value,
             0x05000000..=0x07FFFFFF => self.ppu.write(addr, value),
             0x08000000..=0x0FFFFFFF => self.external_memory[(addr - 0x08000000) as usize] = value,
@@ -62,14 +58,9 @@ impl Mmio {
     }
 
     pub fn write_u16(&mut self, addr: u32, value: u16) {
-        match addr {
-            0x04000000..=0x040003FE => self.handle_io_write(addr, value),
-            _ => {
-                let [a, b] = value.to_le_bytes();
-                self.write(addr, a);
-                self.write(addr + 1, b);
-            }
-        }
+        let [a, b] = value.to_le_bytes();
+        self.write(addr, a);
+        self.write(addr + 1, b);
     }
 
     pub fn write_u32(&mut self, addr: u32, value: u32) {
@@ -91,28 +82,6 @@ impl Mmio {
                 [(addr - 0x08000000)..(addr - 0x08000000) + data.len()]
                 .copy_from_slice(data),
             _ => panic!("Invalid memory address: {:08x}", addr),
-        }
-    }
-
-    pub fn handle_io_read(&self, addr: u32) -> u16 {
-        match addr {
-            0x04000000..=0x04000056 => self.ppu.read_io(addr - 0x04000000),
-            ..=0x040003FE => {
-                error!("16bit read from unmapped register: {:08x}", addr);
-                0x6969
-            }
-            _ => unreachable!(),
-        }
-    }
-
-    pub fn handle_io_write(&mut self, addr: u32, value: u16) {
-        match addr {
-            0x04000000..=0x04000056 => self.ppu.write_io(addr - 0x04000000, value),
-            ..=0x040003FE => error!(
-                "16bit write to unmapped register: {:08x} = {:04x}",
-                addr, value
-            ),
-            _ => unreachable!(),
         }
     }
 }

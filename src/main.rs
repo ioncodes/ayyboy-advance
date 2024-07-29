@@ -14,10 +14,10 @@ use memory::mmio::Mmio;
 use tokio::sync::watch::{self, Receiver, Sender};
 use video::{Frame, SCREEN_HEIGHT, SCREEN_WIDTH};
 
-const ARM_TEST: &[u8] = include_bytes!("../external/gba-tests/arm/arm.gba");
+// const ARM_TEST: &[u8] = include_bytes!("../external/gba-tests/arm/arm.gba");
 // const ARM_TEST: &[u8] = include_bytes!("../external/gba-div-test/out/rom.gba"); // just a div test
 // const ARM_TEST: &[u8] = include_bytes!("../external/discord/panda.gba"); // works
-// const ARM_TEST: &[u8] = include_bytes!("../external/discord/methharold.gba");
+const ARM_TEST: &[u8] = include_bytes!("../external/discord/methharold.gba");
 // const ARM_TEST: &[u8] = include_bytes!("../external/discord/gang.gba"); // works
 const BIOS: &[u8] = include_bytes!("../external/gba_bios.bin");
 
