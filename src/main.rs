@@ -14,9 +14,11 @@ use memory::mmio::Mmio;
 use tokio::sync::watch::{self, Receiver, Sender};
 use video::{Frame, SCREEN_HEIGHT, SCREEN_WIDTH};
 
-// const ARM_TEST: &[u8] = include_bytes!("../external/gba-tests/arm/arm.gba");
-// const ARM_TEST: &[u8] = include_bytes!("../external/gba-div-test/out/rom.gba");
-const ARM_TEST: &[u8] = include_bytes!("../external/discord/panda.gba");
+const ARM_TEST: &[u8] = include_bytes!("../external/gba-tests/arm/arm.gba");
+// const ARM_TEST: &[u8] = include_bytes!("../external/gba-div-test/out/rom.gba"); // just a div test
+// const ARM_TEST: &[u8] = include_bytes!("../external/discord/panda.gba"); // works
+// const ARM_TEST: &[u8] = include_bytes!("../external/discord/methharold.gba");
+// const ARM_TEST: &[u8] = include_bytes!("../external/discord/gang.gba"); // works
 const BIOS: &[u8] = include_bytes!("../external/gba_bios.bin");
 
 fn main() {
@@ -35,12 +37,17 @@ fn main() {
         cpu.registers.r[15] = 0x08000000; // pc
         cpu.set_processor_mode(ProcessorMode::User);
 
+        let mut frame_rendered = false;
+
         loop {
             cpu.tick(&mut mmio);
             mmio.tick_components();
 
-            if mmio.ppu.scanline == 160 {
+            if mmio.ppu.scanline == 160 && !frame_rendered {
                 tx.send(mmio.ppu.get_frame()).unwrap();
+                frame_rendered = true;
+            } else if mmio.ppu.scanline == 0 && frame_rendered {
+                frame_rendered = false;
             }
         }
     });
@@ -56,7 +63,7 @@ fn main() {
     };
 
     let _ = eframe::run_native(
-        "ayyboyy",
+        "ayyboy advance",
         native_options,
         Box::new(move |cc| Ok(Box::new(Renderer::new(cc, rx)))),
     );
