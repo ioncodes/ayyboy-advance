@@ -667,7 +667,22 @@ impl Instruction {
     fn decode_thumb(opcode: u32) -> Instruction {
         #[bitmatch]
         match opcode {
-            // move/compare/add/subtract immediate
+            // Move shifted register
+            "000c_cooo_ooss_sddd" => {
+                let operand1 = Register::from(d);
+                let operand2 = Register::from(s);
+                let shift_type = ShiftType::from(c, o);
+
+                Instruction {
+                    opcode: Opcode::Mov,
+                    condition: Condition::Always,
+                    set_condition_flags: false,
+                    operand1: Some(Operand::Register(operand1, None)),
+                    operand2: Some(Operand::Register(operand2, Some(shift_type))),
+                    ..Instruction::default()
+                }
+            }
+            // Move/compare/add/subtract immediate
             "001o_orrr_iiii_iiii" => {
                 let opcode = match o {
                     0b00 => Opcode::Mov,
@@ -757,7 +772,25 @@ impl Instruction {
                     ..Instruction::default()
                 }
             }
-            // load address
+            // PC-relative load
+            "0100_1ddd_iiii_iiii" => {
+                let destination = Register::from(d);
+                let offset = i << 2;
+
+                Instruction {
+                    opcode: Opcode::Ldr,
+                    condition: Condition::Always,
+                    set_condition_flags: false,
+                    operand1: Some(Operand::Register(destination, None)),
+                    operand2: Some(Operand::Register(Register::R15, None)),
+                    operand3: Some(Operand::Immediate(offset, None)),
+                    offset_direction: Some(Direction::Up),
+                    indexing: Some(Indexing::Pre),
+                    transfer_length: Some(TransferLength::Word),
+                    ..Instruction::default()
+                }
+            }
+            // Load address
             "1010_sddd_cccc_cccc" => {
                 let source = match s {
                     0 => Register::R15,
@@ -785,6 +818,27 @@ impl Instruction {
                 operand3: None,
                 ..Instruction::default()
             },
+            // Conditional Branch
+            "1101_cccc_iiii_iiii" => Instruction {
+                opcode: Opcode::B,
+                condition: Condition::from(c),
+                set_condition_flags: false,
+                operand1: Some(Operand::Offset(((i as i8) << 1) as i32)),
+                ..Instruction::default()
+            },
+            // Unconditional Branch
+            "1110_0iii_iiii_iiii" => Instruction {
+                opcode: Opcode::B,
+                condition: Condition::Always,
+                set_condition_flags: false,
+                operand1: Some(Operand::Offset(i as i32)),
+                ..Instruction::default()
+            },
+            // Long branch with link
+            "1111_hiii_iiii_iiii" => {
+                // TODO: half1 = i, half2 = 11 bits next u16
+                todo!("Long branch with link")
+            }
             _ => panic!("Unknown instruction: {:04x} | {:016b}", opcode, opcode),
         }
     }
