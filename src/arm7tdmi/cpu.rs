@@ -138,8 +138,8 @@ impl Cpu {
             Register::R13 => self.registers.r[13] = value,
             Register::R14 => self.registers.r[14] = value,
             Register::R15 => {
-                // since PC is a GP register, we need to flush the pipeline
-                // when it's written to
+                // since PC is a GP register, it can be freely written to
+                // we need to flush the pipeline if that's the case
                 self.registers.r[15] = value;
                 self.pipeline.flush();
             }
