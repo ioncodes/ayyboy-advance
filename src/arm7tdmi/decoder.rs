@@ -285,7 +285,7 @@ pub struct Instruction {
 impl Instruction {
     pub fn decode(opcode: u32, is_thumb: bool) -> Instruction {
         if is_thumb {
-            Instruction::decode_thumb(opcode & 0xffff)
+            Instruction::decode_thumb(opcode)
         } else {
             Instruction::decode_armv4t(opcode)
         }
@@ -666,7 +666,7 @@ impl Instruction {
     #[bitmatch]
     fn decode_thumb(opcode: u32) -> Instruction {
         #[bitmatch]
-        match opcode {
+        match opcode & 0xffff {
             // Move shifted register
             "000c_cooo_ooss_sddd" => {
                 let operand1 = Register::from(d);
@@ -836,10 +836,24 @@ impl Instruction {
             },
             // Long branch with link
             "1111_hiii_iiii_iiii" => {
-                // TODO: half1 = i, half2 = 11 bits next u16
-                todo!("Long branch with link")
+                let offset_hi = i;
+                let offset_low = (opcode >> 16) & 0b0111_1111_1111;
+
+                let offset = ((offset_hi << 12) + offset_low) << 1;
+
+                Instruction {
+                    opcode: Opcode::Bl,
+                    condition: Condition::Always,
+                    set_condition_flags: false,
+                    operand1: Some(Operand::Offset(offset as i32)),
+                    ..Instruction::default()
+                }
             }
-            _ => panic!("Unknown instruction: {:04x} | {:016b}", opcode, opcode),
+            _ => panic!(
+                "Unknown instruction: {:04x} | {:016b}",
+                opcode & 0xffff,
+                opcode & 0xffff
+            ),
         }
     }
 
