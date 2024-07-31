@@ -667,6 +667,27 @@ impl Instruction {
     fn decode_thumb(opcode: u32) -> Instruction {
         #[bitmatch]
         match opcode & 0xffff {
+            // add/subtract
+            "0001_1ico_ooss_sddd" => {
+                let opcode = if c == 0 { Opcode::Add } else { Opcode::Sub };
+                let operand1 = Register::from(d);
+                let operand2 = Register::from(s);
+                let operand3 = if i == 0 {
+                    Operand::Register(Register::from(o), None)
+                } else {
+                    Operand::Immediate(o, None)
+                };
+
+                Instruction {
+                    opcode,
+                    condition: Condition::Always,
+                    set_condition_flags: false,
+                    operand1: Some(Operand::Register(operand1, None)),
+                    operand2: Some(Operand::Register(operand2, None)),
+                    operand3: Some(operand3),
+                    ..Instruction::default()
+                }
+            }
             // Move shifted register
             "000c_cooo_ooss_sddd" => {
                 let operand1 = Register::from(d);
