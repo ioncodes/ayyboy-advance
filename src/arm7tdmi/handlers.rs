@@ -34,9 +34,7 @@ impl Handlers {
                 operand1: Some(Operand::Offset(offset)),
                 ..
             } => {
-                // we use read_register here to ensure bit 1 is masked off in thumb mode
-                // TODO: required here?
-                let pc = cpu.read_register(&Register::R15);
+                let pc = cpu.get_pc();
                 let dst = pc.wrapping_add_signed(*offset);
                 cpu.registers.r[15] = dst;
             }
