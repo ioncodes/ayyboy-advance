@@ -1,3 +1,5 @@
+use std::num::NonZero;
+
 use super::{
     cpu::Cpu,
     decoder::{Condition, Instruction, Opcode, Operand, ShiftType},
@@ -345,6 +347,22 @@ impl Handlers {
 
                 cpu.write_register(dst_base, address);
             }
+            Instruction {
+                opcode: Opcode::Stm,
+                operand1: Some(Operand::Register(dst_base, None)),
+                operand2: Some(Operand::RegisterList(registers)),
+                ..
+            } => {
+                let mut address = cpu.read_register(dst_base);
+
+                for register in registers {
+                    let value = cpu.read_register(register);
+                    mmio.write_u32(address, value);
+                    address += 4;
+                }
+
+                cpu.write_register(dst_base, address);
+            }
             _ => todo!("{:?}", instr),
         }
     }
@@ -392,6 +410,27 @@ impl Handlers {
                 }
             }
             Instruction {
+                opcode: Opcode::Add,
+                operand1: Some(Operand::Register(dst, None)),
+                operand2: Some(x),
+                operand3: None,
+                set_condition_flags,
+                ..
+            } => {
+                let x = Handlers::resolve_operand(x, cpu);
+                let y = 1;
+                let (result, carry) = x.overflowing_add(y);
+                let (_, overflow) = (x as i32).overflowing_add(y as i32);
+                cpu.write_register(dst, result);
+
+                if *set_condition_flags {
+                    cpu.update_flag(Psr::N, result & 0x8000_0000 != 0);
+                    cpu.update_flag(Psr::Z, result == 0);
+                    cpu.update_flag(Psr::C, carry);
+                    cpu.update_flag(Psr::V, overflow);
+                }
+            }
+            Instruction {
                 opcode: Opcode::Adc,
                 operand1: Some(Operand::Register(dst, None)),
                 operand2: Some(x),
@@ -427,6 +466,27 @@ impl Handlers {
             } => {
                 let x = Handlers::resolve_operand(x, cpu);
                 let y = Handlers::resolve_operand(y, cpu);
+                let (result, borrow) = x.overflowing_sub(y);
+                let (_, overflow) = (x as i32).overflowing_sub(y as i32);
+                cpu.write_register(dst, result);
+
+                if *set_condition_flags {
+                    cpu.update_flag(Psr::N, result & 0x8000_0000 != 0);
+                    cpu.update_flag(Psr::Z, result == 0);
+                    cpu.update_flag(Psr::C, !borrow);
+                    cpu.update_flag(Psr::V, overflow);
+                }
+            }
+            Instruction {
+                opcode: Opcode::Sub,
+                operand1: Some(Operand::Register(dst, None)),
+                operand2: Some(x),
+                operand3: None,
+                set_condition_flags,
+                ..
+            } => {
+                let x = Handlers::resolve_operand(x, cpu);
+                let y = 1;
                 let (result, borrow) = x.overflowing_sub(y);
                 let (_, overflow) = (x as i32).overflowing_sub(y as i32);
                 cpu.write_register(dst, result);
@@ -539,6 +599,24 @@ impl Handlers {
                     cpu.update_flag(Psr::V, overflow);
                 }
             }
+            Instruction {
+                opcode: Opcode::Bic,
+                operand1: Some(Operand::Register(lhs, None)),
+                operand2: Some(Operand::Register(rhs, None)),
+                set_condition_flags,
+                ..
+            } => {
+                let x = cpu.read_register(lhs);
+                let y = cpu.read_register(rhs);
+                let result = x & !y;
+                cpu.write_register(lhs, result);
+
+                if *set_condition_flags {
+                    cpu.update_flag(Psr::N, result & 0x8000_0000 != 0);
+                    cpu.update_flag(Psr::Z, result == 0);
+                }
+            }
+
             _ => todo!("{:?}", instr),
         }
     }

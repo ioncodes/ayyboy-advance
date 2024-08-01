@@ -182,6 +182,12 @@ pub enum Opcode {
     Ldr,
     Str,
     Svc,
+    Lsl,
+    Lsr,
+    Asr,
+    Ror,
+    Mul,
+    Neg,
 }
 
 impl Opcode {
@@ -225,6 +231,12 @@ impl Display for Opcode {
             Opcode::Ldr => write!(f, "ldr"),
             Opcode::Str => write!(f, "str"),
             Opcode::Svc => write!(f, "svc"),
+            Opcode::Lsl => write!(f, "lsl"),
+            Opcode::Lsr => write!(f, "lsr"),
+            Opcode::Asr => write!(f, "asr"),
+            Opcode::Ror => write!(f, "ror"),
+            Opcode::Mul => write!(f, "mul"),
+            Opcode::Neg => write!(f, "neg"),
         }
     }
 }
@@ -725,6 +737,21 @@ impl Instruction {
                     ..Instruction::default()
                 }
             }
+            // ALU operations
+            "0100_00oo_ooss_sddd" => {
+                let opcode = Instruction::translate_opcode_thumb(o);
+                let operand1 = Register::from(d);
+                let operand2 = Register::from(s);
+
+                Instruction {
+                    opcode,
+                    condition: Condition::Always,
+                    set_condition_flags: false,
+                    operand1: Some(Operand::Register(operand1, None)),
+                    operand2: Some(Operand::Register(operand2, None)),
+                    ..Instruction::default()
+                }
+            }
             // Hi register operations/branch exchange
             "0100_01oo_xyss_sddd" => {
                 let (opcode, operand1, operand2) = match (o, x, y) {
@@ -839,6 +866,16 @@ impl Instruction {
                 operand3: None,
                 ..Instruction::default()
             },
+            // multiple load/store
+            "1100_lbbb_rrrr_rrrr" => Instruction {
+                opcode: if l == 0 { Opcode::Stm } else { Opcode::Ldm },
+                condition: Condition::Always,
+                set_condition_flags: false,
+                operand1: Some(Operand::Register(Register::from(b), None)),
+                operand2: Some(Operand::RegisterList(Instruction::extract_register_list(r))),
+                operand3: None,
+                ..Instruction::default() // TODO: writeback?
+            },
             // Conditional Branch
             "1101_cccc_iiii_iiii" => Instruction {
                 opcode: Opcode::B,
@@ -894,6 +931,28 @@ impl Instruction {
             0b1011 => Opcode::Cmn,
             0b1100 => Opcode::Orr,
             0b1101 => Opcode::Mov,
+            0b1110 => Opcode::Bic,
+            0b1111 => Opcode::Mvn,
+            _ => panic!("Unknown opcode: {:04b}", opcode),
+        }
+    }
+
+    fn translate_opcode_thumb(opcode: u32) -> Opcode {
+        match opcode {
+            0b0000 => Opcode::And,
+            0b0001 => Opcode::Eor,
+            0b0010 => Opcode::Lsl,
+            0b0011 => Opcode::Lsr,
+            0b0100 => Opcode::Asr,
+            0b0101 => Opcode::Adc,
+            0b0110 => Opcode::Sbc,
+            0b0111 => Opcode::Ror,
+            0b1000 => Opcode::Tst,
+            0b1001 => Opcode::Neg,
+            0b1010 => Opcode::Cmp,
+            0b1011 => Opcode::Cmn,
+            0b1100 => Opcode::Orr,
+            0b1101 => Opcode::Mul,
             0b1110 => Opcode::Bic,
             0b1111 => Opcode::Mvn,
             _ => panic!("Unknown opcode: {:04b}", opcode),
