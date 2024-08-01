@@ -47,7 +47,7 @@ impl Handlers {
                 let dst = pc.wrapping_add_signed(*offset);
                 // the pipeline is 2 instructions ahead
                 // but we want to store the address of the next instruction
-                cpu.registers.r[14] = if cpu.is_thumb() { pc } else { pc - 4 };
+                cpu.registers.r[14] = if cpu.is_thumb() { pc | 1 } else { pc - 4 };
                 cpu.registers.r[15] = dst;
             }
             Instruction {
@@ -614,7 +614,60 @@ impl Handlers {
                     cpu.update_flag(Psr::Z, result == 0);
                 }
             }
+            Instruction {
+                opcode: Opcode::Lsl,
+                operand1: Some(Operand::Register(dst, None)),
+                operand2: Some(Operand::Register(src, None)),
+                operand3: Some(Operand::Immediate(shift, None)),
+                set_condition_flags,
+                ..
+            } => {
+                let value = cpu.read_register(src);
+                let result = value.wrapping_shl(*shift);
+                cpu.write_register(dst, result);
 
+                if *set_condition_flags {
+                    cpu.update_flag(Psr::N, result & 0x8000_0000 != 0);
+                    cpu.update_flag(Psr::Z, result == 0);
+                    cpu.update_flag(Psr::C, value & (1 << (32 - *shift)) != 0);
+                }
+            }
+            Instruction {
+                opcode: Opcode::Lsr,
+                operand1: Some(Operand::Register(dst, None)),
+                operand2: Some(Operand::Register(src, None)),
+                operand3: Some(Operand::Immediate(shift, None)),
+                set_condition_flags,
+                ..
+            } => {
+                let value = cpu.read_register(src);
+                let result = value.wrapping_shr(*shift);
+                cpu.write_register(dst, result);
+
+                if *set_condition_flags {
+                    cpu.update_flag(Psr::N, result & 0x8000_0000 != 0);
+                    cpu.update_flag(Psr::Z, result == 0);
+                    cpu.update_flag(Psr::C, value & (1 << (*shift - 1)) != 0);
+                }
+            }
+            Instruction {
+                opcode: Opcode::Asr,
+                operand1: Some(Operand::Register(dst, None)),
+                operand2: Some(Operand::Register(src, None)),
+                operand3: Some(Operand::Immediate(shift, None)),
+                set_condition_flags,
+                ..
+            } => {
+                let value = cpu.read_register(src);
+                let result = value.wrapping_shr(*shift);
+                cpu.write_register(dst, result);
+
+                if *set_condition_flags {
+                    cpu.update_flag(Psr::N, result & 0x8000_0000 != 0);
+                    cpu.update_flag(Psr::Z, result == 0);
+                    cpu.update_flag(Psr::C, value & (1 << (*shift - 1)) != 0);
+                }
+            }
             _ => todo!("{:?}", instr),
         }
     }

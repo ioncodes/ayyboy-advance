@@ -90,7 +90,10 @@ impl Cpu {
                 | Opcode::Rsb
                 | Opcode::Bic
                 | Opcode::Neg
-                | Opcode::Mul => Handlers::alu(&instruction, self, mmio),
+                | Opcode::Mul
+                | Opcode::Asr
+                | Opcode::Lsl
+                | Opcode::Lsr => Handlers::alu(&instruction, self, mmio),
                 Opcode::Svc => Handlers::supervisor_call(&instruction, self, mmio),
                 _ => todo!(),
             }

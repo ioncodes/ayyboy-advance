@@ -702,16 +702,22 @@ impl Instruction {
             }
             // Move shifted register
             "000c_cooo_ooss_sddd" => {
+                let opcode = match c {
+                    0b00 => Opcode::Lsl,
+                    0b01 => Opcode::Lsr,
+                    0b10 => Opcode::Asr,
+                    _ => unreachable!(),
+                };
                 let operand1 = Register::from(d);
                 let operand2 = Register::from(s);
-                let shift_type = ShiftType::from(c, o);
 
                 Instruction {
-                    opcode: Opcode::Mov,
+                    opcode,
                     condition: Condition::Always,
-                    set_condition_flags: false,
+                    set_condition_flags: true,
                     operand1: Some(Operand::Register(operand1, None)),
-                    operand2: Some(Operand::Register(operand2, Some(shift_type))),
+                    operand2: Some(Operand::Register(operand2, None)),
+                    operand3: Some(Operand::Immediate(o, None)),
                     ..Instruction::default()
                 }
             }

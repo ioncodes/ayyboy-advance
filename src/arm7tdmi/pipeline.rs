@@ -57,16 +57,16 @@ impl Display for Pipeline {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "Fetch{{{}}}, Decode{{{}}}",
-            match self.fetch {
-                Some(Item::Instruction(_, _)) => "Instruction",
-                Some(Item::Data(_, _)) => "Data",
-                None => "Empty",
+            "Fetch = {{{}}}, Decode = {{{}}}",
+            match &self.fetch {
+                Some(Item::Instruction(instr, state)) => format!("{:?} @ {:08x}", instr, state.pc),
+                Some(Item::Data(data, state)) => format!("{:08x} @ {:08x}", data, state.pc),
+                None => String::from("Empty"),
             },
-            match self.decode {
-                Some(Item::Instruction(_, _)) => "Instruction",
-                Some(Item::Data(_, _)) => "Data",
-                None => "Empty",
+            match &self.decode {
+                Some(Item::Instruction(instr, state)) => format!("{:?} @ {:08x}", instr, state.pc),
+                Some(Item::Data(data, state)) => format!("{:08x} @ {:08x}", data, state.pc),
+                None => String::from("Empty"),
             },
         )
     }
