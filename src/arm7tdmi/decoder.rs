@@ -693,7 +693,7 @@ impl Instruction {
                 Instruction {
                     opcode,
                     condition: Condition::Always,
-                    set_condition_flags: false,
+                    set_condition_flags: true,
                     operand1: Some(Operand::Register(operand1, None)),
                     operand2: Some(Operand::Register(operand2, None)),
                     operand3: Some(operand3),
@@ -727,10 +727,12 @@ impl Instruction {
                 let operand1 = Register::from(r);
                 let operand2 = Operand::Immediate(i, None);
 
+                let set_condition_flags = opcode != Opcode::Mov && opcode != Opcode::Cmp;
+
                 Instruction {
                     opcode,
                     condition: Condition::Always,
-                    set_condition_flags: false,
+                    set_condition_flags,
                     operand1: Some(Operand::Register(operand1, None)),
                     operand2: Some(operand2),
                     operand3: None,
@@ -746,7 +748,7 @@ impl Instruction {
                 Instruction {
                     opcode,
                     condition: Condition::Always,
-                    set_condition_flags: false,
+                    set_condition_flags: true,
                     operand1: Some(Operand::Register(operand1, None)),
                     operand2: Some(Operand::Register(operand2, None)),
                     ..Instruction::default()
@@ -813,10 +815,14 @@ impl Instruction {
                     _ => unreachable!(),
                 };
 
+                let set_condition_flags =
+                    opcode != Opcode::Bx && opcode != Opcode::Cmn && opcode != Opcode::Mov;
+
                 Instruction {
-                    opcode,
+                    opcode: opcode,
                     operand1,
                     operand2,
+                    set_condition_flags,
                     ..Instruction::default()
                 }
             }

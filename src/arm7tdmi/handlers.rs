@@ -1,4 +1,4 @@
-use std::num::NonZero;
+use std::{arch::x86_64, num::NonZero};
 
 use super::{
     cpu::Cpu,
@@ -412,13 +412,13 @@ impl Handlers {
             Instruction {
                 opcode: Opcode::Add,
                 operand1: Some(Operand::Register(dst, None)),
-                operand2: Some(x),
+                operand2: Some(src),
                 operand3: None,
                 set_condition_flags,
                 ..
             } => {
-                let x = Handlers::resolve_operand(x, cpu);
-                let y = 1;
+                let x = cpu.read_register(dst);
+                let y = Handlers::resolve_operand(src, cpu);
                 let (result, carry) = x.overflowing_add(y);
                 let (_, overflow) = (x as i32).overflowing_add(y as i32);
                 cpu.write_register(dst, result);
@@ -480,13 +480,13 @@ impl Handlers {
             Instruction {
                 opcode: Opcode::Sub,
                 operand1: Some(Operand::Register(dst, None)),
-                operand2: Some(x),
+                operand2: Some(src),
                 operand3: None,
                 set_condition_flags,
                 ..
             } => {
-                let x = Handlers::resolve_operand(x, cpu);
-                let y = 1;
+                let x = cpu.read_register(dst);
+                let y = Handlers::resolve_operand(src, cpu);
                 let (result, borrow) = x.overflowing_sub(y);
                 let (_, overflow) = (x as i32).overflowing_sub(y as i32);
                 cpu.write_register(dst, result);
