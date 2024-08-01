@@ -43,12 +43,11 @@ impl Handlers {
                 operand1: Some(Operand::Offset(offset)),
                 ..
             } => {
-                // we use read_register here to ensure bit 1 is masked off in thumb mode
-                let pc = cpu.read_register(&Register::R15);
+                let pc = cpu.get_pc();
                 let dst = pc.wrapping_add_signed(*offset);
                 // the pipeline is 2 instructions ahead
                 // but we want to store the address of the next instruction
-                cpu.registers.r[14] = pc - 4;
+                cpu.registers.r[14] = if cpu.is_thumb() { pc } else { pc - 4 };
                 cpu.registers.r[15] = dst;
             }
             Instruction {
