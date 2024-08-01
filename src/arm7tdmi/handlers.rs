@@ -1,5 +1,3 @@
-use std::{arch::x86_64, num::NonZero};
-
 use super::{
     cpu::Cpu,
     decoder::{Condition, Instruction, Opcode, Operand, ShiftType},
@@ -36,7 +34,9 @@ impl Handlers {
                 operand1: Some(Operand::Offset(offset)),
                 ..
             } => {
-                let pc = cpu.get_pc();
+                // we use read_register here to ensure bit 1 is masked off in thumb mode
+                // TODO: required here?
+                let pc = cpu.read_register(&Register::R15);
                 let dst = pc.wrapping_add_signed(*offset);
                 cpu.registers.r[15] = dst;
             }
@@ -45,7 +45,8 @@ impl Handlers {
                 operand1: Some(Operand::Offset(offset)),
                 ..
             } => {
-                let pc = cpu.get_pc();
+                // we use read_register here to ensure bit 1 is masked off in thumb mode
+                let pc = cpu.read_register(&Register::R15);
                 let dst = pc.wrapping_add_signed(*offset);
                 // the pipeline is 2 instructions ahead
                 // but we want to store the address of the next instruction

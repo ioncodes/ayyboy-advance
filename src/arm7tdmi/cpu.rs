@@ -116,7 +116,18 @@ impl Cpu {
             Register::R12 => self.registers.r[12],
             Register::R13 => self.registers.r[13],
             Register::R14 => self.registers.r[14],
-            Register::R15 => self.registers.r[15],
+            Register::R15 => {
+                let pc = self.registers.r[15];
+                if self.is_thumb() {
+                    // WhenGryphonsFly — Today at 1:51 PM
+                    // In thumb mode, PC-relative loads treat bit 1 of PC as always 0
+                    // TODO: does this have negative side effects if handled here? if it does,
+                    // we should handle it in the load/store handler
+                    pc & !0b10
+                } else {
+                    pc
+                }
+            }
             Register::Cpsr => self.registers.cpsr.bits(),
             Register::Spsr => self.read_from_current_spsr(),
             _ => todo!(),
