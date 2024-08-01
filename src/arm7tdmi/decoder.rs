@@ -745,6 +745,30 @@ impl Instruction {
                     ..Instruction::default()
                 }
             }
+            // load/store with immediate offset
+            "011b_looo_oobb_bddd" => {
+                let opcode = if l == 1 { Opcode::Ldr } else { Opcode::Str };
+                let operand1 = Register::from(d);
+                let operand2 = Register::from(b);
+                let operand3 = Operand::Immediate(o, None);
+
+                Instruction {
+                    opcode,
+                    condition: Condition::Always,
+                    set_condition_flags: false,
+                    operand1: Some(Operand::Register(operand1, None)),
+                    operand2: Some(Operand::Register(operand2, None)),
+                    operand3: Some(operand3),
+                    transfer_length: Some(if b == 1 {
+                        TransferLength::Byte
+                    } else {
+                        TransferLength::Word
+                    }),
+                    offset_direction: Some(Direction::Up),
+                    indexing: Some(Indexing::Pre),
+                    ..Instruction::default()
+                }
+            }
             // ALU operations
             "0100_00oo_ooss_sddd" => {
                 let opcode = Instruction::translate_opcode_thumb(o);
