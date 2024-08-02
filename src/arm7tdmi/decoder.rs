@@ -893,15 +893,32 @@ impl Instruction {
                 }
             }
             // Push and Pop
-            "1011_l10r_xxxx_xxxx" => Instruction {
-                opcode: if l == 0 { Opcode::Push } else { Opcode::Pop },
-                condition: Condition::Always,
-                set_condition_flags: false,
-                operand1: Some(Operand::RegisterList(Instruction::extract_register_list(x))),
-                operand2: None,
-                operand3: None,
-                ..Instruction::default()
-            },
+            "1011_l10r_xxxx_xxxx" => {
+                let mut registers = Instruction::extract_register_list(x);
+                let opcode = match (l, r) {
+                    (0, 0) => Opcode::Push,
+                    (0, 1) => {
+                        registers.push(Register::R14);
+                        Opcode::Push
+                    }
+                    (1, 0) => Opcode::Pop,
+                    (1, 1) => {
+                        registers.push(Register::R15);
+                        Opcode::Pop
+                    }
+                    _ => unreachable!(),
+                };
+
+                Instruction {
+                    opcode,
+                    condition: Condition::Always,
+                    set_condition_flags: false,
+                    operand1: Some(Operand::RegisterList(registers)),
+                    operand2: None,
+                    operand3: None,
+                    ..Instruction::default()
+                }
+            }
             // multiple load/store
             "1100_lbbb_rrrr_rrrr" => Instruction {
                 opcode: if l == 0 { Opcode::Stm } else { Opcode::Ldm },
