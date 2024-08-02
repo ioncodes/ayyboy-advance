@@ -47,6 +47,8 @@ impl Handlers {
                 let dst = pc.wrapping_add_signed(*offset);
                 // the pipeline is 2 instructions ahead
                 // but we want to store the address of the next instruction
+                // a BL in thumb is split into two instructions, but we process it as one
+                // that means PC points to the instruction after the 2nd half word of BL
                 cpu.registers.r[14] = if cpu.is_thumb() { pc | 1 } else { pc - 4 };
                 cpu.registers.r[15] = dst;
             }

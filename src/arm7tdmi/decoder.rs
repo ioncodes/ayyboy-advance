@@ -849,7 +849,7 @@ impl Instruction {
                     opcode != Opcode::Bx && opcode != Opcode::Cmn && opcode != Opcode::Mov;
 
                 Instruction {
-                    opcode: opcode,
+                    opcode,
                     operand1,
                     operand2,
                     set_condition_flags,
