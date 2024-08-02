@@ -930,10 +930,16 @@ impl Instruction {
             },
             // Long branch with link
             "1111_hiii_iiii_iiii" => {
-                let offset_hi = i;
-                let offset_low = (opcode >> 16) & 0b0111_1111_1111;
+                let hi = i;
+                let lo = (opcode >> 16) & 0b0111_1111_1111;
 
-                let offset = ((offset_hi << 12) + offset_low) << 1;
+                let mut offset = ((hi as u32) << 11) | lo as u32;
+                offset <<= 1; // Thumb instructions are halfword aligned
+
+                // Sign-extend the 23-bit offset to 32 bits
+                if offset & (1 << 22) != 0 {
+                    offset |= 0xFF800000; // Sign extend if the 23rd bit is set
+                }
 
                 Instruction {
                     opcode: Opcode::Bl,
