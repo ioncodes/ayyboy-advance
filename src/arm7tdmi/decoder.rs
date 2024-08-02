@@ -874,6 +874,26 @@ impl Instruction {
                     ..Instruction::default()
                 }
             }
+            // load/store halfword
+            "1000_looo_oobb_bddd" => {
+                let opcode = if l == 1 { Opcode::Ldr } else { Opcode::Str };
+                let destination = Register::from(d);
+                let base = Register::from(b);
+                let offset = Operand::Immediate(o, None);
+
+                Instruction {
+                    opcode,
+                    condition: Condition::Always,
+                    set_condition_flags: false,
+                    operand1: Some(Operand::Register(destination, None)),
+                    operand2: Some(Operand::Register(base, None)),
+                    operand3: Some(offset),
+                    transfer_length: Some(TransferLength::HalfWord),
+                    offset_direction: Some(Direction::Up),
+                    indexing: Some(Indexing::Pre),
+                    ..Instruction::default()
+                }
+            }
             // Load address
             "1010_sddd_cccc_cccc" => {
                 let source = match s {
