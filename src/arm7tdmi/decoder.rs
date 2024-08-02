@@ -703,10 +703,10 @@ impl Instruction {
             // Move shifted register
             "000c_cooo_ooss_sddd" => {
                 let opcode = match c {
-                    0b00 => Opcode::Lsl,
-                    0b01 => Opcode::Lsr,
-                    0b10 => Opcode::Asr,
-                    _ => unreachable!(),
+                    0b00 if o != 0 => Opcode::Lsl,
+                    0b01 if o != 0 => Opcode::Lsr,
+                    0b10 if o != 0 => Opcode::Asr,
+                    _ => Opcode::Mov, // 0 shift amount is a mov
                 };
                 let operand1 = Register::from(d);
                 let operand2 = Register::from(s);
@@ -717,7 +717,11 @@ impl Instruction {
                     set_condition_flags: true,
                     operand1: Some(Operand::Register(operand1, None)),
                     operand2: Some(Operand::Register(operand2, None)),
-                    operand3: Some(Operand::Immediate(o, None)),
+                    operand3: if o != 0 {
+                        Some(Operand::Immediate(o, None))
+                    } else {
+                        None
+                    },
                     ..Instruction::default()
                 }
             }
@@ -958,13 +962,22 @@ impl Instruction {
                 ..Instruction::default()
             },
             // Unconditional Branch
-            "1110_0iii_iiii_iiii" => Instruction {
-                opcode: Opcode::B,
-                condition: Condition::Always,
-                set_condition_flags: false,
-                operand1: Some(Operand::Offset(i as i32)),
-                ..Instruction::default()
-            },
+            "1110_0iii_iiii_iiii" => {
+                let offset = i as u16;
+                let offset = if offset & 0x0400 != 0 {
+                    offset | 0xf800 // If sign bit is set, extend the sign
+                } else {
+                    offset
+                };
+
+                Instruction {
+                    opcode: Opcode::B,
+                    condition: Condition::Always,
+                    set_condition_flags: false,
+                    operand1: Some(Operand::Offset(((offset as i16) << 1) as i32)),
+                    ..Instruction::default()
+                }
+            }
             // Long branch with link
             "1111_hiii_iiii_iiii" => {
                 let hi = i;
