@@ -101,7 +101,7 @@ impl Handlers {
                 operand1: Some(Operand::RegisterList(registers)),
                 ..
             } => {
-                for register in registers {
+                for register in registers.iter().rev() {
                     cpu.push_stack(mmio, cpu.read_register(register));
                 }
             }
@@ -110,7 +110,7 @@ impl Handlers {
                 operand1: Some(Operand::RegisterList(registers)),
                 ..
             } => {
-                for register in registers.iter().rev() {
+                for register in registers {
                     let value = cpu.pop_stack(mmio);
                     cpu.write_register(register, value);
                 }
