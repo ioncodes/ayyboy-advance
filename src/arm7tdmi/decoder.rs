@@ -754,7 +754,7 @@ impl Instruction {
                 let opcode = if l == 1 { Opcode::Ldr } else { Opcode::Str };
                 let operand1 = Register::from(d);
                 let operand2 = Register::from(b);
-                let operand3 = Operand::Immediate(o, None);
+                let operand3 = Operand::Immediate(o << 2, None);
 
                 Instruction {
                     opcode,
@@ -883,7 +883,7 @@ impl Instruction {
                 let opcode = if l == 1 { Opcode::Ldr } else { Opcode::Str };
                 let destination = Register::from(d);
                 let base = Register::from(b);
-                let offset = Operand::Immediate(o, None);
+                let offset = Operand::Immediate(o << 2, None);
 
                 Instruction {
                     opcode,
