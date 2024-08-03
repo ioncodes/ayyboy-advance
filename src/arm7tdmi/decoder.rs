@@ -258,7 +258,7 @@ impl Display for TransferLength {
     }
 }
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Copy, Clone)]
 pub enum Direction {
     Up,
     Down,
@@ -273,7 +273,7 @@ impl Display for Direction {
     }
 }
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Copy, Clone)]
 pub enum Indexing {
     Pre,
     Post,
@@ -1150,6 +1150,30 @@ impl Display for Instruction {
                 if self.writeback {
                     write!(f, "!")?;
                 }
+            }
+            Opcode::Ldm | Opcode::Stm => {
+                let opcode_suffix = match (self.indexing, self.offset_direction) {
+                    (Some(Indexing::Pre), Some(Direction::Up)) => "ib",
+                    (Some(Indexing::Pre), Some(Direction::Down)) => "db",
+                    (Some(Indexing::Post), Some(Direction::Up)) => "ia",
+                    (Some(Indexing::Post), Some(Direction::Down)) => "da",
+                    _ => unreachable!(),
+                };
+                let opcode = match self.opcode {
+                    Opcode::Ldm => format!("ldm{}", opcode_suffix),
+                    Opcode::Stm => format!("stm{}", opcode_suffix),
+                    _ => unreachable!(),
+                };
+
+                write!(
+                    f,
+                    "{}{} {}{}, {}",
+                    opcode,
+                    self.condition,
+                    self.operand1.as_ref().unwrap(),
+                    if self.writeback { "!" } else { "" },
+                    self.operand2.as_ref().unwrap(),
+                )?;
             }
             _ => {
                 write!(
