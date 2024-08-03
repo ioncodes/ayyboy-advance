@@ -342,15 +342,15 @@ impl Handlers {
             } => {
                 let mut address = cpu.read_register(dst_base);
 
-                if *indexing == Indexing::Pre {
-                    if *operation == Direction::Up {
-                        address += 4;
-                    } else {
-                        address -= 4;
-                    }
-                }
-
                 for register in registers {
+                    if *indexing == Indexing::Pre {
+                        if *operation == Direction::Up {
+                            address += 4;
+                        } else {
+                            address -= 4;
+                        }
+                    }
+
                     let value = mmio.read_u32(address);
                     cpu.write_register(register, value);
 
@@ -378,15 +378,15 @@ impl Handlers {
             } => {
                 let mut address = cpu.read_register(dst_base);
 
-                if *indexing == Indexing::Pre {
-                    if *operation == Direction::Up {
-                        address += 4;
-                    } else {
-                        address -= 4;
-                    }
-                }
-
                 for register in registers {
+                    if *indexing == Indexing::Pre {
+                        if *operation == Direction::Up {
+                            address += 4;
+                        } else {
+                            address -= 4;
+                        }
+                    }
+
                     let value = cpu.read_register(register);
                     mmio.write_u32(address, value);
 
