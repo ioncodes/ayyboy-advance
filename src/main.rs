@@ -19,6 +19,7 @@ const ARM_TEST: &[u8] = include_bytes!("../external/gba-tests/arm/arm.gba");
 // const ARM_TEST: &[u8] = include_bytes!("../external/discord/panda.gba"); // works
 // const ARM_TEST: &[u8] = include_bytes!("../external/discord/methharold.gba"); // works
 // const ARM_TEST: &[u8] = include_bytes!("../external/discord/gang.gba"); // works
+// const ARM_TEST: &[u8] = include_bytes!("../external/discord/gang-ldmstm.gba");
 const BIOS: &[u8] = include_bytes!("../external/gba_bios.bin");
 
 fn main() {

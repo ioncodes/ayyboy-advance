@@ -335,33 +335,73 @@ impl Handlers {
                 opcode: Opcode::Ldm,
                 operand1: Some(Operand::Register(dst_base, None)),
                 operand2: Some(Operand::RegisterList(registers)),
+                offset_direction: Some(operation),
+                indexing: Some(indexing),
+                writeback,
                 ..
             } => {
                 let mut address = cpu.read_register(dst_base);
 
+                if *indexing == Indexing::Pre {
+                    if *operation == Direction::Up {
+                        address += 4;
+                    } else {
+                        address -= 4;
+                    }
+                }
+
                 for register in registers {
                     let value = mmio.read_u32(address);
                     cpu.write_register(register, value);
-                    address += 4;
+
+                    if *indexing == Indexing::Post {
+                        if *operation == Direction::Up {
+                            address += 4;
+                        } else {
+                            address -= 4;
+                        }
+                    }
                 }
 
-                cpu.write_register(dst_base, address);
+                if *writeback {
+                    cpu.write_register(dst_base, address);
+                }
             }
             Instruction {
                 opcode: Opcode::Stm,
                 operand1: Some(Operand::Register(dst_base, None)),
                 operand2: Some(Operand::RegisterList(registers)),
+                offset_direction: Some(operation),
+                indexing: Some(indexing),
+                writeback,
                 ..
             } => {
                 let mut address = cpu.read_register(dst_base);
 
+                if *indexing == Indexing::Pre {
+                    if *operation == Direction::Up {
+                        address += 4;
+                    } else {
+                        address -= 4;
+                    }
+                }
+
                 for register in registers {
                     let value = cpu.read_register(register);
                     mmio.write_u32(address, value);
-                    address += 4;
+
+                    if *indexing == Indexing::Post {
+                        if *operation == Direction::Up {
+                            address += 4;
+                        } else {
+                            address -= 4;
+                        }
+                    }
                 }
 
-                cpu.write_register(dst_base, address);
+                if *writeback {
+                    cpu.write_register(dst_base, address);
+                }
             }
             _ => todo!("{:?}", instr),
         }

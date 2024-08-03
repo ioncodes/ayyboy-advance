@@ -603,15 +603,23 @@ impl Instruction {
                     }
                 };
 
-                // TODO: lots of bits missing
-
                 Instruction {
                     opcode,
                     condition,
                     set_condition_flags: false,
                     operand1,
                     operand2,
-                    operand3: None,
+                    indexing: if p == 1 {
+                        Some(Indexing::Pre)
+                    } else {
+                        Some(Indexing::Post)
+                    },
+                    writeback: w == 1 || p == 0, // TODO: correct?
+                    offset_direction: if u == 1 {
+                        Some(Direction::Up)
+                    } else {
+                        Some(Direction::Down)
+                    },
                     ..Instruction::default()
                 }
             }
