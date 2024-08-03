@@ -959,7 +959,9 @@ impl Instruction {
                 operand1: Some(Operand::Register(Register::from(b), None)),
                 operand2: Some(Operand::RegisterList(Instruction::extract_register_list(r))),
                 operand3: None,
-                ..Instruction::default() // TODO: writeback?
+                indexing: Some(Indexing::Pre),
+                offset_direction: Some(Direction::Up),
+                ..Instruction::default()
             },
             // Conditional Branch
             "1101_cccc_iiii_iiii" => Instruction {
