@@ -35,9 +35,12 @@ fn main() {
         mmio.load(0x08000000, ARM_TEST); // gamepak addr
 
         let mut cpu = Cpu::new();
+        // State for skipping BIOS
         cpu.registers.r[13] = 0x03007f00; // sp
         cpu.registers.r[15] = 0x08000000; // pc
         cpu.set_processor_mode(ProcessorMode::User);
+        // State to boot BIOS
+        // cpu.set_processor_mode(ProcessorMode::Supervisor);
 
         let mut frame_rendered = false;
 

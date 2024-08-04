@@ -614,7 +614,7 @@ impl Instruction {
                     } else {
                         Some(Indexing::Post)
                     },
-                    writeback: w == 1 || p == 0, // TODO: correct?
+                    writeback: w == 1,
                     offset_direction: if u == 1 {
                         Some(Direction::Up)
                     } else {
@@ -883,6 +883,30 @@ impl Instruction {
                     offset_direction: Some(Direction::Up),
                     indexing: Some(Indexing::Pre),
                     transfer_length: Some(TransferLength::Word),
+                    ..Instruction::default()
+                }
+            }
+            // load/store with register offset
+            "0101_lb0o_oobb_bddd" => {
+                let opcode = if l == 1 { Opcode::Ldr } else { Opcode::Str };
+                let destination = Register::from(d);
+                let base = Register::from(b);
+                let offset = Register::from(o);
+
+                Instruction {
+                    opcode,
+                    condition: Condition::Always,
+                    set_condition_flags: false,
+                    operand1: Some(Operand::Register(destination, None)),
+                    operand2: Some(Operand::Register(base, None)),
+                    operand3: Some(Operand::Register(offset, None)),
+                    transfer_length: if b == 1 {
+                        Some(TransferLength::Byte)
+                    } else {
+                        Some(TransferLength::Word)
+                    },
+                    offset_direction: Some(Direction::Up),
+                    indexing: Some(Indexing::Pre),
                     ..Instruction::default()
                 }
             }
@@ -1157,7 +1181,7 @@ impl Display for Instruction {
                 let opcode_suffix = match (self.indexing, self.offset_direction) {
                     (Some(Indexing::Pre), Some(Direction::Up)) => "ib",
                     (Some(Indexing::Pre), Some(Direction::Down)) => "db",
-                    (Some(Indexing::Post), Some(Direction::Up)) => "ia",
+                    (Some(Indexing::Post), Some(Direction::Up)) => "ia", // technically not required as it's default
                     (Some(Indexing::Post), Some(Direction::Down)) => "da",
                     _ => unreachable!(),
                 };
