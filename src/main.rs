@@ -1,4 +1,6 @@
 #![feature(new_uninit)]
+#![feature(if_let_guard)]
+#![feature(let_chains)]
 
 mod arm7tdmi;
 mod frontend;
