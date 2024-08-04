@@ -1,4 +1,4 @@
-use log::{error, trace};
+use log::error;
 
 use crate::{memory::device::Addressable, video::DISPSTAT_ADDR};
 
@@ -54,8 +54,6 @@ impl Ppu {
             );
             self.vblank_raised_for_frame = true;
         }
-
-        trace!("scanline={}, h_counter={}", self.scanline, self.h_counter);
     }
 
     pub fn get_frame(&self) -> Frame {
