@@ -54,7 +54,7 @@ impl Mmio {
             0x04000000..=0x04000056 => self.ppu.write(addr, value), // PPU I/O
             0x00000000..=0x04FFFFFF => self.internal_memory[addr as usize] = value,
             0x05000000..=0x07FFFFFF => self.ppu.write(addr, value),
-            0x08000000..=0x0FFFFFFF => self.external_memory[(addr - 0x08000000) as usize] = value,
+            0x08000000..=0x09FFFFFF => self.external_memory[(addr - 0x08000000) as usize] = value,
             0x0A000000..=0x0BFFFFFF => self.external_memory[(addr - 0x0A000000) as usize] = value, // Mirror of 0x08000000..=0x09FFFFFF
             0x0C000000..=0x0DFFFFFF => self.external_memory[(addr - 0x0C000000) as usize] = value, // Mirror of 0x08000000..=0x09FFFFFF
             _ => panic!("Invalid memory address: {:08x}", addr),

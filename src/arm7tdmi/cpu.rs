@@ -84,6 +84,7 @@ impl Cpu {
                 | Opcode::Adc
                 | Opcode::Sub
                 | Opcode::Sbc
+                | Opcode::Rsc
                 | Opcode::And
                 | Opcode::Orr
                 | Opcode::Eor

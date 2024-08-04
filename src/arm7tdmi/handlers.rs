@@ -720,6 +720,31 @@ impl Handlers {
                 }
             }
             Instruction {
+                opcode: Opcode::Rsc,
+                operand1: Some(Operand::Register(dst, None)),
+                operand2: Some(x),
+                operand3: Some(y),
+                set_condition_flags,
+                ..
+            } => {
+                let x = Handlers::resolve_operand(x, cpu);
+                let y = Handlers::resolve_operand(y, cpu);
+                let carry = cpu.registers.cpsr.contains(Psr::C) as u32;
+
+                let (result, borrow1) = y.overflowing_sub(x);
+                let (result, borrow2) = result.overflowing_sub(1 - carry);
+                cpu.write_register(dst, result);
+
+                if *set_condition_flags {
+                    cpu.update_flag(Psr::N, result & 0x8000_0000 != 0);
+                    cpu.update_flag(Psr::Z, result == 0);
+                    cpu.update_flag(Psr::C, !borrow1 && !borrow2);
+
+                    let overflow = ((x ^ y) & (x ^ result) & 0x8000_0000) != 0;
+                    cpu.update_flag(Psr::V, overflow);
+                }
+            }
+            Instruction {
                 opcode: Opcode::Neg,
                 operand1: Some(Operand::Register(dst, None)),
                 operand2: Some(Operand::Register(src, None)),
