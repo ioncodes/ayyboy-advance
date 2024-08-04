@@ -181,7 +181,7 @@ pub enum Opcode {
     Pop,
     Ldr,
     Str,
-    Svc,
+    Swi,
     Lsl,
     Lsr,
     Asr,
@@ -230,7 +230,7 @@ impl Display for Opcode {
             Opcode::Pop => write!(f, "pop"),
             Opcode::Ldr => write!(f, "ldr"),
             Opcode::Str => write!(f, "str"),
-            Opcode::Svc => write!(f, "svc"),
+            Opcode::Swi => write!(f, "swi"),
             Opcode::Lsl => write!(f, "lsl"),
             Opcode::Lsr => write!(f, "lsr"),
             Opcode::Asr => write!(f, "asr"),
@@ -307,9 +307,9 @@ impl Instruction {
     fn decode_armv4t(opcode: u32) -> Instruction {
         #[bitmatch]
         match opcode {
-            // Supervisor Call (SVC)
+            // Software Interrupt (SWI) [also known as Supervisor Call (SVC)]
             "1110_1111_iiii_iiii_iiii_iiii_iiii_iiii" => Instruction {
-                opcode: Opcode::Svc,
+                opcode: Opcode::Swi,
                 condition: Condition::Always,
                 set_condition_flags: false,
                 operand1: Some(Operand::Immediate(i, None)),

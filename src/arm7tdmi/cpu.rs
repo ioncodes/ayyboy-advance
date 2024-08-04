@@ -95,7 +95,7 @@ impl Cpu {
                 | Opcode::Asr
                 | Opcode::Lsl
                 | Opcode::Lsr => Handlers::alu(&instruction, self, mmio),
-                Opcode::Svc => Handlers::supervisor_call(&instruction, self, mmio),
+                Opcode::Swi => Handlers::software_interrupt(&instruction, self, mmio),
                 _ => todo!(),
             }
 

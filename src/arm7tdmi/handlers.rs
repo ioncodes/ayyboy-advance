@@ -67,12 +67,12 @@ impl Handlers {
         cpu.pipeline.flush();
     }
 
-    pub fn supervisor_call(instr: &Instruction, cpu: &mut Cpu, mmio: &mut Mmio) {
+    pub fn software_interrupt(instr: &Instruction, cpu: &mut Cpu, mmio: &mut Mmio) {
         check_condition!(cpu, instr);
 
         match instr {
             Instruction {
-                opcode: Opcode::Svc,
+                opcode: Opcode::Swi,
                 operand1: Some(Operand::Immediate(value, None)),
                 ..
             } => {
