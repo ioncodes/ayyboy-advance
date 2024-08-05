@@ -1,15 +1,9 @@
-use super::{
-    cpu::Cpu,
-    decoder::{Condition, Instruction, Opcode, Operand, ShiftType},
-    registers::Psr,
-};
-use crate::{
-    arm7tdmi::{
-        cpu::ProcessorMode,
-        decoder::{Direction, Indexing, Register, TransferLength},
-    },
-    memory::mmio::Mmio,
-};
+use super::cpu::Cpu;
+use super::decoder::{Condition, Instruction, Opcode, Operand, ShiftType};
+use super::registers::Psr;
+use crate::arm7tdmi::cpu::ProcessorMode;
+use crate::arm7tdmi::decoder::{Direction, Indexing, Register, TransferLength};
+use crate::memory::mmio::Mmio;
 use log::trace;
 
 macro_rules! check_condition {
@@ -130,7 +124,7 @@ impl Handlers {
                 ..
             } => {
                 let lhs = cpu.read_register(lhs);
-                let rhs = Handlers::resolve_operand(rhs, cpu);
+                let rhs = Handlers::resolve_operand(rhs, cpu, false);
                 let (result, carry) = lhs.overflowing_sub(rhs);
                 cpu.update_flag(Psr::N, (result as i32) < 0);
                 cpu.update_flag(Psr::Z, result == 0);
@@ -144,7 +138,7 @@ impl Handlers {
                 ..
             } => {
                 let lhs = cpu.read_register(lhs);
-                let rhs = Handlers::resolve_operand(rhs, cpu);
+                let rhs = Handlers::resolve_operand(rhs, cpu, false);
                 let result = lhs ^ rhs;
                 cpu.update_flag(Psr::N, result & 0x8000_0000 != 0);
                 cpu.update_flag(Psr::Z, result == 0);
@@ -156,7 +150,7 @@ impl Handlers {
                 ..
             } => {
                 let lhs = cpu.read_register(lhs);
-                let rhs = Handlers::resolve_operand(rhs, cpu);
+                let rhs = Handlers::resolve_operand(rhs, cpu, false);
                 let result = lhs & rhs;
                 cpu.update_flag(Psr::N, result & 0x8000_0000 != 0);
                 cpu.update_flag(Psr::Z, result == 0);
@@ -176,7 +170,7 @@ impl Handlers {
                 set_condition_flags,
                 ..
             } => {
-                let value = Handlers::resolve_operand(src, cpu);
+                let value = Handlers::resolve_operand(src, cpu, *set_condition_flags);
                 cpu.write_register(dst, value);
 
                 if *set_condition_flags {
@@ -191,7 +185,7 @@ impl Handlers {
                 set_condition_flags,
                 ..
             } => {
-                let value = !Handlers::resolve_operand(src, cpu); // bitwise not
+                let value = !Handlers::resolve_operand(src, cpu, *set_condition_flags); // bitwise not
                 cpu.write_register(dst, value);
 
                 if *set_condition_flags {
@@ -220,7 +214,7 @@ impl Handlers {
                 ..
             } => {
                 let mut address = cpu.read_register(src);
-                let step = Handlers::resolve_operand(step, cpu);
+                let step = Handlers::resolve_operand(step, cpu, *set_condition_flags);
 
                 if *indexing == Indexing::Pre {
                     if *operation == Direction::Up {
@@ -282,7 +276,7 @@ impl Handlers {
                 ..
             } => {
                 let mut address = cpu.read_register(dst);
-                let step = Handlers::resolve_operand(step, cpu);
+                let step = Handlers::resolve_operand(step, cpu, *set_condition_flags);
 
                 if *indexing == Indexing::Pre {
                     if *operation == Direction::Up {
@@ -417,7 +411,7 @@ impl Handlers {
                 operand2: Some(src),
                 ..
             } => {
-                let src = Handlers::resolve_operand(src, cpu);
+                let src = Handlers::resolve_operand(src, cpu, false);
                 cpu.write_register(dst, src);
             }
             _ => todo!("{:?}", instr),
@@ -436,8 +430,8 @@ impl Handlers {
                 set_condition_flags,
                 ..
             } => {
-                let x = Handlers::resolve_operand(x, cpu);
-                let y = Handlers::resolve_operand(y, cpu);
+                let x = Handlers::resolve_operand(x, cpu, *set_condition_flags);
+                let y = Handlers::resolve_operand(y, cpu, *set_condition_flags);
                 let (result, carry) = x.overflowing_add(y);
                 let (_, overflow) = (x as i32).overflowing_add(y as i32);
                 cpu.write_register(dst, result);
@@ -458,7 +452,7 @@ impl Handlers {
                 ..
             } => {
                 let x = cpu.read_register(dst);
-                let y = Handlers::resolve_operand(src, cpu);
+                let y = Handlers::resolve_operand(src, cpu, *set_condition_flags);
                 let (result, carry) = x.overflowing_add(y);
                 let (_, overflow) = (x as i32).overflowing_add(y as i32);
                 cpu.write_register(dst, result);
@@ -478,8 +472,8 @@ impl Handlers {
                 set_condition_flags,
                 ..
             } => {
-                let x = Handlers::resolve_operand(x, cpu);
-                let y = Handlers::resolve_operand(y, cpu);
+                let x = Handlers::resolve_operand(x, cpu, *set_condition_flags);
+                let y = Handlers::resolve_operand(y, cpu, *set_condition_flags);
                 let carry = cpu.registers.cpsr.contains(Psr::C) as u32;
 
                 let (result, carry1) = x.overflowing_add(y);
@@ -504,8 +498,8 @@ impl Handlers {
                 set_condition_flags,
                 ..
             } => {
-                let x = Handlers::resolve_operand(x, cpu);
-                let y = Handlers::resolve_operand(y, cpu);
+                let x = Handlers::resolve_operand(x, cpu, *set_condition_flags);
+                let y = Handlers::resolve_operand(y, cpu, *set_condition_flags);
                 let (result, borrow) = x.overflowing_sub(y);
                 let (_, overflow) = (x as i32).overflowing_sub(y as i32);
                 cpu.write_register(dst, result);
@@ -526,7 +520,7 @@ impl Handlers {
                 ..
             } => {
                 let x = cpu.read_register(dst);
-                let y = Handlers::resolve_operand(src, cpu);
+                let y = Handlers::resolve_operand(src, cpu, *set_condition_flags);
                 let (result, borrow) = x.overflowing_sub(y);
                 let (_, overflow) = (x as i32).overflowing_sub(y as i32);
                 cpu.write_register(dst, result);
@@ -546,8 +540,8 @@ impl Handlers {
                 set_condition_flags,
                 ..
             } => {
-                let x = Handlers::resolve_operand(x, cpu);
-                let y = Handlers::resolve_operand(y, cpu);
+                let x = Handlers::resolve_operand(x, cpu, *set_condition_flags);
+                let y = Handlers::resolve_operand(y, cpu, *set_condition_flags);
                 let carry = cpu.registers.cpsr.contains(Psr::C) as u32;
 
                 let (result, borrow1) = x.overflowing_sub(y);
@@ -573,7 +567,7 @@ impl Handlers {
                 ..
             } => {
                 let x = cpu.read_register(dst);
-                let y = Handlers::resolve_operand(src, cpu);
+                let y = Handlers::resolve_operand(src, cpu, *set_condition_flags);
                 let carry = cpu.registers.cpsr.contains(Psr::C) as u32;
 
                 let (result, borrow1) = x.overflowing_sub(y);
@@ -598,8 +592,8 @@ impl Handlers {
                 set_condition_flags,
                 ..
             } => {
-                let x = Handlers::resolve_operand(x, cpu);
-                let y = Handlers::resolve_operand(y, cpu);
+                let x = Handlers::resolve_operand(x, cpu, *set_condition_flags);
+                let y = Handlers::resolve_operand(y, cpu, *set_condition_flags);
                 let result = x & y;
                 cpu.write_register(dst, result);
 
@@ -634,8 +628,8 @@ impl Handlers {
                 set_condition_flags,
                 ..
             } => {
-                let x = Handlers::resolve_operand(x, cpu);
-                let y = Handlers::resolve_operand(y, cpu);
+                let x = Handlers::resolve_operand(x, cpu, *set_condition_flags);
+                let y = Handlers::resolve_operand(y, cpu, *set_condition_flags);
                 let result = x | y;
                 cpu.write_register(dst, result);
 
@@ -670,8 +664,8 @@ impl Handlers {
                 set_condition_flags,
                 ..
             } => {
-                let x = Handlers::resolve_operand(x, cpu);
-                let y = Handlers::resolve_operand(y, cpu);
+                let x = Handlers::resolve_operand(x, cpu, *set_condition_flags);
+                let y = Handlers::resolve_operand(y, cpu, *set_condition_flags);
                 let result = x ^ y;
                 cpu.write_register(dst, result);
 
@@ -706,8 +700,8 @@ impl Handlers {
                 set_condition_flags,
                 ..
             } => {
-                let x = Handlers::resolve_operand(x, cpu);
-                let y = Handlers::resolve_operand(y, cpu);
+                let x = Handlers::resolve_operand(x, cpu, *set_condition_flags);
+                let y = Handlers::resolve_operand(y, cpu, *set_condition_flags);
                 let (result, borrow) = y.overflowing_sub(x);
                 let (_, overflow) = (y as i32).overflowing_sub(x as i32);
                 cpu.write_register(dst, result);
@@ -727,8 +721,8 @@ impl Handlers {
                 set_condition_flags,
                 ..
             } => {
-                let x = Handlers::resolve_operand(x, cpu);
-                let y = Handlers::resolve_operand(y, cpu);
+                let x = Handlers::resolve_operand(x, cpu, *set_condition_flags);
+                let y = Handlers::resolve_operand(y, cpu, *set_condition_flags);
                 let carry = cpu.registers.cpsr.contains(Psr::C) as u32;
 
                 let (result, borrow1) = y.overflowing_sub(x);
@@ -839,24 +833,48 @@ impl Handlers {
         }
     }
 
-    fn resolve_operand(operand: &Operand, cpu: &Cpu) -> u32 {
+    fn resolve_operand(operand: &Operand, cpu: &mut Cpu, set_condition_flags: bool) -> u32 {
         match operand {
-            Operand::Immediate(value, Some(shift)) => Handlers::process_shift(*value, shift),
+            Operand::Immediate(value, Some(shift)) => Handlers::process_shift(*value, shift, cpu, set_condition_flags),
             Operand::Immediate(value, None) => *value,
             Operand::Register(register, Some(shift)) => {
-                Handlers::process_shift(cpu.read_register(register), shift)
+                Handlers::process_shift(cpu.read_register(register), shift, cpu, set_condition_flags)
             }
             Operand::Register(register, None) => cpu.read_register(register),
             _ => unreachable!(),
         }
     }
 
-    fn process_shift(value: u32, shift: &ShiftType) -> u32 {
+    fn process_shift(value: u32, shift: &ShiftType, cpu: &mut Cpu, set_condition_flags: bool) -> u32 {
         match shift {
-            ShiftType::LogicalLeft(shift) => value.wrapping_shl(*shift),
-            ShiftType::LogicalRight(shift) => value.wrapping_shr(*shift),
-            ShiftType::ArithmeticRight(shift) => value.wrapping_shr(*shift),
-            ShiftType::RotateRight(shift) => value.rotate_right(*shift),
+            ShiftType::LogicalLeft(shift) => {
+                let result = value.wrapping_shl(*shift);
+                if set_condition_flags {
+                    cpu.update_flag(Psr::C, value & (1 << (32 - *shift)) != 0);
+                }
+                result
+            }
+            ShiftType::LogicalRight(shift) => {
+                let result = value.wrapping_shr(*shift);
+                if set_condition_flags {
+                    cpu.update_flag(Psr::C, value & (1 << (*shift - 1)) != 0);
+                }
+                result
+            }
+            ShiftType::ArithmeticRight(shift) => {
+                let result = value.wrapping_shr(*shift);
+                if set_condition_flags {
+                    cpu.update_flag(Psr::C, value & (1 << (*shift - 1)) != 0);
+                }
+                result
+            }
+            ShiftType::RotateRight(shift) => {
+                let result = value.rotate_right(*shift);
+                if set_condition_flags {
+                    cpu.update_flag(Psr::C, value & (1 << (*shift - 1)) != 0);
+                }
+                result
+            }
         }
     }
 
@@ -871,18 +889,12 @@ impl Handlers {
             Condition::PositiveOrZero => !cpu.registers.cpsr.contains(Psr::N), // N == 0
             Condition::Overflow => cpu.registers.cpsr.contains(Psr::V), // V == 1
             Condition::NoOverflow => !cpu.registers.cpsr.contains(Psr::V), // V == 0
-            Condition::UnsignedHigher => {
-                cpu.registers.cpsr.contains(Psr::C) && !cpu.registers.cpsr.contains(Psr::Z)
-            } // C == 1 and Z == 0
+            Condition::UnsignedHigher => cpu.registers.cpsr.contains(Psr::C) && !cpu.registers.cpsr.contains(Psr::Z), // C == 1 and Z == 0
             Condition::UnsignedLowerOrSame => {
                 !cpu.registers.cpsr.contains(Psr::C) || cpu.registers.cpsr.contains(Psr::Z)
             } // C == 0 or Z == 1
-            Condition::GreaterOrEqual => {
-                cpu.registers.cpsr.contains(Psr::N) == cpu.registers.cpsr.contains(Psr::V)
-            } // N == V
-            Condition::LessThan => {
-                cpu.registers.cpsr.contains(Psr::N) != cpu.registers.cpsr.contains(Psr::V)
-            } // N != V
+            Condition::GreaterOrEqual => cpu.registers.cpsr.contains(Psr::N) == cpu.registers.cpsr.contains(Psr::V), // N == V
+            Condition::LessThan => cpu.registers.cpsr.contains(Psr::N) != cpu.registers.cpsr.contains(Psr::V), // N != V
             Condition::GreaterThan => {
                 !cpu.registers.cpsr.contains(Psr::Z)
                     && (cpu.registers.cpsr.contains(Psr::N) == cpu.registers.cpsr.contains(Psr::V))

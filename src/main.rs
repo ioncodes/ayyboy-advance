@@ -5,8 +5,8 @@
 mod arm7tdmi;
 mod frontend;
 mod memory;
-mod video;
 mod tests;
+mod video;
 
 use arm7tdmi::cpu::{Cpu, ProcessorMode};
 use eframe::NativeOptions;
@@ -62,10 +62,7 @@ fn main() {
 
     let native_options = NativeOptions {
         viewport: ViewportBuilder::default()
-            .with_inner_size([
-                (SCREEN_WIDTH * SCALE) as f32,
-                (SCREEN_HEIGHT * SCALE) as f32,
-            ])
+            .with_inner_size([(SCREEN_WIDTH * SCALE) as f32, (SCREEN_HEIGHT * SCALE) as f32])
             .with_resizable(true),
         ..Default::default()
     };
