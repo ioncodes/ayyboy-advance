@@ -6,6 +6,7 @@ mod arm7tdmi;
 mod frontend;
 mod memory;
 mod video;
+mod tests;
 
 use arm7tdmi::cpu::{Cpu, ProcessorMode};
 use eframe::NativeOptions;
