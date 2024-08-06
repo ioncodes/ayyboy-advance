@@ -202,6 +202,9 @@ pub enum Opcode {
     Asr,
     Ror,
     Mul,
+    Mla,
+    Mull,
+    Mlal,
     Neg,
 }
 
@@ -251,6 +254,9 @@ impl Display for Opcode {
             Opcode::Asr => write!(f, "asr"),
             Opcode::Ror => write!(f, "ror"),
             Opcode::Mul => write!(f, "mul"),
+            Opcode::Mla => write!(f, "mla"),
+            Opcode::Mull => write!(f, "mull"),
+            Opcode::Mlal => write!(f, "mlal"),
             Opcode::Neg => write!(f, "neg"),
         }
     }
@@ -302,6 +308,7 @@ pub struct Instruction {
     pub operand1: Option<Operand>,
     pub operand2: Option<Operand>,
     pub operand3: Option<Operand>,
+    pub operand4: Option<Operand>,
     pub transfer_length: Option<TransferLength>,
     pub offset_direction: Option<Direction>,
     pub writeback: bool,
@@ -428,6 +435,66 @@ impl Instruction {
                     ..Instruction::default()
                 }
             }
+            // Multiply and Multiply-Accumulate (MUL, MLA)
+            "cccc_0000_00as_dddd_xxxx_yyyy_1001_zzzz" => {
+                let condition = Condition::from(c);
+                let set_condition_flags = s == 1;
+                let accumulate = a == 1;
+
+                let rm = Register::from(z);
+                let rd = Register::from(d);
+                let rn = Register::from(x);
+                let rs = Register::from(y);
+
+                // TODO: signed?
+
+                if !accumulate {
+                    Instruction {
+                        opcode: Opcode::Mul,
+                        condition,
+                        set_condition_flags,
+                        operand1: Some(Operand::Register(rd, None)),
+                        operand2: Some(Operand::Register(rm, None)),
+                        operand3: Some(Operand::Register(rs, None)),
+                        ..Instruction::default()
+                    }
+                } else {
+                    Instruction {
+                        opcode: Opcode::Mla,
+                        condition,
+                        set_condition_flags,
+                        operand1: Some(Operand::Register(rd, None)),
+                        operand2: Some(Operand::Register(rm, None)),
+                        operand3: Some(Operand::Register(rs, None)),
+                        operand4: Some(Operand::Register(rn, None)),
+                        ..Instruction::default()
+                    }
+                }
+            }
+            // Multiply Long and Multiply-Accumulate Long (MULL, MLAL)
+            "cccc_0000_1uas_hhhh_llll_ssss_1001_mmmm" => {
+                let condition = Condition::from(c);
+                let set_condition_flags = s == 1;
+                let accumulate = a == 1;
+
+                let rm = Register::from(m);
+                let rs = Register::from(s);
+                let rd_hi = Register::from(h);
+                let rd_lo = Register::from(l);
+
+                // TODO: unsigned?
+
+                Instruction {
+                    opcode: if !accumulate { Opcode::Mull } else { Opcode::Mlal },
+                    condition,
+                    set_condition_flags,
+                    operand1: Some(Operand::Register(rd_hi, None)),
+                    operand2: Some(Operand::Register(rd_lo, None)),
+                    operand3: Some(Operand::Register(rm, None)),
+                    operand4: Some(Operand::Register(rs, None)),
+                    ..Instruction::default()
+                }
+            }
             // Halfword Data Transfer (LDRH/STRH)
             "cccc_000p_uiwl_yyyy_xxxx_oooo_1sh1_zzzz" => {
                 let condition = Condition::from(c);
@@ -478,6 +545,7 @@ impl Instruction {
                         Some(Indexing::Post)
                     },
                     writeback: w == 1 || p == 0,
+                    ..Instruction::default()
                 }
             }
             // Data Processing
@@ -677,6 +745,7 @@ impl Instruction {
                         Some(Indexing::Post)
                     },
                     writeback: w == 1 || p == 0,
+                    ..Instruction::default()
                 }
             }
             _ => panic!("Unknown instruction: {:08x} | {:032b}", opcode, opcode),
@@ -1096,6 +1165,7 @@ impl Default for Instruction {
             operand1: None,
             operand2: None,
             operand3: None,
+            operand4: None,
             transfer_length: None,
             offset_direction: None,
             writeback: false,
@@ -1251,6 +1321,10 @@ impl Display for Instruction {
 
                 if self.opcode.is_load_store() {
                     write!(f, "]")?;
+                }
+
+                if let Some(operand) = &self.operand4 {
+                    write!(f, ", {}", operand)?;
                 }
             }
         }

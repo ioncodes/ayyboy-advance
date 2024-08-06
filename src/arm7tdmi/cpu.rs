@@ -2,16 +2,13 @@ use std::fmt::Display;
 
 use log::{debug, error, trace};
 
-use crate::{
-    arm7tdmi::{decoder::Opcode, handlers::Handlers},
-    memory::mmio::Mmio,
-};
+use crate::arm7tdmi::decoder::Opcode;
+use crate::arm7tdmi::handlers::Handlers;
+use crate::memory::mmio::Mmio;
 
-use super::{
-    decoder::Register,
-    pipeline::Pipeline,
-    registers::{Psr, Registers},
-};
+use super::decoder::Register;
+use super::pipeline::Pipeline;
+use super::registers::{Psr, Registers};
 
 #[derive(Debug)]
 pub enum ProcessorMode {
@@ -72,13 +69,9 @@ impl Cpu {
             match instruction.opcode {
                 Opcode::B | Opcode::Bl | Opcode::Bx => Handlers::branch(&instruction, self, mmio),
                 Opcode::Push | Opcode::Pop => Handlers::push_pop(&instruction, self, mmio),
-                Opcode::Cmp | Opcode::Tst | Opcode::Teq | Opcode::Cmn => {
-                    Handlers::test(&instruction, self, mmio)
-                }
+                Opcode::Cmp | Opcode::Tst | Opcode::Teq | Opcode::Cmn => Handlers::test(&instruction, self, mmio),
                 Opcode::Mov | Opcode::Mvn => Handlers::move_data(&instruction, self, mmio),
-                Opcode::Ldm | Opcode::Stm | Opcode::Ldr | Opcode::Str => {
-                    Handlers::load_store(&instruction, self, mmio)
-                }
+                Opcode::Ldm | Opcode::Stm | Opcode::Ldr | Opcode::Str => Handlers::load_store(&instruction, self, mmio),
                 Opcode::Mrs | Opcode::Msr => Handlers::psr_transfer(&instruction, self, mmio),
                 Opcode::Add
                 | Opcode::Adc
@@ -91,10 +84,13 @@ impl Cpu {
                 | Opcode::Rsb
                 | Opcode::Bic
                 | Opcode::Neg
-                | Opcode::Mul
                 | Opcode::Asr
                 | Opcode::Lsl
-                | Opcode::Lsr => Handlers::alu(&instruction, self, mmio),
+                | Opcode::Lsr
+                | Opcode::Mul
+                | Opcode::Mla
+                | Opcode::Mull
+                | Opcode::Mlal => Handlers::alu(&instruction, self, mmio),
                 Opcode::Swi => Handlers::software_interrupt(&instruction, self, mmio),
                 _ => todo!(),
             }
@@ -232,8 +228,7 @@ impl Cpu {
 
     pub fn set_processor_mode(&mut self, mode: ProcessorMode) {
         let mode: u32 = mode.into();
-        self.registers.cpsr =
-            Psr::from_bits_truncate((self.registers.cpsr.bits() & !Psr::M.bits()) | mode);
+        self.registers.cpsr = Psr::from_bits_truncate((self.registers.cpsr.bits() & !Psr::M.bits()) | mode);
     }
 
     pub fn write_to_current_spsr(&mut self, value: u32) {

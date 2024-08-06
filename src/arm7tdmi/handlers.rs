@@ -829,6 +829,45 @@ impl Handlers {
                     cpu.update_flag(Psr::C, value & (1 << (*shift - 1)) != 0);
                 }
             }
+            Instruction {
+                opcode: Opcode::Mul,
+                operand1: Some(Operand::Register(dst, None)),
+                operand2: Some(Operand::Register(lhs, None)),
+                operand3: Some(Operand::Register(rhs, None)),
+                operand4: None,
+                set_condition_flags,
+                ..
+            } => {
+                let lhs = cpu.read_register(lhs);
+                let rhs = cpu.read_register(rhs);
+                let result = lhs.wrapping_mul(rhs);
+                cpu.write_register(dst, result);
+
+                if *set_condition_flags {
+                    cpu.update_flag(Psr::N, result & 0x8000_0000 != 0);
+                    cpu.update_flag(Psr::Z, result == 0);
+                }
+            }
+            Instruction {
+                opcode: Opcode::Mla,
+                operand1: Some(Operand::Register(dst, None)),
+                operand2: Some(Operand::Register(lhs, None)),
+                operand3: Some(Operand::Register(rhs, None)),
+                operand4: Some(Operand::Register(acc, None)),
+                set_condition_flags,
+                ..
+            } => {
+                let lhs = cpu.read_register(lhs);
+                let rhs = cpu.read_register(rhs);
+                let acc = cpu.read_register(acc);
+                let result = lhs.wrapping_mul(rhs).wrapping_add(acc);
+                cpu.write_register(dst, result);
+
+                if *set_condition_flags {
+                    cpu.update_flag(Psr::N, result & 0x8000_0000 != 0);
+                    cpu.update_flag(Psr::Z, result == 0);
+                }
+            }
             _ => todo!("{:?}", instr),
         }
     }
