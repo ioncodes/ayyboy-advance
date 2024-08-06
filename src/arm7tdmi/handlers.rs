@@ -943,7 +943,23 @@ impl Handlers {
                 let shift = Handlers::unwrap_shift_source(cpu, src);
                 let result = value.rotate_right(shift);
                 if set_condition_flags {
-                    //cpu.update_flag(Psr::C, value & (1 << (shift - 1)) != 0);
+                    match shift {
+                        ..=31 => cpu.update_flag(Psr::C, value & (1 << (shift - 1)) != 0),
+                        32 => cpu.update_flag(Psr::C, value & 0x8000_0000 != 0),
+                        _ => cpu.update_flag(Psr::C, false),
+                    }
+                }
+                result
+            }
+            ShiftType::RotateRightExtended => {
+                let shift = cpu.registers.cpsr.bits() & 0xff;
+                let result = value.rotate_right(shift);
+                if set_condition_flags {
+                    match shift {
+                        ..=31 => cpu.update_flag(Psr::C, value & (1 << (shift - 1)) != 0),
+                        32 => cpu.update_flag(Psr::C, value & 0x8000_0000 != 0),
+                        _ => cpu.update_flag(Psr::C, false),
+                    }
                 }
                 result
             }
