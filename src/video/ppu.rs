@@ -58,8 +58,8 @@ impl Ppu {
     pub fn get_frame(&self) -> Frame {
         let lcd_control = self.read_as::<DispCnt>(DISPCNT_ADDR);
         match lcd_control.bg_mode() {
-            3 => self.render_background_mode3(),
-            4 => self.render_background_mode4(),
+            3 => self.render_background_mode3(lcd_control.frame_address()),
+            4 => self.render_background_mode4(lcd_control.frame_address()),
             mode => {
                 error!("Unsupported PPU mode: {}", mode);
                 [[(0, 0, 0); SCREEN_WIDTH]; SCREEN_HEIGHT]
@@ -67,12 +67,12 @@ impl Ppu {
         }
     }
 
-    fn render_background_mode3(&self) -> Frame {
+    fn render_background_mode3(&self, base_addr: u32) -> Frame {
         let mut frame = [[(0, 0, 0); SCREEN_WIDTH]; SCREEN_HEIGHT];
 
         for y in 0..SCREEN_HEIGHT {
             for x in 0..SCREEN_WIDTH {
-                let addr = 0x06000000 + ((y * SCREEN_WIDTH + x) as u32 * 2);
+                let addr = base_addr + ((y * SCREEN_WIDTH + x) as u32 * 2);
                 let rgb = self.read_u16(addr);
 
                 let (r, g, b) = (
@@ -88,12 +88,12 @@ impl Ppu {
         frame
     }
 
-    fn render_background_mode4(&self) -> Frame {
+    fn render_background_mode4(&self, base_addr: u32) -> Frame {
         let mut frame = [[(0, 0, 0); SCREEN_WIDTH]; SCREEN_HEIGHT];
 
         for y in 0..SCREEN_HEIGHT {
             for x in 0..SCREEN_WIDTH {
-                let addr = 0x06000000 + (y * SCREEN_WIDTH + x) as u32;
+                let addr = base_addr + (y * SCREEN_WIDTH + x) as u32;
                 let idx = self.read(addr) as u32;
                 let rgb = self.read_u16(0x05000000 + (idx * 2));
 

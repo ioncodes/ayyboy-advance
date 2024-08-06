@@ -33,4 +33,12 @@ impl DispCnt {
     pub fn bg_mode(&self) -> u8 {
         (self.bits() & DispCnt::BG_MODE.bits()) as u8
     }
+
+    pub fn frame_address(&self) -> u32 {
+        if !self.contains(DispCnt::DISPLAY_FRAME_SELECT) {
+            0x0600_0000
+        } else {
+            0x0600_A000
+        }
+    }
 }
