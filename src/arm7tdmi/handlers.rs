@@ -1,5 +1,5 @@
 use super::cpu::Cpu;
-use super::decoder::{Condition, Instruction, Opcode, Operand, ShiftType};
+use super::decoder::{Condition, Instruction, Opcode, Operand, ShiftSource, ShiftType};
 use super::registers::Psr;
 use crate::arm7tdmi::cpu::ProcessorMode;
 use crate::arm7tdmi::decoder::{Direction, Indexing, Register, TransferLength};
@@ -845,33 +845,48 @@ impl Handlers {
         }
     }
 
+    fn unwrap_shift_source(cpu: &Cpu, src: &ShiftSource) -> u32 {
+        match src {
+            ShiftSource::Immediate(value) => *value,
+            ShiftSource::Register(register) => cpu.read_register(register),
+        }
+    }
+
     fn process_shift(value: u32, shift: &ShiftType, cpu: &mut Cpu, set_condition_flags: bool) -> u32 {
         match shift {
-            ShiftType::LogicalLeft(shift) => {
-                let result = value.wrapping_shl(*shift);
+            ShiftType::LogicalLeft(src) => {
+                let shift = Handlers::unwrap_shift_source(cpu, src);
+                let result = value.wrapping_shl(shift);
                 if set_condition_flags {
-                    cpu.update_flag(Psr::C, value & (1 << (32 - *shift)) != 0);
+                    match shift {
+                        ..=31 => cpu.update_flag(Psr::C, value & (1 << (32 - shift)) != 0),
+                        32 => cpu.update_flag(Psr::C, value & 1 != 0),
+                        _ => cpu.update_flag(Psr::C, false),
+                    }
                 }
                 result
             }
-            ShiftType::LogicalRight(shift) => {
-                let result = value.wrapping_shr(*shift);
+            ShiftType::LogicalRight(src) => {
+                let shift = Handlers::unwrap_shift_source(cpu, src);
+                let result = value.wrapping_shr(shift);
                 if set_condition_flags {
-                    cpu.update_flag(Psr::C, value & (1 << (*shift - 1)) != 0);
+                    //cpu.update_flag(Psr::C, value & (1 << (shift - 1)) != 0);
                 }
                 result
             }
-            ShiftType::ArithmeticRight(shift) => {
-                let result = value.wrapping_shr(*shift);
+            ShiftType::ArithmeticRight(src) => {
+                let shift = Handlers::unwrap_shift_source(cpu, src);
+                let result = value.wrapping_shr(shift);
                 if set_condition_flags {
-                    cpu.update_flag(Psr::C, value & (1 << (*shift - 1)) != 0);
+                    //cpu.update_flag(Psr::C, value & (1 << (shift - 1)) != 0);
                 }
                 result
             }
-            ShiftType::RotateRight(shift) => {
-                let result = value.rotate_right(*shift);
+            ShiftType::RotateRight(src) => {
+                let shift = Handlers::unwrap_shift_source(cpu, src);
+                let result = value.rotate_right(shift);
                 if set_condition_flags {
-                    cpu.update_flag(Psr::C, value & (1 << (*shift - 1)) != 0);
+                    //cpu.update_flag(Psr::C, value & (1 << (shift - 1)) != 0);
                 }
                 result
             }

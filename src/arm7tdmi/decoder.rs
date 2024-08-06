@@ -114,15 +114,30 @@ impl Register {
 }
 
 #[derive(PartialEq, Debug)]
+pub enum ShiftSource {
+    Register(Register),
+    Immediate(u32),
+}
+
+impl Display for ShiftSource {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            ShiftSource::Register(register) => write!(f, "{}", register),
+            ShiftSource::Immediate(value) => write!(f, "#{}", value),
+        }
+    }
+}
+
+#[derive(PartialEq, Debug)]
 pub enum ShiftType {
-    LogicalLeft(u32),
-    LogicalRight(u32),
-    ArithmeticRight(u32),
-    RotateRight(u32),
+    LogicalLeft(ShiftSource),
+    LogicalRight(ShiftSource),
+    ArithmeticRight(ShiftSource),
+    RotateRight(ShiftSource),
 }
 
 impl ShiftType {
-    pub fn from(shift_type: u32, value: u32) -> ShiftType {
+    pub fn from(shift_type: u32, value: ShiftSource) -> ShiftType {
         match shift_type {
             0b00 => ShiftType::LogicalLeft(value),
             0b01 => ShiftType::LogicalRight(value),
@@ -136,10 +151,10 @@ impl ShiftType {
 impl Display for ShiftType {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
-            ShiftType::LogicalLeft(value) => write!(f, "lsl #{}", value),
-            ShiftType::LogicalRight(value) => write!(f, "lsr #{}", value),
-            ShiftType::ArithmeticRight(value) => write!(f, "asr #{}", value),
-            ShiftType::RotateRight(value) => write!(f, "ror #{}", value),
+            ShiftType::LogicalLeft(src) => write!(f, "lsl {}", src),
+            ShiftType::LogicalRight(src) => write!(f, "lsr {}", src),
+            ShiftType::ArithmeticRight(src) => write!(f, "asr {}", src),
+            ShiftType::RotateRight(src) => write!(f, "ror {}", src),
         }
     }
 }
@@ -355,11 +370,7 @@ impl Instruction {
             // PSR Transfer (MRS)
             "cccc_0001_0s00_1111_dddd_0000_0000_0000" => {
                 let condition = Condition::from(c);
-                let source = if s == 1 {
-                    Register::Spsr
-                } else {
-                    Register::Cpsr
-                };
+                let source = if s == 1 { Register::Spsr } else { Register::Cpsr };
                 let destination = Register::from(d);
 
                 Instruction {
@@ -376,11 +387,7 @@ impl Instruction {
             "cccc_0001_0d10_1001_1111_0000_0000_ssss" => {
                 let condition = Condition::from(c);
                 let source = Register::from(s);
-                let destination = if d == 1 {
-                    Register::Spsr
-                } else {
-                    Register::Cpsr
-                };
+                let destination = if d == 1 { Register::Spsr } else { Register::Cpsr };
 
                 Instruction {
                     opcode: Opcode::Msr,
@@ -395,11 +402,7 @@ impl Instruction {
             // PSR Transfer (MSR) for register contents or immediate value to PSR flags
             "cccc_00i1_0d10_1000_1111_ssss_ssss_ssss" => {
                 let condition = Condition::from(c);
-                let destination = if d == 1 {
-                    Register::SpsrFlag
-                } else {
-                    Register::CpsrFlag
-                };
+                let destination = if d == 1 { Register::SpsrFlag } else { Register::CpsrFlag };
 
                 let operand2 = if i == 1 {
                     let imm = s & 0b1111_1111;
@@ -408,7 +411,7 @@ impl Instruction {
                     if rotate == 0 {
                         Operand::Immediate(imm, None)
                     } else {
-                        Operand::Immediate(imm, Some(ShiftType::RotateRight(rotate)))
+                        Operand::Immediate(imm, Some(ShiftType::RotateRight(ShiftSource::Immediate(rotate))))
                     }
                 } else {
                     let s = s & 0b1111;
@@ -446,7 +449,7 @@ impl Instruction {
                     } else {
                         Operand::Register(
                             Register::from(z),
-                            Some(ShiftType::from(shift_type, shift_amount)),
+                            Some(ShiftType::from(shift_type, ShiftSource::Immediate(shift_amount))),
                         )
                     }
                 };
@@ -493,27 +496,24 @@ impl Instruction {
 
                 let operand2 = if i == 0 {
                     // Register Operand 2
-                    let shift_amount = (z & 0b1111_1000_0000) >> 7;
-                    let shift_type = (z & 0b0000_0110_0000) >> 5;
-                    let register = z & 0b0001_1111;
 
-                    /*
-                       When the second operand is specified to be a shifted register, the operation of the
-                       barrel shifter is controlled by the Shift field in the instruction. This field indicates the type
-                       of shift to be performed (logical left or right, arithmetic right or rotate right). The amount
-                       by which the register should be shifted may be contained in an immediate field in the
-                       instruction, or in the bottom byte of another register (other than R15). The encoding for
-                       the different shift types is shown in Figure 4-5: ARM shift operations.
-                       TODO: lower half of the register
-                    */
-
-                    if shift_amount == 0 {
-                        Operand::Register(Register::from(register), None)
-                    } else {
-                        Operand::Register(
-                            Register::from(register),
-                            Some(ShiftType::from(shift_type, shift_amount)),
-                        )
+                    #[bitmatch]
+                    match z {
+                        "rrrr_0tt1_dddd" => Operand::Register(
+                            Register::from(d),
+                            Some(ShiftType::from(t, ShiftSource::Register(Register::from(r)))),
+                        ),
+                        "ssss_stt0_dddd" => {
+                            if s == 0 {
+                                Operand::Register(Register::from(d), None)
+                            } else {
+                                Operand::Register(
+                                    Register::from(d),
+                                    Some(ShiftType::from(t, ShiftSource::Immediate(s))),
+                                )
+                            }
+                        }
+                        _ => unreachable!(),
                     }
                 } else {
                     // Immediate Operand 2
@@ -523,7 +523,7 @@ impl Instruction {
                     if rotate == 0 {
                         Operand::Immediate(z, None)
                     } else {
-                        Operand::Immediate(z, Some(ShiftType::RotateRight(rotate)))
+                        Operand::Immediate(z, Some(ShiftType::RotateRight(ShiftSource::Immediate(rotate))))
                     }
                 };
 
@@ -644,7 +644,7 @@ impl Instruction {
                     } else {
                         Operand::Register(
                             Register::from(register),
-                            Some(ShiftType::from(shift_type, shift_amount)),
+                            Some(ShiftType::from(shift_type, ShiftSource::Immediate(shift_amount))),
                         )
                     }
                 };
@@ -844,21 +844,12 @@ impl Instruction {
                         Some(Operand::Register(Register::from(8 + d), None)),
                         Some(Operand::Register(Register::from(8 + s), None)),
                     ),
-                    (0b11, 0, 0) => (
-                        Opcode::Bx,
-                        Some(Operand::Register(Register::from(s), None)),
-                        None,
-                    ),
-                    (0b11, 0, 1) => (
-                        Opcode::Bx,
-                        Some(Operand::Register(Register::from(8 + s), None)),
-                        None,
-                    ),
+                    (0b11, 0, 0) => (Opcode::Bx, Some(Operand::Register(Register::from(s), None)), None),
+                    (0b11, 0, 1) => (Opcode::Bx, Some(Operand::Register(Register::from(8 + s), None)), None),
                     _ => unreachable!(),
                 };
 
-                let set_condition_flags =
-                    opcode != Opcode::Bx && opcode != Opcode::Cmn && opcode != Opcode::Mov;
+                let set_condition_flags = opcode != Opcode::Bx && opcode != Opcode::Cmn && opcode != Opcode::Mov;
 
                 Instruction {
                     opcode,
@@ -1124,9 +1115,7 @@ impl Display for Instruction {
                     f,
                     "{}{}{}{} {}",
                     self.opcode,
-                    self.transfer_length
-                        .as_ref()
-                        .unwrap_or(&TransferLength::Word),
+                    self.transfer_length.as_ref().unwrap_or(&TransferLength::Word),
                     self.condition,
                     if self.set_condition_flags && !self.opcode.is_test() {
                         ".s"
@@ -1153,9 +1142,7 @@ impl Display for Instruction {
                     f,
                     "{}{}{}{} {}",
                     self.opcode,
-                    self.transfer_length
-                        .as_ref()
-                        .unwrap_or(&TransferLength::Word),
+                    self.transfer_length.as_ref().unwrap_or(&TransferLength::Word),
                     self.condition,
                     if self.set_condition_flags && !self.opcode.is_test() {
                         ".s"
@@ -1224,9 +1211,7 @@ impl Display for Instruction {
                     f,
                     "{}{}{}{}",
                     self.opcode,
-                    self.transfer_length
-                        .as_ref()
-                        .unwrap_or(&TransferLength::Word),
+                    self.transfer_length.as_ref().unwrap_or(&TransferLength::Word),
                     self.condition,
                     if self.set_condition_flags && !self.opcode.is_test() {
                         ".s"
@@ -1279,18 +1264,7 @@ impl Display for Operand {
         match self {
             Operand::Immediate(value, option) if option.is_none() => write!(f, "#0x{:02x}", value),
             Operand::Immediate(value, Some(option)) => {
-                write!(
-                    f,
-                    "#0x{:02x}, {} [eval: 0x{:02x}]",
-                    value,
-                    option,
-                    match option {
-                        ShiftType::LogicalLeft(shift) => value << shift,
-                        ShiftType::LogicalRight(shift) => value >> shift,
-                        ShiftType::ArithmeticRight(shift) => ((*value as i32) >> shift) as u32, // TODO: wrong
-                        ShiftType::RotateRight(rotate) => value.rotate_right(*rotate),
-                    }
-                )
+                write!(f, "#0x{:02x}, {}", value, option)
             }
             Operand::Register(register, option) if option.is_none() => write!(f, "{}", register),
             Operand::Register(register, Some(option)) => write!(f, "{}, {}", register, option),
