@@ -572,14 +572,14 @@ impl Instruction {
                             Some(ShiftType::from(t, ShiftSource::Register(Register::from(r)))),
                         ),
                         "ssss_stt0_dddd" => {
-                            if s == 0 {
-                                Operand::Register(Register::from(d), None)
-                            } else {
-                                Operand::Register(
-                                    Register::from(d),
-                                    Some(ShiftType::from(t, ShiftSource::Immediate(s))),
-                                )
-                            }
+                            // The form of the shift field which might be expected to correspond
+                            // to LSR #0 is used to encode LSR #32, which has a
+                            // zero result with bit 31 of Rm as the carry output.
+                            let s = match t {
+                                0b01 if s == 0 => 32,
+                                _ => s,
+                            };
+                            Operand::Register(Register::from(d), Some(ShiftType::from(t, ShiftSource::Immediate(s))))
                         }
                         _ => unreachable!(),
                     }

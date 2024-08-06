@@ -887,7 +887,7 @@ impl Handlers {
     fn unwrap_shift_source(cpu: &Cpu, src: &ShiftSource) -> u32 {
         match src {
             ShiftSource::Immediate(value) => *value,
-            ShiftSource::Register(register) => cpu.read_register(register),
+            ShiftSource::Register(register) => cpu.read_register(register) & 0xff,
         }
     }
 
@@ -895,7 +895,7 @@ impl Handlers {
         match shift {
             ShiftType::LogicalLeft(src) => {
                 let shift = Handlers::unwrap_shift_source(cpu, src);
-                let result = value.wrapping_shl(shift);
+                let result = value.checked_shl(shift).unwrap_or(0);
                 if set_condition_flags {
                     match shift {
                         ..=31 => cpu.update_flag(Psr::C, value & (1 << (32 - shift)) != 0),
@@ -907,15 +907,19 @@ impl Handlers {
             }
             ShiftType::LogicalRight(src) => {
                 let shift = Handlers::unwrap_shift_source(cpu, src);
-                let result = value.wrapping_shr(shift);
+                let result = value.checked_shr(shift).unwrap_or(0);
                 if set_condition_flags {
-                    //cpu.update_flag(Psr::C, value & (1 << (shift - 1)) != 0);
+                    match shift {
+                        ..=31 => cpu.update_flag(Psr::C, value & (1 << (shift - 1)) != 0),
+                        32 => cpu.update_flag(Psr::C, value & 0x8000_0000 != 0),
+                        _ => cpu.update_flag(Psr::C, false),
+                    }
                 }
                 result
             }
             ShiftType::ArithmeticRight(src) => {
                 let shift = Handlers::unwrap_shift_source(cpu, src);
-                let result = value.wrapping_shr(shift);
+                let result = value.checked_shr(shift).unwrap_or(0);
                 if set_condition_flags {
                     //cpu.update_flag(Psr::C, value & (1 << (shift - 1)) != 0);
                 }
