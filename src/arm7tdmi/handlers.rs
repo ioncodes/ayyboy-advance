@@ -327,14 +327,14 @@ impl Handlers {
             }
             Instruction {
                 opcode: Opcode::Ldm,
-                operand1: Some(Operand::Register(dst_base, None)),
+                operand1: Some(Operand::Register(src_base, None)),
                 operand2: Some(Operand::RegisterList(registers)),
                 offset_direction: Some(operation),
                 indexing: Some(indexing),
                 writeback,
                 ..
             } => {
-                let mut address = cpu.read_register(dst_base);
+                let mut address = cpu.read_register(src_base);
 
                 for register in registers {
                     if *indexing == Indexing::Pre {
@@ -358,7 +358,7 @@ impl Handlers {
                 }
 
                 if *writeback {
-                    cpu.write_register(dst_base, address);
+                    cpu.write_register(src_base, address);
                 }
             }
             Instruction {
