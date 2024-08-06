@@ -52,7 +52,7 @@ fn main() {
             mmio.tick_components();
 
             if mmio.ppu.scanline == 160 && !frame_rendered {
-                tx.send(mmio.ppu.get_frame()).unwrap();
+                let _ = tx.send(mmio.ppu.get_frame());
                 frame_rendered = true;
             } else if mmio.ppu.scanline == 0 && frame_rendered {
                 frame_rendered = false;
