@@ -919,9 +919,23 @@ impl Handlers {
             }
             ShiftType::ArithmeticRight(src) => {
                 let shift = Handlers::unwrap_shift_source(cpu, src);
-                let result = value.checked_shr(shift).unwrap_or(0);
+                let result = if shift >= 32 {
+                    if value & (1 << 31) != 0 {
+                        0xffffffff
+                    } else {
+                        0x00000000
+                    }
+                } else {
+                    let shifted = (value as i32) >> shift;
+                    shifted as u32
+                };
+
                 if set_condition_flags {
-                    //cpu.update_flag(Psr::C, value & (1 << (shift - 1)) != 0);
+                    match shift {
+                        ..=31 => cpu.update_flag(Psr::C, value & (1 << (shift - 1)) != 0),
+                        32 => cpu.update_flag(Psr::C, value & 0x8000_0000 != 0),
+                        _ => cpu.update_flag(Psr::C, false),
+                    }
                 }
                 result
             }

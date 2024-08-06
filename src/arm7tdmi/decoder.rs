@@ -575,8 +575,19 @@ impl Instruction {
                             // The form of the shift field which might be expected to correspond
                             // to LSR #0 is used to encode LSR #32, which has a
                             // zero result with bit 31 of Rm as the carry output.
+
+                            // The form of the shift field which might be expected to give
+                            // ASR #0 is used to encode ASR #32. Bit 31 of Rm is again
+                            // used as the carry output, and each bit of operand 2 is also
+                            // equal to bit 31 of Rm.
+
+                            // TODO:
+                            // Atem — Today at 10:09 PM
+                            // yea ROR #0 (with a register supplied operand and immediate shift amount) becomes RRX
+
                             let s = match t {
                                 0b01 if s == 0 => 32,
+                                0b10 if s == 0 => 32,
                                 _ => s,
                             };
                             Operand::Register(Register::from(d), Some(ShiftType::from(t, ShiftSource::Immediate(s))))
