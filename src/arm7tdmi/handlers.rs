@@ -118,14 +118,18 @@ impl Handlers {
 
         match instr {
             Instruction {
-                opcode: Opcode::Cmp,
+                opcode: Opcode::Cmp | Opcode::Cmn,
                 operand1: Some(Operand::Register(lhs, None)),
                 operand2: Some(rhs),
                 ..
             } => {
                 let lhs = cpu.read_register(lhs);
                 let rhs = Handlers::resolve_operand(rhs, cpu, false);
-                let (result, carry) = lhs.overflowing_sub(rhs);
+                let (result, carry) = match instr.opcode {
+                    Opcode::Cmp => lhs.overflowing_sub(rhs),
+                    Opcode::Cmn => lhs.overflowing_add(rhs),
+                    _ => unreachable!(),
+                };
                 cpu.update_flag(Psr::N, (result as i32) < 0);
                 cpu.update_flag(Psr::Z, result == 0);
                 cpu.update_flag(Psr::C, !carry);
