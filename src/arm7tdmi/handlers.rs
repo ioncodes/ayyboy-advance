@@ -760,15 +760,15 @@ impl Handlers {
             }
             Instruction {
                 opcode: Opcode::Bic,
-                operand1: Some(Operand::Register(lhs, None)),
-                operand2: Some(Operand::Register(rhs, None)),
+                operand1: Some(Operand::Register(dst, None)),
+                operand2: Some(Operand::Register(src, None)),
+                operand3: Some(Operand::Immediate(pos, None)),
                 set_condition_flags,
                 ..
             } => {
-                let x = cpu.read_register(lhs);
-                let y = cpu.read_register(rhs);
-                let result = x & !y;
-                cpu.write_register(lhs, result);
+                let src = cpu.read_register(src);
+                let result = src & !pos;
+                cpu.write_register(dst, result);
 
                 if *set_condition_flags {
                     cpu.update_flag(Psr::N, result & 0x8000_0000 != 0);
