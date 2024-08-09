@@ -1280,7 +1280,7 @@ impl Display for Instruction {
                     self.operand2.as_ref().unwrap(),
                 )?;
             }
-            Opcode::Add
+            Opcode::Add | Opcode::Sub
                 if let Some(Operand::Register(reg, None)) = &self.operand2
                     && *reg == Register::R15 =>
             {
