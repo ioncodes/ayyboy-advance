@@ -59,14 +59,12 @@ impl Display for Pipeline {
             f,
             "Fetch = {{{}}}, Decode = {{{}}}",
             match &self.fetch {
-                Some(Item::Instruction(instr, state)) =>
-                    format!("{} @ {:08x}", instr.opcode, state.pc),
+                Some(Item::Instruction(instr, state)) => format!("{} @ {:08x}", instr.opcode, state.pc),
                 Some(Item::Data(data, state)) => format!("{:08x} @ {:08x}", data, state.pc),
                 None => String::from("Empty"),
             },
             match &self.decode {
-                Some(Item::Instruction(instr, state)) =>
-                    format!("{} @ {:08x}", instr.opcode, state.pc),
+                Some(Item::Instruction(instr, state)) => format!("{} @ {:08x}", instr.opcode, state.pc),
                 Some(Item::Data(data, state)) => format!("{:08x} @ {:08x}", data, state.pc),
                 None => String::from("Empty"),
             },

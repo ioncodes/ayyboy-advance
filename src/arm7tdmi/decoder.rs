@@ -1,7 +1,7 @@
 use bitmatch::bitmatch;
 use std::fmt::Display;
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone)]
 pub enum Condition {
     Equal,
     NotEqual,
@@ -65,7 +65,7 @@ impl Display for Condition {
     }
 }
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone)]
 pub enum Register {
     R0,
     R1,
@@ -113,7 +113,7 @@ impl Register {
     }
 }
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone)]
 pub enum ShiftSource {
     Register(Register),
     Immediate(u32),
@@ -128,7 +128,7 @@ impl Display for ShiftSource {
     }
 }
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone)]
 pub enum ShiftType {
     LogicalLeft(ShiftSource),
     LogicalRight(ShiftSource),
@@ -161,7 +161,7 @@ impl Display for ShiftType {
     }
 }
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone)]
 pub enum Operand {
     Immediate(u32, Option<ShiftType>),
     Offset(i32),
@@ -169,7 +169,7 @@ pub enum Operand {
     RegisterList(Vec<Register>),
 }
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone)]
 pub enum Opcode {
     B,
     Bl,
@@ -264,7 +264,7 @@ impl Display for Opcode {
     }
 }
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone)]
 pub enum TransferLength {
     Byte,
     HalfWord,
@@ -281,7 +281,7 @@ impl Display for TransferLength {
     }
 }
 
-#[derive(PartialEq, Debug, Copy, Clone)]
+#[derive(PartialEq, Debug, Clone)]
 pub enum Direction {
     Up,
     Down,
@@ -296,13 +296,13 @@ impl Display for Direction {
     }
 }
 
-#[derive(PartialEq, Debug, Copy, Clone)]
+#[derive(PartialEq, Debug, Clone)]
 pub enum Indexing {
     Pre,
     Post,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Instruction {
     pub opcode: Opcode,
     pub condition: Condition,
@@ -1257,7 +1257,7 @@ impl Display for Instruction {
                 }
             }
             Opcode::Ldm | Opcode::Stm => {
-                let opcode_suffix = match (self.indexing, self.offset_direction) {
+                let opcode_suffix = match (&self.indexing, &self.offset_direction) {
                     (Some(Indexing::Pre), Some(Direction::Up)) => "ib",
                     (Some(Indexing::Pre), Some(Direction::Down)) => "db",
                     (Some(Indexing::Post), Some(Direction::Up)) => "ia", // technically not required as it's default

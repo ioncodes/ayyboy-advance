@@ -1,5 +1,5 @@
 pub mod cpu;
-mod decoder;
+pub mod decoder;
 mod handlers;
 mod pipeline;
 mod registers;

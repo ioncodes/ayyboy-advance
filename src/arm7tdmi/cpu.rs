@@ -6,8 +6,8 @@ use crate::arm7tdmi::decoder::Opcode;
 use crate::arm7tdmi::handlers::Handlers;
 use crate::memory::mmio::Mmio;
 
-use super::decoder::Register;
-use super::pipeline::Pipeline;
+use super::decoder::{Instruction, Register};
+use super::pipeline::{Pipeline, State};
 use super::registers::{Psr, Registers};
 
 #[derive(Debug)]
@@ -46,7 +46,7 @@ impl Cpu {
         }
     }
 
-    pub fn tick(&mut self, mmio: &mut Mmio) {
+    pub fn tick(&mut self, mmio: &mut Mmio) -> Option<(Instruction, State)> {
         self.pipeline.advance(self.get_pc(), self.is_thumb(), mmio);
         trace!("Pipeline: {}", self.pipeline);
 
@@ -96,7 +96,11 @@ impl Cpu {
             }
 
             trace!("\n{}", self);
+
+            return Some((instruction, state));
         }
+
+        None
     }
 
     pub fn read_register(&self, register: &Register) -> u32 {
