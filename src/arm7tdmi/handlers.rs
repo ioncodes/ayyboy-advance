@@ -898,6 +898,7 @@ impl Handlers {
                 let result = value.checked_shl(shift).unwrap_or(0);
                 if set_condition_flags {
                     match shift {
+                        0 => {}
                         1..=31 => {
                             // not handling shift == 0 because it would create a mask of 0
                             // and the result would be 0
@@ -916,6 +917,7 @@ impl Handlers {
                 let result = value.checked_shr(shift).unwrap_or(0);
                 if set_condition_flags {
                     match shift {
+                        0 => {}
                         1..=31 => {
                             // not handling shift == 0 because it would create a mask of 0
                             // and the result would be 0
@@ -944,6 +946,7 @@ impl Handlers {
 
                 if set_condition_flags {
                     match shift {
+                        0 => {}
                         1..=31 => {
                             // not handling shift == 0 because it would create a mask of 0
                             // and the result would be 0
@@ -962,6 +965,7 @@ impl Handlers {
                 let result = value.rotate_right(shift);
                 if set_condition_flags {
                     match shift {
+                        0 => {}
                         1..=31 => {
                             // not handling shift == 0 because it would create a mask of 0
                             // and the result would be 0
