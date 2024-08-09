@@ -898,7 +898,13 @@ impl Handlers {
                 let result = value.checked_shl(shift).unwrap_or(0);
                 if set_condition_flags {
                     match shift {
-                        ..=31 => cpu.update_flag(Psr::C, value & (1 << (32 - shift)) != 0),
+                        1..=31 => {
+                            // not handling shift == 0 because it would create a mask of 0
+                            // and the result would be 0
+                            let mask = 1 << (32 - shift);
+                            let carry_out = value & mask != 0;
+                            cpu.update_flag(Psr::C, carry_out)
+                        }
                         32 => cpu.update_flag(Psr::C, value & 1 != 0),
                         _ => cpu.update_flag(Psr::C, false),
                     }
@@ -910,8 +916,14 @@ impl Handlers {
                 let result = value.checked_shr(shift).unwrap_or(0);
                 if set_condition_flags {
                     match shift {
-                        ..=31 => cpu.update_flag(Psr::C, value & (1 << (shift - 1)) != 0),
-                        32 => cpu.update_flag(Psr::C, value & 0x8000_0000 != 0),
+                        1..=31 => {
+                            // not handling shift == 0 because it would create a mask of 0
+                            // and the result would be 0
+                            let mask = 1 << (shift - 1);
+                            let carry_out = value & mask != 0;
+                            cpu.update_flag(Psr::C, carry_out)
+                        }
+                        32 => cpu.update_flag(Psr::C, value & (1 << 31) != 0),
                         _ => cpu.update_flag(Psr::C, false),
                     }
                 }
@@ -932,8 +944,14 @@ impl Handlers {
 
                 if set_condition_flags {
                     match shift {
-                        ..=31 => cpu.update_flag(Psr::C, value & (1 << (shift - 1)) != 0),
-                        32 => cpu.update_flag(Psr::C, value & 0x8000_0000 != 0),
+                        1..=31 => {
+                            // not handling shift == 0 because it would create a mask of 0
+                            // and the result would be 0
+                            let mask = 1 << (shift - 1);
+                            let carry_out = value & mask != 0;
+                            cpu.update_flag(Psr::C, carry_out)
+                        }
+                        32 => cpu.update_flag(Psr::C, value & (1 << 31) != 0),
                         _ => cpu.update_flag(Psr::C, false),
                     }
                 }
@@ -944,8 +962,14 @@ impl Handlers {
                 let result = value.rotate_right(shift);
                 if set_condition_flags {
                     match shift {
-                        ..=31 => cpu.update_flag(Psr::C, value & (1 << (shift - 1)) != 0),
-                        32 => cpu.update_flag(Psr::C, value & 0x8000_0000 != 0),
+                        1..=31 => {
+                            // not handling shift == 0 because it would create a mask of 0
+                            // and the result would be 0
+                            let mask = 1 << (shift - 1);
+                            let carry_out = value & mask != 0;
+                            cpu.update_flag(Psr::C, carry_out)
+                        }
+                        32 => cpu.update_flag(Psr::C, value & (1 << 31) != 0),
                         _ => cpu.update_flag(Psr::C, false),
                     }
                 }
