@@ -169,8 +169,55 @@ impl Cpu {
                 self.update_flag(Psr::C, cpsr.contains(Psr::C));
                 self.update_flag(Psr::V, cpsr.contains(Psr::V));
             }
+            Register::CpsrControl => {
+                let cpsr = Psr::from_bits_truncate(value);
+                self.update_flag(Psr::I, cpsr.contains(Psr::I));
+                self.update_flag(Psr::F, cpsr.contains(Psr::F));
+                self.update_flag(Psr::T, cpsr.contains(Psr::T));
+                self.registers.cpsr = (self.registers.cpsr & !Psr::M) | (cpsr & Psr::M);
+            }
+            Register::CpsrFlagControl => {
+                let cpsr = Psr::from_bits_truncate(value);
+                self.update_flag(Psr::N, cpsr.contains(Psr::N));
+                self.update_flag(Psr::Z, cpsr.contains(Psr::Z));
+                self.update_flag(Psr::C, cpsr.contains(Psr::C));
+                self.update_flag(Psr::V, cpsr.contains(Psr::V));
+                self.update_flag(Psr::I, cpsr.contains(Psr::I));
+                self.update_flag(Psr::F, cpsr.contains(Psr::F));
+                self.registers.cpsr = (self.registers.cpsr & !Psr::M) | (cpsr & Psr::M);
+            }
             Register::Spsr => self.write_to_current_spsr(value),
-            _ => todo!(),
+            Register::SpsrFlag => {
+                let mut current = self.read_from_current_spsr();
+                let spsr = Psr::from_bits_truncate(value);
+                current = (current & !Psr::N.bits()) | (spsr & Psr::N).bits();
+                current = (current & !Psr::Z.bits()) | (spsr & Psr::Z).bits();
+                current = (current & !Psr::C.bits()) | (spsr & Psr::C).bits();
+                current = (current & !Psr::V.bits()) | (spsr & Psr::V).bits();
+                self.write_to_current_spsr(current);
+            }
+            Register::SpsrControl => {
+                let mut current = self.read_from_current_spsr();
+                let spsr = Psr::from_bits_truncate(value);
+                current = (current & !Psr::I.bits()) | (spsr & Psr::I).bits();
+                current = (current & !Psr::F.bits()) | (spsr & Psr::F).bits();
+                current = (current & !Psr::T.bits()) | (spsr & Psr::T).bits();
+                current = (current & !Psr::M.bits()) | (spsr & Psr::M).bits();
+                self.write_to_current_spsr(current);
+            }
+            Register::SpsrFlagControl => {
+                let mut current = self.read_from_current_spsr();
+                let spsr = Psr::from_bits_truncate(value);
+                current = (current & !Psr::N.bits()) | (spsr & Psr::N).bits();
+                current = (current & !Psr::Z.bits()) | (spsr & Psr::Z).bits();
+                current = (current & !Psr::C.bits()) | (spsr & Psr::C).bits();
+                current = (current & !Psr::V.bits()) | (spsr & Psr::V).bits();
+                current = (current & !Psr::I.bits()) | (spsr & Psr::I).bits();
+                current = (current & !Psr::F.bits()) | (spsr & Psr::F).bits();
+                current = (current & !Psr::T.bits()) | (spsr & Psr::T).bits();
+                current = (current & !Psr::M.bits()) | (spsr & Psr::M).bits();
+                self.write_to_current_spsr(current);
+            }
         }
     }
 

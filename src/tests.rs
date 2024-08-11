@@ -41,7 +41,12 @@ mod tests {
                     // walk back the trace
                     for faulting_idx in 0..20 {
                         let (faulting_pc, faulting_instr) = &trace[idx - faulting_idx];
-                        println!("{:08x}: {}", faulting_pc, faulting_instr);
+                        println!(
+                            "{:08x}: {:032b} -> {}",
+                            faulting_pc,
+                            mmio.read_u32(*faulting_pc),
+                            faulting_instr
+                        );
                     }
                 }
 

@@ -85,8 +85,12 @@ pub enum Register {
     R15,
     Cpsr,
     CpsrFlag,
+    CpsrControl,
+    CpsrFlagControl,
     Spsr,
     SpsrFlag,
+    SpsrControl,
+    SpsrFlagControl,
 }
 
 impl Register {
@@ -376,67 +380,6 @@ impl Instruction {
                     ..Instruction::default()
                 }
             }
-            // PSR Transfer (MRS)
-            "cccc_0001_0s00_1111_dddd_0000_0000_0000" => {
-                let condition = Condition::from(c);
-                let source = if s == 1 { Register::Spsr } else { Register::Cpsr };
-                let destination = Register::from(d);
-
-                Instruction {
-                    opcode: Opcode::Mrs,
-                    condition,
-                    set_condition_flags: false,
-                    operand1: Some(Operand::Register(destination, None)),
-                    operand2: Some(Operand::Register(source, None)),
-                    operand3: None,
-                    ..Instruction::default()
-                }
-            }
-            // PSR Transfer (MSR) for register contents
-            "cccc_0001_0d10_1001_1111_0000_0000_ssss" => {
-                let condition = Condition::from(c);
-                let source = Register::from(s);
-                let destination = if d == 1 { Register::Spsr } else { Register::Cpsr };
-
-                Instruction {
-                    opcode: Opcode::Msr,
-                    condition,
-                    set_condition_flags: false,
-                    operand1: Some(Operand::Register(destination, None)),
-                    operand2: Some(Operand::Register(source, None)),
-                    operand3: None,
-                    ..Instruction::default()
-                }
-            }
-            // PSR Transfer (MSR) for register contents or immediate value to PSR flags
-            "cccc_00i1_0d10_1000_1111_ssss_ssss_ssss" => {
-                let condition = Condition::from(c);
-                let destination = if d == 1 { Register::SpsrFlag } else { Register::CpsrFlag };
-
-                let operand2 = if i == 1 {
-                    let imm = s & 0b1111_1111;
-                    let rotate = ((s & 0b1111_0000_0000) >> 8) * 2; // 0, 2, 4, 6; increments of 2
-
-                    if rotate == 0 {
-                        Operand::Immediate(imm, None)
-                    } else {
-                        Operand::Immediate(imm, Some(ShiftType::RotateRight(ShiftSource::Immediate(rotate))))
-                    }
-                } else {
-                    let s = s & 0b1111;
-                    Operand::Register(Register::from(s), None)
-                };
-
-                Instruction {
-                    opcode: Opcode::Msr,
-                    condition,
-                    set_condition_flags: false,
-                    operand1: Some(Operand::Register(destination, None)),
-                    operand2: Some(operand2),
-                    operand3: None,
-                    ..Instruction::default()
-                }
-            }
             // Multiply and Multiply-Accumulate (MUL, MLA)
             "cccc_0000_00as_dddd_xxxx_yyyy_1001_zzzz" => {
                 let condition = Condition::from(c);
@@ -553,12 +496,92 @@ impl Instruction {
             // Data Processing
             "cccc_00io_ooos_yyyy_xxxx_zzzz_zzzz_zzzz" => {
                 let condition = Condition::from(c);
-                let opcode = Instruction::translate_opcode_armv4t(o);
+                let decoded_opcode = Instruction::translate_opcode_armv4t(o);
                 let set_condition_flags = s == 1;
+
+                if !set_condition_flags && decoded_opcode.is_test() {
+                    #[bitmatch]
+                    match opcode {
+                        // PSR Transfer (MRS)
+                        "cccc_0001_0s00_1111_dddd_0000_0000_0000" => {
+                            let condition = Condition::from(c);
+                            let source = if s == 1 { Register::Spsr } else { Register::Cpsr };
+                            let destination = Register::from(d);
+
+                            return Instruction {
+                                opcode: Opcode::Mrs,
+                                condition,
+                                set_condition_flags: false,
+                                operand1: Some(Operand::Register(destination, None)),
+                                operand2: Some(Operand::Register(source, None)),
+                                operand3: None,
+                                ..Instruction::default()
+                            };
+                        }
+                        // PSR Transfer (MSR) for register contents
+                        "cccc_0001_0d10_1001_1111_0000_0000_ssss" => {
+                            let condition = Condition::from(c);
+                            let source = Register::from(s);
+                            let destination = if d == 1 { Register::Spsr } else { Register::Cpsr };
+
+                            return Instruction {
+                                opcode: Opcode::Msr,
+                                condition,
+                                set_condition_flags: false,
+                                operand1: Some(Operand::Register(destination, None)),
+                                operand2: Some(Operand::Register(source, None)),
+                                operand3: None,
+                                ..Instruction::default()
+                            };
+                        }
+                        // PSR Transfer (MSR) for register contents or immediate value to PSR flags
+                        "cccc_00i1_0d10_f??x_1111_ssss_ssss_ssss" => {
+                            // TODO: https://problemkaputt.de/gbatek-arm-opcodes-psr-transfer-mrs-msr.htm
+                            let condition = Condition::from(c);
+                            let destination = match (d, f, x) {
+                                (1, 1, 0) => Register::SpsrFlag,
+                                (1, 0, 1) => Register::SpsrControl,
+                                (0, 1, 0) => Register::CpsrFlag,
+                                (0, 0, 1) => Register::CpsrControl,
+                                (1, 1, 1) => Register::SpsrFlagControl,
+                                (0, 1, 1) => Register::CpsrFlagControl,
+                                _ => panic!("Unknown PSR transfer: {:08x} | {:032b}", opcode, opcode),
+                            };
+
+                            let operand2 = if i == 1 {
+                                let imm = s & 0b1111_1111;
+                                let rotate = ((s & 0b1111_0000_0000) >> 8) * 2; // 0, 2, 4, 6; increments of 2
+
+                                if rotate == 0 {
+                                    Operand::Immediate(imm, None)
+                                } else {
+                                    Operand::Immediate(
+                                        imm,
+                                        Some(ShiftType::RotateRight(ShiftSource::Immediate(rotate))),
+                                    )
+                                }
+                            } else {
+                                let s = s & 0b1111;
+                                Operand::Register(Register::from(s), None)
+                            };
+
+                            return Instruction {
+                                opcode: Opcode::Msr,
+                                condition,
+                                set_condition_flags: false,
+                                operand1: Some(Operand::Register(destination, None)),
+                                operand2: Some(operand2),
+                                operand3: None,
+                                ..Instruction::default()
+                            };
+                        }
+                        _ => {}
+                    }
+                }
 
                 let dst = Operand::Register(Register::from(x), None);
 
-                let rn = if opcode == Opcode::Mvn || opcode == Opcode::Mov {
+                let rn = if decoded_opcode == Opcode::Mvn || decoded_opcode == Opcode::Mov {
                     None
                 } else {
                     Some(Operand::Register(Register::from(y), None))
@@ -617,14 +640,14 @@ impl Instruction {
                     }
                 };
 
-                if opcode.is_test() {
+                if decoded_opcode.is_test() {
                     // TST, TEQ, CMP, CMN do not have a destination register,
                     // they only set the condition flags
 
                     return Instruction {
-                        opcode,
+                        opcode: decoded_opcode,
                         condition,
-                        set_condition_flags,
+                        set_condition_flags: true,
                         operand1: rn,
                         operand2: Some(operand2),
                         operand3: None,
@@ -632,10 +655,10 @@ impl Instruction {
                     };
                 }
 
-                if opcode == Opcode::Mov || opcode == Opcode::Mvn {
+                if decoded_opcode == Opcode::Mov || decoded_opcode == Opcode::Mvn {
                     // MOV and MVN do not have a source register
                     return Instruction {
-                        opcode,
+                        opcode: decoded_opcode,
                         condition,
                         set_condition_flags,
                         operand1: Some(dst),
@@ -645,7 +668,7 @@ impl Instruction {
                     };
                 } else {
                     return Instruction {
-                        opcode,
+                        opcode: decoded_opcode,
                         condition,
                         set_condition_flags,
                         operand1: Some(dst),
@@ -1401,6 +1424,10 @@ impl Display for Register {
             Register::Spsr => write!(f, "spsr"),
             Register::CpsrFlag => write!(f, "cpsr_flg"),
             Register::SpsrFlag => write!(f, "spsr_flg"),
+            Register::CpsrControl => write!(f, "cpsr_ctl"),
+            Register::SpsrControl => write!(f, "spsr_ctl"),
+            Register::CpsrFlagControl => write!(f, "cpsr_fc"),
+            Register::SpsrFlagControl => write!(f, "spsr_fc"),
         }
     }
 }
