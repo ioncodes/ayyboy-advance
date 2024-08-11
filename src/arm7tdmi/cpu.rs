@@ -10,7 +10,7 @@ use super::decoder::{Instruction, Register};
 use super::pipeline::{Pipeline, State};
 use super::registers::{Psr, Registers};
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy, PartialEq, Hash, Eq)]
 pub enum ProcessorMode {
     User = 0b10000,
     Fiq = 0b10001,
@@ -18,6 +18,7 @@ pub enum ProcessorMode {
     Supervisor = 0b10011,
     Abort = 0b10111,
     System = 0b11111,
+    Undefined = 0b11011,
 }
 
 impl ProcessorMode {
@@ -28,8 +29,32 @@ impl ProcessorMode {
             0b10010 => ProcessorMode::Irq,
             0b10011 => ProcessorMode::Supervisor,
             0b10111 => ProcessorMode::Abort,
+            0b11011 => ProcessorMode::Undefined,
             0b11111 => ProcessorMode::System,
             _ => panic!("Invalid processor mode: {:08b}", value),
+        }
+    }
+
+    pub fn register_range(&self) -> std::ops::RangeInclusive<usize> {
+        match self {
+            ProcessorMode::User | ProcessorMode::System => 0..=0,
+            ProcessorMode::Fiq => 8..=14,
+            ProcessorMode::Irq | ProcessorMode::Supervisor | ProcessorMode::Abort => 13..=14,
+            ProcessorMode::Undefined => todo!(),
+        }
+    }
+}
+
+impl Display for ProcessorMode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ProcessorMode::User => write!(f, "User"),
+            ProcessorMode::Fiq => write!(f, "Fiq"),
+            ProcessorMode::Irq => write!(f, "Irq"),
+            ProcessorMode::Supervisor => write!(f, "Supervisor"),
+            ProcessorMode::Abort => write!(f, "Abort"),
+            ProcessorMode::System => write!(f, "System"),
+            ProcessorMode::Undefined => write!(f, "Undefined"),
         }
     }
 }
@@ -285,8 +310,23 @@ impl Cpu {
     }
 
     pub fn set_processor_mode(&mut self, mode: ProcessorMode) {
-        let mode = mode as u32;
-        self.registers.cpsr = Psr::from_bits_truncate((self.registers.cpsr.bits() & !Psr::M.bits()) | mode);
+        let current_mode = self.get_processor_mode();
+
+        // save current mode registers
+        self.registers
+            .banked
+            .insert(current_mode, self.registers.r[current_mode.register_range()].to_vec());
+        if current_mode != ProcessorMode::User && current_mode != ProcessorMode::System {
+            self.registers.spsr[current_mode as usize - 0b10001] = self.registers.cpsr;
+        }
+
+        // load new mode registers
+        self.registers.r[current_mode.register_range()].copy_from_slice(&self.registers.banked[&current_mode]);
+        if mode == ProcessorMode::User || mode == ProcessorMode::System {
+            self.registers.cpsr = Psr::from_bits_truncate(mode as u32);
+        } else {
+            self.registers.cpsr = self.registers.spsr[mode as usize - 0b10001];
+        }
     }
 
     pub fn write_to_current_spsr(&mut self, value: u32) {
@@ -353,12 +393,22 @@ impl Display for Cpu {
         )?;
         write!(
             f,
-            "spsr[0]: {}\nspsr[1]: {}\nspsr[2]: {}\nspsr[3]: {}\nspsr[4]: {}",
+            "spsr[0]: {}{{{},{}}}\nspsr[1]: {}{{{},{}}}\nspsr[2]: {}{{{},{}}}\nspsr[3]: {}{{{},{}}}\nspsr[4]: {}{{{},{}}}",
             self.registers.spsr[0],
+            if self.registers.spsr[0].contains(Psr::T) { "Thumb" } else { "Arm" },
+            ProcessorMode::from((self.registers.spsr[0] & Psr::M).bits()),
             self.registers.spsr[1],
+            if self.registers.spsr[1].contains(Psr::T) { "Thumb" } else { "Arm" },
+            ProcessorMode::from((self.registers.spsr[1] & Psr::M).bits()),
             self.registers.spsr[2],
+            if self.registers.spsr[2].contains(Psr::T) { "Thumb" } else { "Arm" },
+            ProcessorMode::from((self.registers.spsr[2] & Psr::M).bits()),
             self.registers.spsr[3],
-            self.registers.spsr[4]
+            if self.registers.spsr[3].contains(Psr::T) { "Thumb" } else { "Arm" },
+            ProcessorMode::from((self.registers.spsr[3] & Psr::M).bits()),
+            self.registers.spsr[4],
+            if self.registers.spsr[4].contains(Psr::T) { "Thumb" } else { "Arm" },
+            ProcessorMode::from((self.registers.spsr[4] & Psr::M).bits())
         )
     }
 }

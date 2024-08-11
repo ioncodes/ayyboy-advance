@@ -1,6 +1,8 @@
 use super::cpu::ProcessorMode;
 use bitflags::bitflags;
+use std::collections::HashMap;
 use std::fmt::Display;
+use std::hash::Hash;
 
 bitflags! {
     #[derive(Copy, Clone, Default)]
@@ -69,14 +71,29 @@ pub struct Registers {
     pub r: [u32; 16],
     pub cpsr: Psr,
     pub spsr: [Psr; 5],
+    pub banked: HashMap<ProcessorMode, Vec<u32>>,
 }
 
 impl Default for Registers {
     fn default() -> Self {
+        let mut banked = HashMap::new();
+        banked.insert(ProcessorMode::Fiq, Vec::new());
+        banked.insert(ProcessorMode::Irq, Vec::new());
+        banked.insert(ProcessorMode::Supervisor, Vec::new());
+        banked.insert(ProcessorMode::Abort, Vec::new());
+        banked.insert(ProcessorMode::Undefined, Vec::new());
+
         Self {
             r: [0; 16],
             cpsr: Psr::from_bits_truncate(ProcessorMode::Supervisor as u32),
-            spsr: [Psr::from_bits_truncate(0); 5],
+            spsr: [
+                Psr::from_bits_truncate(ProcessorMode::Fiq as u32),
+                Psr::from_bits_truncate(ProcessorMode::Supervisor as u32),
+                Psr::from_bits_truncate(ProcessorMode::Abort as u32),
+                Psr::from_bits_truncate(ProcessorMode::Irq as u32),
+                Psr::from_bits_truncate(ProcessorMode::Undefined as u32),
+            ],
+            banked,
         }
     }
 }
