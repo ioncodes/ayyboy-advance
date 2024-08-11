@@ -296,17 +296,20 @@ impl Cpu {
                 error!("Attempted to write to SPSR in User/System mode");
                 return;
             }
-            _ => (),
+            _ => {
+                let mode = mode as usize;
+                self.registers.spsr[mode - 0b10001] = Psr::from_bits_truncate(value);
+            }
         }
-
-        let mode = mode as usize;
-        self.registers.spsr[mode - 0b10001] = Psr::from_bits_truncate(value);
     }
 
     pub fn read_from_current_spsr(&self) -> u32 {
         let mode = self.get_processor_mode();
         match mode {
-            ProcessorMode::User | ProcessorMode::System => 0,
+            ProcessorMode::User | ProcessorMode::System => {
+                error!("Attempted to read from SPSR in User/System mode");
+                0
+            }
             _ => {
                 let mode = mode as usize;
                 self.registers.spsr[mode - 0b10001].bits()
