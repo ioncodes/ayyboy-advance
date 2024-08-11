@@ -300,8 +300,7 @@ impl Cpu {
         }
 
         let mode = mode as usize;
-        let spsr = &mut self.registers.spsr[mode - 0b10001];
-        *spsr = Psr::from_bits_truncate(value);
+        self.registers.spsr[mode - 0b10001] = Psr::from_bits_truncate(value);
     }
 
     pub fn read_from_current_spsr(&self) -> u32 {
