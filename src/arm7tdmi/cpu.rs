@@ -12,23 +12,24 @@ use super::registers::{Psr, Registers};
 
 #[derive(Debug)]
 pub enum ProcessorMode {
-    User,
-    Fiq,
-    Irq,
-    Supervisor,
-    Abort,
-    System,
+    User = 0b10000,
+    Fiq = 0b10001,
+    Irq = 0b10010,
+    Supervisor = 0b10011,
+    Abort = 0b10111,
+    System = 0b11111,
 }
 
-impl Into<u32> for ProcessorMode {
-    fn into(self) -> u32 {
-        match self {
-            ProcessorMode::User => 0b10000,
-            ProcessorMode::Fiq => 0b10001,
-            ProcessorMode::Irq => 0b10010,
-            ProcessorMode::Supervisor => 0b10011,
-            ProcessorMode::Abort => 0b10111,
-            ProcessorMode::System => 0b11111,
+impl ProcessorMode {
+    pub fn from(value: u32) -> ProcessorMode {
+        match value {
+            0b10000 => ProcessorMode::User,
+            0b10001 => ProcessorMode::Fiq,
+            0b10010 => ProcessorMode::Irq,
+            0b10011 => ProcessorMode::Supervisor,
+            0b10111 => ProcessorMode::Abort,
+            0b11111 => ProcessorMode::System,
+            _ => panic!("Invalid processor mode: {:08b}", value),
         }
     }
 }
@@ -178,13 +179,21 @@ impl Cpu {
             }
             Register::CpsrFlagControl => {
                 let cpsr = Psr::from_bits_truncate(value);
+
+                // update flags
                 self.update_flag(Psr::N, cpsr.contains(Psr::N));
                 self.update_flag(Psr::Z, cpsr.contains(Psr::Z));
                 self.update_flag(Psr::C, cpsr.contains(Psr::C));
                 self.update_flag(Psr::V, cpsr.contains(Psr::V));
+
+                // update control bits
                 self.update_flag(Psr::I, cpsr.contains(Psr::I));
                 self.update_flag(Psr::F, cpsr.contains(Psr::F));
-                self.registers.cpsr = (self.registers.cpsr & !Psr::M) | (cpsr & Psr::M);
+                self.update_flag(Psr::T, cpsr.contains(Psr::T));
+
+                // switch mode
+                let new_mode = ProcessorMode::from((cpsr & Psr::M).bits());
+                self.set_processor_mode(new_mode);
             }
             Register::Spsr => self.write_to_current_spsr(value),
             Register::SpsrFlag => {
@@ -208,13 +217,19 @@ impl Cpu {
             Register::SpsrFlagControl => {
                 let mut current = self.read_from_current_spsr();
                 let spsr = Psr::from_bits_truncate(value);
+
+                // update flags
                 current = (current & !Psr::N.bits()) | (spsr & Psr::N).bits();
                 current = (current & !Psr::Z.bits()) | (spsr & Psr::Z).bits();
                 current = (current & !Psr::C.bits()) | (spsr & Psr::C).bits();
                 current = (current & !Psr::V.bits()) | (spsr & Psr::V).bits();
+
+                // update control bits
                 current = (current & !Psr::I.bits()) | (spsr & Psr::I).bits();
                 current = (current & !Psr::F.bits()) | (spsr & Psr::F).bits();
                 current = (current & !Psr::T.bits()) | (spsr & Psr::T).bits();
+
+                // mode switch
                 current = (current & !Psr::M.bits()) | (spsr & Psr::M).bits();
                 self.write_to_current_spsr(current);
             }
@@ -266,19 +281,11 @@ impl Cpu {
 
     pub fn get_processor_mode(&self) -> ProcessorMode {
         let mode = self.registers.cpsr.bits() & Psr::M.bits();
-        match mode {
-            0b10000 => ProcessorMode::User,
-            0b10001 => ProcessorMode::Fiq,
-            0b10010 => ProcessorMode::Irq,
-            0b10011 => ProcessorMode::Supervisor,
-            0b10111 => ProcessorMode::Abort,
-            0b11111 => ProcessorMode::System,
-            _ => unreachable!(),
-        }
+        ProcessorMode::from(mode)
     }
 
     pub fn set_processor_mode(&mut self, mode: ProcessorMode) {
-        let mode: u32 = mode.into();
+        let mode = mode as u32;
         self.registers.cpsr = Psr::from_bits_truncate((self.registers.cpsr.bits() & !Psr::M.bits()) | mode);
     }
 
@@ -292,8 +299,8 @@ impl Cpu {
             _ => (),
         }
 
-        let mode: u32 = mode.into();
-        let spsr = &mut self.registers.spsr[mode as usize - 0b10001];
+        let mode = mode as usize;
+        let spsr = &mut self.registers.spsr[mode - 0b10001];
         *spsr = Psr::from_bits_truncate(value);
     }
 
@@ -302,8 +309,8 @@ impl Cpu {
         match mode {
             ProcessorMode::User | ProcessorMode::System => 0,
             _ => {
-                let mode: u32 = mode.into();
-                self.registers.spsr[(mode - 0b10001) as usize].bits()
+                let mode = mode as usize;
+                self.registers.spsr[mode - 0b10001].bits()
             }
         }
     }

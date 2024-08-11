@@ -75,7 +75,7 @@ impl Default for Registers {
     fn default() -> Self {
         Self {
             r: [0; 16],
-            cpsr: Psr::from_bits_truncate(ProcessorMode::Supervisor.into()),
+            cpsr: Psr::from_bits_truncate(ProcessorMode::Supervisor as u32),
             spsr: [Psr::from_bits_truncate(0); 5],
         }
     }
