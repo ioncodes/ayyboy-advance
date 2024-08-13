@@ -8,7 +8,8 @@ mod memory;
 mod tests;
 mod video;
 
-use arm7tdmi::cpu::{Cpu, ProcessorMode};
+use arm7tdmi::cpu::Cpu;
+use arm7tdmi::mode::ProcessorMode;
 use eframe::NativeOptions;
 use egui::ViewportBuilder;
 use frontend::renderer::{Renderer, SCALE};

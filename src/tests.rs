@@ -1,7 +1,8 @@
 #[cfg(test)]
 mod tests {
-    use crate::arm7tdmi::cpu::{Cpu, ProcessorMode};
+    use crate::arm7tdmi::cpu::Cpu;
     use crate::arm7tdmi::decoder::Instruction;
+    use crate::arm7tdmi::mode::ProcessorMode;
     use crate::memory::mmio::Mmio;
 
     const BIOS: &[u8] = include_bytes!("../external/gba_bios.bin");
@@ -16,7 +17,7 @@ mod tests {
         let mut cpu = Cpu::new();
         cpu.registers.r[13] = 0x03007f00; // sp
         cpu.registers.r[15] = 0x08000000; // pc
-        cpu.set_processor_mode(ProcessorMode::User);
+        cpu.set_processor_mode(ProcessorMode::System);
 
         let mut trace: Vec<(u32, Instruction)> = Vec::new();
 

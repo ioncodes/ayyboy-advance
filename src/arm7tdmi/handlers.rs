@@ -1,8 +1,8 @@
 use super::cpu::Cpu;
 use super::decoder::{Condition, Instruction, Opcode, Operand, ShiftSource, ShiftType};
 use super::registers::Psr;
-use crate::arm7tdmi::cpu::ProcessorMode;
 use crate::arm7tdmi::decoder::{Direction, Indexing, Register, TransferLength};
+use crate::arm7tdmi::mode::ProcessorMode;
 use crate::memory::mmio::Mmio;
 use log::trace;
 

@@ -7,57 +7,9 @@ use crate::arm7tdmi::handlers::Handlers;
 use crate::memory::mmio::Mmio;
 
 use super::decoder::{Instruction, Register};
+use super::mode::ProcessorMode;
 use super::pipeline::{Pipeline, State};
 use super::registers::{Psr, Registers};
-
-#[derive(Debug, Clone, Copy, PartialEq, Hash, Eq)]
-pub enum ProcessorMode {
-    User = 0b10000,
-    Fiq = 0b10001,
-    Irq = 0b10010,
-    Supervisor = 0b10011,
-    Abort = 0b10111,
-    System = 0b11111,
-    Undefined = 0b11011,
-}
-
-impl ProcessorMode {
-    pub fn from(value: u32) -> ProcessorMode {
-        match value {
-            0b10000 => ProcessorMode::User,
-            0b10001 => ProcessorMode::Fiq,
-            0b10010 => ProcessorMode::Irq,
-            0b10011 => ProcessorMode::Supervisor,
-            0b10111 => ProcessorMode::Abort,
-            0b11011 => ProcessorMode::Undefined,
-            0b11111 => ProcessorMode::System,
-            _ => panic!("Invalid processor mode: {:08b}", value),
-        }
-    }
-
-    pub fn register_range(&self) -> std::ops::RangeInclusive<usize> {
-        match self {
-            ProcessorMode::User | ProcessorMode::System => 0..=0,
-            ProcessorMode::Fiq => 8..=14,
-            ProcessorMode::Irq | ProcessorMode::Supervisor | ProcessorMode::Abort => 13..=14,
-            ProcessorMode::Undefined => todo!(),
-        }
-    }
-}
-
-impl Display for ProcessorMode {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            ProcessorMode::User => write!(f, "User"),
-            ProcessorMode::Fiq => write!(f, "Fiq"),
-            ProcessorMode::Irq => write!(f, "Irq"),
-            ProcessorMode::Supervisor => write!(f, "Supervisor"),
-            ProcessorMode::Abort => write!(f, "Abort"),
-            ProcessorMode::System => write!(f, "System"),
-            ProcessorMode::Undefined => write!(f, "Undefined"),
-        }
-    }
-}
 
 pub struct Cpu {
     pub registers: Registers,
@@ -139,13 +91,42 @@ impl Cpu {
             Register::R5 => self.registers.r[5],
             Register::R6 => self.registers.r[6],
             Register::R7 => self.registers.r[7],
-            Register::R8 => self.registers.r[8],
-            Register::R9 => self.registers.r[9],
-            Register::R10 => self.registers.r[10],
-            Register::R11 => self.registers.r[11],
-            Register::R12 => self.registers.r[12],
-            Register::R13 => self.registers.r[13],
-            Register::R14 => self.registers.r[14],
+            Register::R8 => match self.get_processor_mode() {
+                ProcessorMode::Fiq => self.registers.bank[&ProcessorMode::Fiq][0],
+                _ => self.registers.r[8],
+            },
+            Register::R9 => match self.get_processor_mode() {
+                ProcessorMode::Fiq => self.registers.bank[&ProcessorMode::Fiq][1],
+                _ => self.registers.r[9],
+            },
+            Register::R10 => match self.get_processor_mode() {
+                ProcessorMode::Fiq => self.registers.bank[&ProcessorMode::Fiq][2],
+                _ => self.registers.r[10],
+            },
+            Register::R11 => match self.get_processor_mode() {
+                ProcessorMode::Fiq => self.registers.bank[&ProcessorMode::Fiq][3],
+                _ => self.registers.r[11],
+            },
+            Register::R12 => match self.get_processor_mode() {
+                ProcessorMode::Fiq => self.registers.bank[&ProcessorMode::Fiq][4],
+                _ => self.registers.r[12],
+            },
+            Register::R13 => match self.get_processor_mode() {
+                ProcessorMode::Fiq => self.registers.bank[&ProcessorMode::Fiq][5],
+                ProcessorMode::Supervisor => self.registers.bank[&ProcessorMode::Supervisor][0],
+                ProcessorMode::Abort => self.registers.bank[&ProcessorMode::Abort][0],
+                ProcessorMode::Irq => self.registers.bank[&ProcessorMode::Irq][0],
+                ProcessorMode::Undefined => self.registers.bank[&ProcessorMode::Undefined][0],
+                _ => self.registers.r[13],
+            },
+            Register::R14 => match self.get_processor_mode() {
+                ProcessorMode::Fiq => self.registers.bank[&ProcessorMode::Fiq][6],
+                ProcessorMode::Supervisor => self.registers.bank[&ProcessorMode::Supervisor][1],
+                ProcessorMode::Abort => self.registers.bank[&ProcessorMode::Abort][1],
+                ProcessorMode::Irq => self.registers.bank[&ProcessorMode::Irq][1],
+                ProcessorMode::Undefined => self.registers.bank[&ProcessorMode::Undefined][1],
+                _ => self.registers.r[14],
+            },
             Register::R15 => {
                 let pc = self.registers.r[15];
                 if self.is_thumb() {
@@ -159,7 +140,7 @@ impl Cpu {
                 }
             }
             Register::Cpsr => self.registers.cpsr.bits(),
-            Register::Spsr => self.read_from_current_spsr(),
+            Register::Spsr => self.read_from_current_spsr().bits(),
             _ => todo!(),
         }
     }
@@ -174,13 +155,46 @@ impl Cpu {
             Register::R5 => self.registers.r[5] = value,
             Register::R6 => self.registers.r[6] = value,
             Register::R7 => self.registers.r[7] = value,
-            Register::R8 => self.registers.r[8] = value,
-            Register::R9 => self.registers.r[9] = value,
-            Register::R10 => self.registers.r[10] = value,
-            Register::R11 => self.registers.r[11] = value,
-            Register::R12 => self.registers.r[12] = value,
-            Register::R13 => self.registers.r[13] = value,
-            Register::R14 => self.registers.r[14] = value,
+            Register::R8 => match self.get_processor_mode() {
+                ProcessorMode::Fiq => self.registers.bank.get_mut(&ProcessorMode::Fiq).unwrap()[0] = value,
+                _ => self.registers.r[8] = value,
+            },
+            Register::R9 => match self.get_processor_mode() {
+                ProcessorMode::Fiq => self.registers.bank.get_mut(&ProcessorMode::Fiq).unwrap()[1] = value,
+                _ => self.registers.r[9] = value,
+            },
+            Register::R10 => match self.get_processor_mode() {
+                ProcessorMode::Fiq => self.registers.bank.get_mut(&ProcessorMode::Fiq).unwrap()[2] = value,
+                _ => self.registers.r[10] = value,
+            },
+            Register::R11 => match self.get_processor_mode() {
+                ProcessorMode::Fiq => self.registers.bank.get_mut(&ProcessorMode::Fiq).unwrap()[3] = value,
+                _ => self.registers.r[11] = value,
+            },
+            Register::R12 => match self.get_processor_mode() {
+                ProcessorMode::Fiq => self.registers.bank.get_mut(&ProcessorMode::Fiq).unwrap()[4] = value,
+                _ => self.registers.r[12] = value,
+            },
+            Register::R13 => match self.get_processor_mode() {
+                ProcessorMode::Fiq => self.registers.bank.get_mut(&ProcessorMode::Fiq).unwrap()[5] = value,
+                ProcessorMode::Supervisor => {
+                    self.registers.bank.get_mut(&ProcessorMode::Supervisor).unwrap()[0] = value
+                }
+                ProcessorMode::Abort => self.registers.bank.get_mut(&ProcessorMode::Abort).unwrap()[0] = value,
+                ProcessorMode::Irq => self.registers.bank.get_mut(&ProcessorMode::Irq).unwrap()[0] = value,
+                ProcessorMode::Undefined => self.registers.bank.get_mut(&ProcessorMode::Undefined).unwrap()[0] = value,
+                _ => self.registers.r[13] = value,
+            },
+            Register::R14 => match self.get_processor_mode() {
+                ProcessorMode::Fiq => self.registers.bank.get_mut(&ProcessorMode::Fiq).unwrap()[6] = value,
+                ProcessorMode::Supervisor => {
+                    self.registers.bank.get_mut(&ProcessorMode::Supervisor).unwrap()[1] = value
+                }
+                ProcessorMode::Abort => self.registers.bank.get_mut(&ProcessorMode::Abort).unwrap()[1] = value,
+                ProcessorMode::Irq => self.registers.bank.get_mut(&ProcessorMode::Irq).unwrap()[1] = value,
+                ProcessorMode::Undefined => self.registers.bank.get_mut(&ProcessorMode::Undefined).unwrap()[1] = value,
+                _ => self.registers.r[14] = value,
+            },
             Register::R15 => {
                 // since PC is a GP register, it can be freely written to
                 // we need to flush the pipeline if that's the case
@@ -226,23 +240,23 @@ impl Cpu {
                 let new_mode = ProcessorMode::from((cpsr & Psr::M).bits());
                 self.set_processor_mode(new_mode);
             }
-            Register::Spsr => self.write_to_current_spsr(value),
+            Register::Spsr => self.write_to_current_spsr(Psr::from_bits_truncate(value)),
             Register::SpsrFlag => {
                 let mut current = self.read_from_current_spsr();
                 let spsr = Psr::from_bits_truncate(value);
-                current = (current & !Psr::N.bits()) | (spsr & Psr::N).bits();
-                current = (current & !Psr::Z.bits()) | (spsr & Psr::Z).bits();
-                current = (current & !Psr::C.bits()) | (spsr & Psr::C).bits();
-                current = (current & !Psr::V.bits()) | (spsr & Psr::V).bits();
+                current.set(Psr::N, spsr.contains(Psr::N));
+                current.set(Psr::Z, spsr.contains(Psr::Z));
+                current.set(Psr::C, spsr.contains(Psr::C));
+                current.set(Psr::V, spsr.contains(Psr::V));
                 self.write_to_current_spsr(current);
             }
             Register::SpsrControl => {
                 let mut current = self.read_from_current_spsr();
                 let spsr = Psr::from_bits_truncate(value);
-                current = (current & !Psr::I.bits()) | (spsr & Psr::I).bits();
-                current = (current & !Psr::F.bits()) | (spsr & Psr::F).bits();
-                current = (current & !Psr::T.bits()) | (spsr & Psr::T).bits();
-                current = (current & !Psr::M.bits()) | (spsr & Psr::M).bits();
+                current.set(Psr::I, spsr.contains(Psr::I));
+                current.set(Psr::F, spsr.contains(Psr::F));
+                current.set(Psr::T, spsr.contains(Psr::T));
+                current = Psr::from_bits_truncate((current.bits() & !Psr::M.bits()) | (spsr.bits() & Psr::M.bits()));
                 self.write_to_current_spsr(current);
             }
             Register::SpsrFlagControl => {
@@ -250,18 +264,18 @@ impl Cpu {
                 let spsr = Psr::from_bits_truncate(value);
 
                 // update flags
-                current = (current & !Psr::N.bits()) | (spsr & Psr::N).bits();
-                current = (current & !Psr::Z.bits()) | (spsr & Psr::Z).bits();
-                current = (current & !Psr::C.bits()) | (spsr & Psr::C).bits();
-                current = (current & !Psr::V.bits()) | (spsr & Psr::V).bits();
+                current.set(Psr::N, spsr.contains(Psr::N));
+                current.set(Psr::Z, spsr.contains(Psr::Z));
+                current.set(Psr::C, spsr.contains(Psr::C));
+                current.set(Psr::V, spsr.contains(Psr::V));
 
                 // update control bits
-                current = (current & !Psr::I.bits()) | (spsr & Psr::I).bits();
-                current = (current & !Psr::F.bits()) | (spsr & Psr::F).bits();
-                current = (current & !Psr::T.bits()) | (spsr & Psr::T).bits();
+                current.set(Psr::I, spsr.contains(Psr::I));
+                current.set(Psr::F, spsr.contains(Psr::F));
+                current.set(Psr::T, spsr.contains(Psr::T));
 
                 // mode switch
-                current = (current & !Psr::M.bits()) | (spsr & Psr::M).bits();
+                current = Psr::from_bits_truncate((current.bits() & !Psr::M.bits()) | (spsr.bits() & Psr::M.bits()));
                 self.write_to_current_spsr(current);
             }
         }
@@ -285,29 +299,29 @@ impl Cpu {
         let sp = self.get_sp();
         let addr = sp.wrapping_sub(4);
         mmio.write_u32(addr, value);
-        self.registers.r[13] = addr;
+        self.write_register(&Register::R13, addr);
     }
 
     pub fn pop_stack(&mut self, mmio: &mut Mmio) -> u32 {
         let sp = self.get_sp();
         let value = mmio.read_u32(sp);
-        self.registers.r[13] = sp.wrapping_add(4);
+        self.write_register(&Register::R13, sp.wrapping_add(4));
         value
     }
 
     // program counter, pipeline effect
     pub fn get_pc(&self) -> u32 {
-        self.registers.r[15]
-    }
-
-    // link register
-    pub fn get_lr(&self) -> u32 {
-        self.registers.r[14]
+        self.read_register(&Register::R15)
     }
 
     // stack pointer
     pub fn get_sp(&self) -> u32 {
-        self.registers.r[13]
+        self.read_register(&Register::R13)
+    }
+
+    // link register
+    pub fn get_lr(&self) -> u32 {
+        self.read_register(&Register::R14)
     }
 
     pub fn get_processor_mode(&self) -> ProcessorMode {
@@ -319,48 +333,53 @@ impl Cpu {
         let current_mode = self.get_processor_mode();
         debug!("Switching from {} to {}", current_mode, mode);
 
-        // save current mode registers
-        self.registers
-            .banked
-            .insert(current_mode, self.registers.r[current_mode.register_range()].to_vec());
-        if current_mode != ProcessorMode::User && current_mode != ProcessorMode::System {
-            self.registers.spsr[current_mode as usize - 0b10001] = self.registers.cpsr;
-        }
-
-        // load new mode registers
-        self.registers.r[current_mode.register_range()].copy_from_slice(&self.registers.banked[&current_mode]);
         if mode == ProcessorMode::User || mode == ProcessorMode::System {
             self.registers.cpsr = Psr::from_bits_truncate(mode as u32);
         } else {
-            self.registers.cpsr = self.registers.spsr[mode as usize - 0b10001];
+            self.registers.cpsr = self.read_from_spsr(mode);
         }
     }
 
-    pub fn write_to_current_spsr(&mut self, value: u32) {
+    pub fn write_to_current_spsr(&mut self, value: Psr) {
         let mode = self.get_processor_mode();
+        self.write_to_spsr(mode, value);
+    }
+
+    pub fn write_to_spsr(&mut self, mode: ProcessorMode, value: Psr) {
+        if mode == ProcessorMode::User || mode == ProcessorMode::System {
+            error!("Attempted to write to User/System SPSR");
+            return;
+        }
+
         match mode {
-            ProcessorMode::User | ProcessorMode::System => {
-                error!("Attempted to write to SPSR in User/System mode");
-                return;
-            }
-            _ => {
-                let mode = mode as usize;
-                self.registers.spsr[mode - 0b10001] = Psr::from_bits_truncate(value);
-            }
+            ProcessorMode::Fiq => self.registers.spsr[0] = value,
+            ProcessorMode::Supervisor => self.registers.spsr[1] = value,
+            ProcessorMode::Abort => self.registers.spsr[2] = value,
+            ProcessorMode::Irq => self.registers.spsr[3] = value,
+            ProcessorMode::Undefined => self.registers.spsr[4] = value,
+            _ => todo!(),
         }
     }
 
-    pub fn read_from_current_spsr(&self) -> u32 {
+    pub fn read_from_current_spsr(&self) -> Psr {
         let mode = self.get_processor_mode();
+        self.read_from_spsr(mode)
+    }
+
+    pub fn read_from_spsr(&self, mode: ProcessorMode) -> Psr {
         match mode {
             ProcessorMode::User | ProcessorMode::System => {
-                error!("Attempted to read from SPSR in User/System mode");
-                0
+                error!("Attempted to read from User/System SPSR");
+                Psr::from_bits_truncate(0)
             }
-            _ => {
-                let mode = mode as usize;
-                self.registers.spsr[mode - 0b10001].bits()
-            }
+            _ => match mode {
+                ProcessorMode::Fiq => self.registers.spsr[0],
+                ProcessorMode::Supervisor => self.registers.spsr[1],
+                ProcessorMode::Abort => self.registers.spsr[2],
+                ProcessorMode::Irq => self.registers.spsr[3],
+                ProcessorMode::Undefined => self.registers.spsr[4],
+                _ => todo!(),
+            },
         }
     }
 
@@ -374,22 +393,34 @@ impl Display for Cpu {
         write!(
             f,
             " r0: {:08x}  r1: {:08x}  r2: {:08x}  r3: {:08x}\n",
-            self.registers.r[0], self.registers.r[1], self.registers.r[2], self.registers.r[3]
+            self.read_register(&Register::R0),
+            self.read_register(&Register::R1),
+            self.read_register(&Register::R2),
+            self.read_register(&Register::R3)
         )?;
         write!(
             f,
             " r4: {:08x}  r5: {:08x}  r6: {:08x}  r7: {:08x}\n",
-            self.registers.r[4], self.registers.r[5], self.registers.r[6], self.registers.r[7]
+            self.read_register(&Register::R4),
+            self.read_register(&Register::R5),
+            self.read_register(&Register::R6),
+            self.read_register(&Register::R7)
         )?;
         write!(
             f,
             " r8: {:08x}  r9: {:08x} r10: {:08x} r11: {:08x}\n",
-            self.registers.r[8], self.registers.r[9], self.registers.r[10], self.registers.r[11]
+            self.read_register(&Register::R8),
+            self.read_register(&Register::R9),
+            self.read_register(&Register::R10),
+            self.read_register(&Register::R11)
         )?;
         write!(
             f,
             "r12: {:08x} r13: {:08x} r14: {:08x} r15: {:08x}\n",
-            self.registers.r[12], self.registers.r[13], self.registers.r[14], self.registers.r[15]
+            self.read_register(&Register::R12),
+            self.read_register(&Register::R13),
+            self.read_register(&Register::R14),
+            self.read_register(&Register::R15)
         )?;
         write!(
             f,
@@ -403,19 +434,19 @@ impl Display for Cpu {
             "spsr[0]: {}{{{},{}}}\nspsr[1]: {}{{{},{}}}\nspsr[2]: {}{{{},{}}}\nspsr[3]: {}{{{},{}}}\nspsr[4]: {}{{{},{}}}",
             self.registers.spsr[0],
             if self.registers.spsr[0].contains(Psr::T) { "Thumb" } else { "Arm" },
-            ProcessorMode::from((self.registers.spsr[0] & Psr::M).bits()),
+            self.registers.spsr[0].mode(),
             self.registers.spsr[1],
             if self.registers.spsr[1].contains(Psr::T) { "Thumb" } else { "Arm" },
-            ProcessorMode::from((self.registers.spsr[1] & Psr::M).bits()),
+            self.registers.spsr[1].mode(),
             self.registers.spsr[2],
             if self.registers.spsr[2].contains(Psr::T) { "Thumb" } else { "Arm" },
-            ProcessorMode::from((self.registers.spsr[2] & Psr::M).bits()),
+            self.registers.spsr[2].mode(),
             self.registers.spsr[3],
             if self.registers.spsr[3].contains(Psr::T) { "Thumb" } else { "Arm" },
-            ProcessorMode::from((self.registers.spsr[3] & Psr::M).bits()),
+            self.registers.spsr[3].mode(),
             self.registers.spsr[4],
             if self.registers.spsr[4].contains(Psr::T) { "Thumb" } else { "Arm" },
-            ProcessorMode::from((self.registers.spsr[4] & Psr::M).bits())
+            self.registers.spsr[4].mode()
         )
     }
 }
