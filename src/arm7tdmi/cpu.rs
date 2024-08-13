@@ -314,14 +314,14 @@ impl Cpu {
         self.read_register(&Register::R15)
     }
 
-    // stack pointer
-    pub fn get_sp(&self) -> u32 {
-        self.read_register(&Register::R13)
-    }
-
     // link register
     pub fn get_lr(&self) -> u32 {
         self.read_register(&Register::R14)
+    }
+
+    // stack pointer
+    pub fn get_sp(&self) -> u32 {
+        self.read_register(&Register::R13)
     }
 
     pub fn get_processor_mode(&self) -> ProcessorMode {
@@ -331,13 +331,9 @@ impl Cpu {
 
     pub fn set_processor_mode(&mut self, mode: ProcessorMode) {
         let current_mode = self.get_processor_mode();
-        debug!("Switching from {} to {}", current_mode, mode);
-
-        if mode == ProcessorMode::User || mode == ProcessorMode::System {
-            self.registers.cpsr = Psr::from_bits_truncate(mode as u32);
-        } else {
-            self.registers.cpsr = self.read_from_spsr(mode);
-        }
+        self.registers.cpsr =
+            Psr::from_bits_truncate((self.registers.cpsr.bits() & !Psr::M.bits()) | ((mode as u32) & Psr::M.bits()));
+        debug!("Switched from {} to {}", current_mode, mode);
     }
 
     pub fn write_to_current_spsr(&mut self, value: Psr) {
