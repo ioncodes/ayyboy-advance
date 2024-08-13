@@ -217,7 +217,13 @@ impl Handlers {
                 writeback,
                 ..
             } => {
-                let mut address = cpu.read_register(src);
+                let mut address = if *src == Register::R15 && cpu.is_thumb() {
+                    // WhenGryphonsFly — Today at 1:51 PM
+                    // In thumb mode, PC-relative loads treat bit 1 of PC as always 0
+                    cpu.read_register(src) & !0b10
+                } else {
+                    cpu.read_register(src)
+                };
                 let step = Handlers::resolve_operand(step, cpu, *set_condition_flags);
 
                 if *indexing == Indexing::Pre {

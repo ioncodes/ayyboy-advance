@@ -127,18 +127,7 @@ impl Cpu {
                 ProcessorMode::Undefined => self.registers.bank[&ProcessorMode::Undefined][1],
                 _ => self.registers.r[14],
             },
-            Register::R15 => {
-                let pc = self.registers.r[15];
-                if self.is_thumb() {
-                    // WhenGryphonsFly — Today at 1:51 PM
-                    // In thumb mode, PC-relative loads treat bit 1 of PC as always 0
-                    // TODO: does this have negative side effects if handled here? if it does,
-                    // we should handle it in the load/store handler
-                    pc & !0b10
-                } else {
-                    pc
-                }
-            }
+            Register::R15 => self.registers.r[15],
             Register::Cpsr => self.registers.cpsr.bits(),
             Register::Spsr => self.read_from_current_spsr().bits(),
             _ => todo!(),
@@ -309,7 +298,7 @@ impl Cpu {
         value
     }
 
-    // program counter, pipeline effect
+    // program counter
     pub fn get_pc(&self) -> u32 {
         self.read_register(&Register::R15)
     }

@@ -1,8 +1,6 @@
-use std::fmt::Display;
-
-use crate::memory::mmio::Mmio;
-
 use super::decoder::Instruction;
+use crate::memory::mmio::Mmio;
+use std::fmt::Display;
 
 pub struct State {
     pub pc: u32,
