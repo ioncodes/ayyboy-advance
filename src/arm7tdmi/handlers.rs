@@ -43,7 +43,7 @@ impl Handlers {
                 // but we want to store the address of the next instruction
                 // a BL in thumb is split into two instructions, but we process it as one
                 // that means PC points to the instruction after the 2nd half word of BL
-                cpu.registers.r[14] = if cpu.is_thumb() { pc | 1 } else { pc - 4 };
+                cpu.write_register(&Register::R14, if cpu.is_thumb() { pc | 1 } else { pc - 4 });
                 cpu.registers.r[15] = dst;
             }
             Instruction {
@@ -71,7 +71,7 @@ impl Handlers {
                 ..
             } => {
                 let pc = cpu.get_pc();
-                cpu.registers.r[14] = pc - 4;
+                cpu.write_register(&Register::R14, pc - 4);
                 cpu.registers.r[15] = 0x08;
 
                 // copy the current cpsr to spsr[current_mode]
@@ -760,6 +760,23 @@ impl Handlers {
                     cpu.update_flag(Psr::N, result & 0x8000_0000 != 0);
                     cpu.update_flag(Psr::Z, result == 0);
                     cpu.update_flag(Psr::C, !borrow);
+                }
+            }
+            Instruction {
+                opcode: Opcode::Bic,
+                operand1: Some(Operand::Register(dst, None)),
+                operand2: Some(Operand::Register(src, None)),
+                operand3: None,
+                set_condition_flags,
+                ..
+            } => {
+                let src = cpu.read_register(src);
+                let result = src & !cpu.read_register(dst);
+                cpu.write_register(dst, result);
+
+                if *set_condition_flags {
+                    cpu.update_flag(Psr::N, result & 0x8000_0000 != 0);
+                    cpu.update_flag(Psr::Z, result == 0);
                 }
             }
             Instruction {
