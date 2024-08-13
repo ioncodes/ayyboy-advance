@@ -200,7 +200,8 @@ impl Cpu {
                 self.update_flag(Psr::I, cpsr.contains(Psr::I));
                 self.update_flag(Psr::F, cpsr.contains(Psr::F));
                 self.update_flag(Psr::T, cpsr.contains(Psr::T));
-                self.registers.cpsr = (self.registers.cpsr & !Psr::M) | (cpsr & Psr::M);
+                let new_mode = ProcessorMode::from((cpsr & Psr::M).bits());
+                self.set_processor_mode(new_mode);
             }
             Register::CpsrFlagControl => {
                 let cpsr = Psr::from_bits_truncate(value);

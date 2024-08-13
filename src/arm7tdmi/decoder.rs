@@ -1303,24 +1303,24 @@ impl Display for Instruction {
                     self.operand2.as_ref().unwrap(),
                 )?;
             }
-            Opcode::Add | Opcode::Sub
-                if let Some(Operand::Register(reg, None)) = &self.operand2
-                    && *reg == Register::R15 =>
-            {
-                write!(
-                    f,
-                    "adr{}{} {}, [{}, {}]",
-                    self.condition,
-                    if self.set_condition_flags && !self.opcode.is_test() {
-                        ".s"
-                    } else {
-                        ""
-                    },
-                    self.operand1.as_ref().unwrap(),
-                    self.operand2.as_ref().unwrap(),
-                    self.operand3.as_ref().unwrap(),
-                )?;
-            }
+            // Opcode::Add | Opcode::Sub
+            //     if let Some(Operand::Register(reg, None)) = &self.operand2
+            //         && *reg == Register::R15 =>
+            // {
+            //     write!(
+            //         f,
+            //         "adr{}{} {}, [{}, {}]",
+            //         self.condition,
+            //         if self.set_condition_flags && !self.opcode.is_test() {
+            //             ".s"
+            //         } else {
+            //             ""
+            //         },
+            //         self.operand1.as_ref().unwrap(),
+            //         self.operand2.as_ref().unwrap(),
+            //         self.operand3.as_ref().unwrap(),
+            //     )?;
+            // }
             _ => {
                 write!(
                     f,
