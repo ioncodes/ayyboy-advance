@@ -431,6 +431,19 @@ impl Handlers {
     pub fn alu(instr: &Instruction, cpu: &mut Cpu, mmio: &mut Mmio) {
         check_condition!(cpu, instr);
 
+        let copy_spsr_to_cpsr_if_necessary = |cpu: &mut Cpu, rd: &Register| {
+            // When Rd is R15 and the S flag is set the result of the operation
+            // is placed in R15 and the SPSR corresponding to the
+            // current mode is moved to the CPSR. This allows state
+            // changes which atomically restore both PC and CPSR. This
+            // form of instruction should not be used in User mode.
+
+            if *rd == Register::R15 {
+                let spsr = cpu.read_register(&Register::Spsr);
+                cpu.write_register(&Register::Cpsr, spsr);
+            }
+        };
+
         match instr {
             Instruction {
                 opcode: Opcode::Add,
@@ -451,6 +464,8 @@ impl Handlers {
                     cpu.update_flag(Psr::Z, result == 0);
                     cpu.update_flag(Psr::C, carry);
                     cpu.update_flag(Psr::V, overflow);
+
+                    copy_spsr_to_cpsr_if_necessary(cpu, dst);
                 }
             }
             Instruction {
@@ -472,6 +487,8 @@ impl Handlers {
                     cpu.update_flag(Psr::Z, result == 0);
                     cpu.update_flag(Psr::C, carry);
                     cpu.update_flag(Psr::V, overflow);
+
+                    copy_spsr_to_cpsr_if_necessary(cpu, dst);
                 }
             }
             Instruction {
@@ -498,6 +515,8 @@ impl Handlers {
 
                     let overflow = ((x ^ result) & (y ^ result) & 0x8000_0000) != 0;
                     cpu.update_flag(Psr::V, overflow);
+
+                    copy_spsr_to_cpsr_if_necessary(cpu, dst);
                 }
             }
             Instruction {
@@ -519,6 +538,8 @@ impl Handlers {
                     cpu.update_flag(Psr::Z, result == 0);
                     cpu.update_flag(Psr::C, !borrow);
                     cpu.update_flag(Psr::V, overflow);
+
+                    copy_spsr_to_cpsr_if_necessary(cpu, dst);
                 }
             }
             Instruction {
@@ -540,6 +561,8 @@ impl Handlers {
                     cpu.update_flag(Psr::Z, result == 0);
                     cpu.update_flag(Psr::C, !borrow);
                     cpu.update_flag(Psr::V, overflow);
+
+                    copy_spsr_to_cpsr_if_necessary(cpu, dst);
                 }
             }
             Instruction {
@@ -566,6 +589,8 @@ impl Handlers {
 
                     let overflow = ((x ^ y) & (x ^ result) & 0x8000_0000) != 0;
                     cpu.update_flag(Psr::V, overflow);
+
+                    copy_spsr_to_cpsr_if_necessary(cpu, dst);
                 }
             }
             Instruction {
@@ -592,6 +617,8 @@ impl Handlers {
 
                     let overflow = ((x ^ y) & (x ^ result) & 0x8000_0000) != 0;
                     cpu.update_flag(Psr::V, overflow);
+
+                    copy_spsr_to_cpsr_if_necessary(cpu, dst);
                 }
             }
             Instruction {
@@ -610,6 +637,8 @@ impl Handlers {
                 if *set_condition_flags {
                     cpu.update_flag(Psr::N, result & 0x8000_0000 != 0);
                     cpu.update_flag(Psr::Z, result == 0);
+
+                    copy_spsr_to_cpsr_if_necessary(cpu, dst);
                 }
             }
             Instruction {
@@ -628,6 +657,8 @@ impl Handlers {
                 if *set_condition_flags {
                     cpu.update_flag(Psr::N, result & 0x8000_0000 != 0);
                     cpu.update_flag(Psr::Z, result == 0);
+
+                    copy_spsr_to_cpsr_if_necessary(cpu, dst);
                 }
             }
             Instruction {
@@ -646,6 +677,8 @@ impl Handlers {
                 if *set_condition_flags {
                     cpu.update_flag(Psr::N, result & 0x8000_0000 != 0);
                     cpu.update_flag(Psr::Z, result == 0);
+
+                    copy_spsr_to_cpsr_if_necessary(cpu, dst);
                 }
             }
             Instruction {
@@ -664,6 +697,8 @@ impl Handlers {
                 if *set_condition_flags {
                     cpu.update_flag(Psr::N, result & 0x8000_0000 != 0);
                     cpu.update_flag(Psr::Z, result == 0);
+
+                    copy_spsr_to_cpsr_if_necessary(cpu, dst);
                 }
             }
             Instruction {
@@ -682,6 +717,8 @@ impl Handlers {
                 if *set_condition_flags {
                     cpu.update_flag(Psr::N, result & 0x8000_0000 != 0);
                     cpu.update_flag(Psr::Z, result == 0);
+
+                    copy_spsr_to_cpsr_if_necessary(cpu, dst);
                 }
             }
             Instruction {
@@ -700,6 +737,8 @@ impl Handlers {
                 if *set_condition_flags {
                     cpu.update_flag(Psr::N, result & 0x8000_0000 != 0);
                     cpu.update_flag(Psr::Z, result == 0);
+
+                    copy_spsr_to_cpsr_if_necessary(cpu, dst);
                 }
             }
             Instruction {
@@ -721,6 +760,8 @@ impl Handlers {
                     cpu.update_flag(Psr::Z, result == 0);
                     cpu.update_flag(Psr::C, !borrow);
                     cpu.update_flag(Psr::V, overflow);
+
+                    copy_spsr_to_cpsr_if_necessary(cpu, dst);
                 }
             }
             Instruction {
@@ -746,6 +787,8 @@ impl Handlers {
 
                     let overflow = ((x ^ y) & (x ^ result) & 0x8000_0000) != 0;
                     cpu.update_flag(Psr::V, overflow);
+
+                    copy_spsr_to_cpsr_if_necessary(cpu, dst);
                 }
             }
             Instruction {
@@ -766,6 +809,8 @@ impl Handlers {
                     cpu.update_flag(Psr::N, result & 0x8000_0000 != 0);
                     cpu.update_flag(Psr::Z, result == 0);
                     cpu.update_flag(Psr::C, !borrow);
+
+                    copy_spsr_to_cpsr_if_necessary(cpu, dst);
                 }
             }
             Instruction {
@@ -783,6 +828,8 @@ impl Handlers {
                 if *set_condition_flags {
                     cpu.update_flag(Psr::N, result & 0x8000_0000 != 0);
                     cpu.update_flag(Psr::Z, result == 0);
+
+                    copy_spsr_to_cpsr_if_necessary(cpu, dst);
                 }
             }
             Instruction {
@@ -800,6 +847,8 @@ impl Handlers {
                 if *set_condition_flags {
                     cpu.update_flag(Psr::N, result & 0x8000_0000 != 0);
                     cpu.update_flag(Psr::Z, result == 0);
+
+                    copy_spsr_to_cpsr_if_necessary(cpu, dst);
                 }
             }
             Instruction {
@@ -818,6 +867,8 @@ impl Handlers {
                     cpu.update_flag(Psr::N, result & 0x8000_0000 != 0);
                     cpu.update_flag(Psr::Z, result == 0);
                     cpu.update_flag(Psr::C, value & (1 << (32 - *shift)) != 0);
+
+                    copy_spsr_to_cpsr_if_necessary(cpu, dst);
                 }
             }
             Instruction {
@@ -836,6 +887,8 @@ impl Handlers {
                     cpu.update_flag(Psr::N, result & 0x8000_0000 != 0);
                     cpu.update_flag(Psr::Z, result == 0);
                     cpu.update_flag(Psr::C, value & (1 << (*shift - 1)) != 0);
+
+                    copy_spsr_to_cpsr_if_necessary(cpu, dst);
                 }
             }
             Instruction {
@@ -854,6 +907,8 @@ impl Handlers {
                     cpu.update_flag(Psr::N, result & 0x8000_0000 != 0);
                     cpu.update_flag(Psr::Z, result == 0);
                     cpu.update_flag(Psr::C, value & (1 << (*shift - 1)) != 0);
+
+                    copy_spsr_to_cpsr_if_necessary(cpu, dst);
                 }
             }
             Instruction {
@@ -873,6 +928,8 @@ impl Handlers {
                 if *set_condition_flags {
                     cpu.update_flag(Psr::N, result & 0x8000_0000 != 0);
                     cpu.update_flag(Psr::Z, result == 0);
+
+                    copy_spsr_to_cpsr_if_necessary(cpu, dst);
                 }
             }
             Instruction {
