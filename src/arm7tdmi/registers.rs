@@ -78,9 +78,9 @@ impl Default for Registers {
     fn default() -> Self {
         let mut banked = HashMap::new();
         banked.insert(ProcessorMode::Fiq, Vec::new());
-        banked.insert(ProcessorMode::Irq, Vec::new());
         banked.insert(ProcessorMode::Supervisor, Vec::new());
         banked.insert(ProcessorMode::Abort, Vec::new());
+        banked.insert(ProcessorMode::Irq, Vec::new());
         banked.insert(ProcessorMode::Undefined, Vec::new());
 
         Self {

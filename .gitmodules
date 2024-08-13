@@ -7,3 +7,6 @@
 [submodule "external/gba_tests"]
 	path = external/gba_tests
 	url = https://github.com/destoer/gba_tests
+[submodule "external/gba-psr-test"]
+	path = external/gba-psr-test
+	url = https://github.com/ioncodes/gba-psr-test

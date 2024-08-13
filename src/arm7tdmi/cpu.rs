@@ -187,7 +187,12 @@ impl Cpu {
                 self.registers.r[15] = value;
                 self.pipeline.flush();
             }
-            Register::Cpsr => self.registers.cpsr = Psr::from_bits_truncate(value),
+            Register::Cpsr => {
+                self.registers.cpsr =
+                    Psr::from_bits_truncate((self.registers.cpsr.bits() & Psr::M.bits()) | (value & !Psr::M.bits()));
+                let new_mode = ProcessorMode::from(value & Psr::M.bits());
+                self.set_processor_mode(new_mode);
+            }
             Register::CpsrFlag => {
                 let cpsr = Psr::from_bits_truncate(value);
                 self.update_flag(Psr::N, cpsr.contains(Psr::N));
@@ -312,6 +317,7 @@ impl Cpu {
 
     pub fn set_processor_mode(&mut self, mode: ProcessorMode) {
         let current_mode = self.get_processor_mode();
+        debug!("Switching from {} to {}", current_mode, mode);
 
         // save current mode registers
         self.registers
