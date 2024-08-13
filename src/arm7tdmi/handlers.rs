@@ -166,6 +166,19 @@ impl Handlers {
     pub fn move_data(instr: &Instruction, cpu: &mut Cpu, mmio: &mut Mmio) {
         check_condition!(cpu, instr);
 
+        let extra_if_pc_operand = |operand: &Operand, cpu: &Cpu| {
+            if let Operand::Register(Register::R15, Some(_)) = operand {
+                // The PC value will be the address of the instruction, plus 8
+                // or 12 bytes due to instruction prefetching. If the shift
+                // amount is specified in the instruction, the PC will be 8 bytes
+                // ahead. If a register is used to specify the shift amount the
+                // PC will be 12 bytes ahead.
+                4
+            } else {
+                0
+            }
+        };
+
         match instr {
             Instruction {
                 opcode: Opcode::Mov,
@@ -174,7 +187,7 @@ impl Handlers {
                 set_condition_flags,
                 ..
             } => {
-                let value = Handlers::resolve_operand(src, cpu, *set_condition_flags);
+                let value = Handlers::resolve_operand(src, cpu, *set_condition_flags) + extra_if_pc_operand(src, cpu);
                 cpu.write_register(dst, value);
 
                 if *set_condition_flags {
@@ -189,7 +202,8 @@ impl Handlers {
                 set_condition_flags,
                 ..
             } => {
-                let value = !Handlers::resolve_operand(src, cpu, *set_condition_flags); // bitwise not
+                let value =
+                    !(Handlers::resolve_operand(src, cpu, *set_condition_flags) + extra_if_pc_operand(src, cpu)); // bitwise not
                 cpu.write_register(dst, value);
 
                 if *set_condition_flags {
