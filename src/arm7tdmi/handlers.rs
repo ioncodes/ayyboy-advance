@@ -121,6 +121,7 @@ impl Handlers {
                 opcode: Opcode::Cmp | Opcode::Cmn,
                 operand1: Some(Operand::Register(lhs, None)),
                 operand2: Some(rhs),
+                set_condition_flags,
                 ..
             } => {
                 let lhs = cpu.read_register(lhs);
@@ -142,7 +143,7 @@ impl Handlers {
                 ..
             } => {
                 let lhs = cpu.read_register(lhs);
-                let rhs = Handlers::resolve_operand(rhs, cpu, false);
+                let rhs = Handlers::resolve_operand(rhs, cpu, true);
                 let result = lhs ^ rhs;
                 cpu.update_flag(Psr::N, result & 0x8000_0000 != 0);
                 cpu.update_flag(Psr::Z, result == 0);
@@ -154,7 +155,7 @@ impl Handlers {
                 ..
             } => {
                 let lhs = cpu.read_register(lhs);
-                let rhs = Handlers::resolve_operand(rhs, cpu, false);
+                let rhs = Handlers::resolve_operand(rhs, cpu, true);
                 let result = lhs & rhs;
                 cpu.update_flag(Psr::N, result & 0x8000_0000 != 0);
                 cpu.update_flag(Psr::Z, result == 0);
@@ -166,19 +167,6 @@ impl Handlers {
     pub fn move_data(instr: &Instruction, cpu: &mut Cpu, mmio: &mut Mmio) {
         check_condition!(cpu, instr);
 
-        let extra_if_pc_operand = |operand: &Operand, cpu: &Cpu| {
-            if let Operand::Register(Register::R15, Some(_)) = operand {
-                // The PC value will be the address of the instruction, plus 8
-                // or 12 bytes due to instruction prefetching. If the shift
-                // amount is specified in the instruction, the PC will be 8 bytes
-                // ahead. If a register is used to specify the shift amount the
-                // PC will be 12 bytes ahead.
-                4
-            } else {
-                0
-            }
-        };
-
         match instr {
             Instruction {
                 opcode: Opcode::Mov,
@@ -187,12 +175,20 @@ impl Handlers {
                 set_condition_flags,
                 ..
             } => {
-                let value = Handlers::resolve_operand(src, cpu, *set_condition_flags) + extra_if_pc_operand(src, cpu);
-                cpu.write_register(dst, value);
+                let value = Handlers::resolve_operand(src, cpu, *set_condition_flags);
+                let extra_fetch = if src.is_register(&Register::R15)
+                    && let Some(ShiftSource::Register(_)) = Handlers::try_fetch_shifted_operand(src)
+                {
+                    4
+                } else {
+                    0
+                };
+                let result = value + extra_fetch;
+                cpu.write_register(dst, result);
 
                 if *set_condition_flags {
-                    cpu.update_flag(Psr::N, value & 0x8000_0000 != 0);
-                    cpu.update_flag(Psr::Z, value == 0);
+                    cpu.update_flag(Psr::N, result & 0x8000_0000 != 0);
+                    cpu.update_flag(Psr::Z, result == 0);
                 }
             }
             Instruction {
@@ -202,13 +198,20 @@ impl Handlers {
                 set_condition_flags,
                 ..
             } => {
-                let value =
-                    !(Handlers::resolve_operand(src, cpu, *set_condition_flags) + extra_if_pc_operand(src, cpu)); // bitwise not
-                cpu.write_register(dst, value);
+                let value = Handlers::resolve_operand(src, cpu, *set_condition_flags);
+                let extra_fetch = if src.is_register(&Register::R15)
+                    && let Some(ShiftSource::Register(_)) = Handlers::try_fetch_shifted_operand(src)
+                {
+                    4
+                } else {
+                    0
+                };
+                let result = !(value + extra_fetch);
+                cpu.write_register(dst, result);
 
                 if *set_condition_flags {
-                    cpu.update_flag(Psr::N, value & 0x8000_0000 != 0);
-                    cpu.update_flag(Psr::Z, value == 0);
+                    cpu.update_flag(Psr::N, result & 0x8000_0000 != 0);
+                    cpu.update_flag(Psr::Z, result == 0);
                 }
             }
             _ => todo!("{:?}", instr),
@@ -467,8 +470,19 @@ impl Handlers {
                 set_condition_flags,
                 ..
             } => {
-                let x = Handlers::resolve_operand(x, cpu, *set_condition_flags);
-                let y = Handlers::resolve_operand(y, cpu, *set_condition_flags);
+                let extra_fetch = match (
+                    Handlers::try_fetch_shifted_operand(x),
+                    Handlers::try_fetch_shifted_operand(y),
+                ) {
+                    (_, Some(ShiftSource::Register(_))) => 4,
+                    (Some(ShiftSource::Register(_)), _) => 4,
+                    _ => 0,
+                };
+                let x = Handlers::resolve_operand(x, cpu, *set_condition_flags)
+                    + if x.is_register(&Register::R15) { extra_fetch } else { 0 };
+                let y = Handlers::resolve_operand(y, cpu, *set_condition_flags)
+                    + if y.is_register(&Register::R15) { extra_fetch } else { 0 };
+
                 let (result, carry) = x.overflowing_add(y);
                 let (_, overflow) = (x as i32).overflowing_add(y as i32);
                 cpu.write_register(dst, result);
@@ -513,9 +527,9 @@ impl Handlers {
                 set_condition_flags,
                 ..
             } => {
+                let carry = cpu.registers.cpsr.contains(Psr::C) as u32; // Grab carry first, as it may be modified due to shifter
                 let x = Handlers::resolve_operand(x, cpu, *set_condition_flags);
                 let y = Handlers::resolve_operand(y, cpu, *set_condition_flags);
-                let carry = cpu.registers.cpsr.contains(Psr::C) as u32;
 
                 let (result, carry1) = x.overflowing_add(y);
                 let (result, carry2) = result.overflowing_add(carry);
@@ -541,8 +555,18 @@ impl Handlers {
                 set_condition_flags,
                 ..
             } => {
-                let x = Handlers::resolve_operand(x, cpu, *set_condition_flags);
-                let y = Handlers::resolve_operand(y, cpu, *set_condition_flags);
+                let extra_fetch = match (
+                    Handlers::try_fetch_shifted_operand(x),
+                    Handlers::try_fetch_shifted_operand(y),
+                ) {
+                    (_, Some(ShiftSource::Register(_))) => 4,
+                    (Some(ShiftSource::Register(_)), _) => 4,
+                    _ => 0,
+                };
+                let x = Handlers::resolve_operand(x, cpu, *set_condition_flags)
+                    + if x.is_register(&Register::R15) { extra_fetch } else { 0 };
+                let y = Handlers::resolve_operand(y, cpu, *set_condition_flags)
+                    + if y.is_register(&Register::R15) { extra_fetch } else { 0 };
                 let (result, borrow) = x.overflowing_sub(y);
                 let (_, overflow) = (x as i32).overflowing_sub(y as i32);
                 cpu.write_register(dst, result);
@@ -587,8 +611,18 @@ impl Handlers {
                 set_condition_flags,
                 ..
             } => {
-                let x = Handlers::resolve_operand(x, cpu, *set_condition_flags);
-                let y = Handlers::resolve_operand(y, cpu, *set_condition_flags);
+                let extra_fetch = match (
+                    Handlers::try_fetch_shifted_operand(x),
+                    Handlers::try_fetch_shifted_operand(y),
+                ) {
+                    (_, Some(ShiftSource::Register(_))) => 4,
+                    (Some(ShiftSource::Register(_)), _) => 4,
+                    _ => 0,
+                };
+                let x = Handlers::resolve_operand(x, cpu, *set_condition_flags)
+                    + if x.is_register(&Register::R15) { extra_fetch } else { 0 };
+                let y = Handlers::resolve_operand(y, cpu, *set_condition_flags)
+                    + if y.is_register(&Register::R15) { extra_fetch } else { 0 };
                 let carry = cpu.registers.cpsr.contains(Psr::C) as u32;
 
                 let (result, borrow1) = x.overflowing_sub(y);
@@ -643,8 +677,18 @@ impl Handlers {
                 set_condition_flags,
                 ..
             } => {
-                let x = Handlers::resolve_operand(x, cpu, *set_condition_flags);
-                let y = Handlers::resolve_operand(y, cpu, *set_condition_flags);
+                let extra_fetch = match (
+                    Handlers::try_fetch_shifted_operand(x),
+                    Handlers::try_fetch_shifted_operand(y),
+                ) {
+                    (_, Some(ShiftSource::Register(_))) => 4,
+                    (Some(ShiftSource::Register(_)), _) => 4,
+                    _ => 0,
+                };
+                let x = Handlers::resolve_operand(x, cpu, *set_condition_flags)
+                    + if x.is_register(&Register::R15) { extra_fetch } else { 0 };
+                let y = Handlers::resolve_operand(y, cpu, *set_condition_flags)
+                    + if y.is_register(&Register::R15) { extra_fetch } else { 0 };
                 let result = x & y;
                 cpu.write_register(dst, result);
 
@@ -683,8 +727,18 @@ impl Handlers {
                 set_condition_flags,
                 ..
             } => {
-                let x = Handlers::resolve_operand(x, cpu, *set_condition_flags);
-                let y = Handlers::resolve_operand(y, cpu, *set_condition_flags);
+                let extra_fetch = match (
+                    Handlers::try_fetch_shifted_operand(x),
+                    Handlers::try_fetch_shifted_operand(y),
+                ) {
+                    (_, Some(ShiftSource::Register(_))) => 4,
+                    (Some(ShiftSource::Register(_)), _) => 4,
+                    _ => 0,
+                };
+                let x = Handlers::resolve_operand(x, cpu, *set_condition_flags)
+                    + if x.is_register(&Register::R15) { extra_fetch } else { 0 };
+                let y = Handlers::resolve_operand(y, cpu, *set_condition_flags)
+                    + if y.is_register(&Register::R15) { extra_fetch } else { 0 };
                 let result = x | y;
                 cpu.write_register(dst, result);
 
@@ -723,8 +777,18 @@ impl Handlers {
                 set_condition_flags,
                 ..
             } => {
-                let x = Handlers::resolve_operand(x, cpu, *set_condition_flags);
-                let y = Handlers::resolve_operand(y, cpu, *set_condition_flags);
+                let extra_fetch = match (
+                    Handlers::try_fetch_shifted_operand(x),
+                    Handlers::try_fetch_shifted_operand(y),
+                ) {
+                    (_, Some(ShiftSource::Register(_))) => 4,
+                    (Some(ShiftSource::Register(_)), _) => 4,
+                    _ => 0,
+                };
+                let x = Handlers::resolve_operand(x, cpu, *set_condition_flags)
+                    + if x.is_register(&Register::R15) { extra_fetch } else { 0 };
+                let y = Handlers::resolve_operand(y, cpu, *set_condition_flags)
+                    + if y.is_register(&Register::R15) { extra_fetch } else { 0 };
                 let result = x ^ y;
                 cpu.write_register(dst, result);
 
@@ -763,8 +827,18 @@ impl Handlers {
                 set_condition_flags,
                 ..
             } => {
-                let x = Handlers::resolve_operand(x, cpu, *set_condition_flags);
-                let y = Handlers::resolve_operand(y, cpu, *set_condition_flags);
+                let extra_fetch = match (
+                    Handlers::try_fetch_shifted_operand(x),
+                    Handlers::try_fetch_shifted_operand(y),
+                ) {
+                    (_, Some(ShiftSource::Register(_))) => 4,
+                    (Some(ShiftSource::Register(_)), _) => 4,
+                    _ => 0,
+                };
+                let x = Handlers::resolve_operand(x, cpu, *set_condition_flags)
+                    + if x.is_register(&Register::R15) { extra_fetch } else { 0 };
+                let y = Handlers::resolve_operand(y, cpu, *set_condition_flags)
+                    + if y.is_register(&Register::R15) { extra_fetch } else { 0 };
                 let (result, borrow) = y.overflowing_sub(x);
                 let (_, overflow) = (y as i32).overflowing_sub(x as i32);
                 cpu.write_register(dst, result);
@@ -786,8 +860,18 @@ impl Handlers {
                 set_condition_flags,
                 ..
             } => {
-                let x = Handlers::resolve_operand(x, cpu, *set_condition_flags);
-                let y = Handlers::resolve_operand(y, cpu, *set_condition_flags);
+                let extra_fetch = match (
+                    Handlers::try_fetch_shifted_operand(x),
+                    Handlers::try_fetch_shifted_operand(y),
+                ) {
+                    (_, Some(ShiftSource::Register(_))) => 4,
+                    (Some(ShiftSource::Register(_)), _) => 4,
+                    _ => 0,
+                };
+                let x = Handlers::resolve_operand(x, cpu, *set_condition_flags)
+                    + if x.is_register(&Register::R15) { extra_fetch } else { 0 };
+                let y = Handlers::resolve_operand(y, cpu, *set_condition_flags)
+                    + if y.is_register(&Register::R15) { extra_fetch } else { 0 };
                 let carry = cpu.registers.cpsr.contains(Psr::C) as u32;
 
                 let (result, borrow1) = y.overflowing_sub(x);
@@ -1085,6 +1169,16 @@ impl Handlers {
                 }
                 result
             }
+        }
+    }
+
+    fn try_fetch_shifted_operand(operand: &Operand) -> Option<ShiftSource> {
+        match operand {
+            Operand::Register(_, Some(ShiftType::LogicalLeft(src))) => Some(*src),
+            Operand::Register(_, Some(ShiftType::LogicalRight(src))) => Some(*src),
+            Operand::Register(_, Some(ShiftType::ArithmeticRight(src))) => Some(*src),
+            Operand::Register(_, Some(ShiftType::RotateRight(src))) => Some(*src),
+            _ => None,
         }
     }
 

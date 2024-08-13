@@ -65,7 +65,7 @@ impl Display for Condition {
     }
 }
 
-#[derive(PartialEq, Debug, Clone)]
+#[derive(PartialEq, Debug, Copy, Clone)]
 pub enum Register {
     R0,
     R1,
@@ -117,7 +117,7 @@ impl Register {
     }
 }
 
-#[derive(PartialEq, Debug, Clone)]
+#[derive(PartialEq, Debug, Copy, Clone)]
 pub enum ShiftSource {
     Register(Register),
     Immediate(u32),
@@ -171,6 +171,15 @@ pub enum Operand {
     Offset(i32),
     Register(Register, Option<ShiftType>),
     RegisterList(Vec<Register>),
+}
+
+impl Operand {
+    pub fn is_register(&self, register: &Register) -> bool {
+        match self {
+            Operand::Register(r, _) => r == register,
+            _ => false,
+        }
+    }
 }
 
 #[derive(PartialEq, Debug, Clone)]
