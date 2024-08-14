@@ -355,7 +355,7 @@ impl Cpu {
         match mode {
             ProcessorMode::User | ProcessorMode::System => {
                 error!("Attempted to read from User/System SPSR");
-                Psr::from_bits_truncate(0)
+                self.registers.cpsr
             }
             _ => match mode {
                 ProcessorMode::Fiq => self.registers.spsr[0],

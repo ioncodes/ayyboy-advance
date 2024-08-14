@@ -476,6 +476,7 @@ impl Handlers {
             if *rd == Register::R15 {
                 let spsr = cpu.read_register(&Register::Spsr);
                 cpu.write_register(&Register::Cpsr, spsr);
+                cpu.pipeline.flush();
             }
         };
 

@@ -502,6 +502,13 @@ impl Instruction {
                     ..Instruction::default()
                 }
             }
+            // NOP (MOV R0, R0)
+            "1110_0011_0010_0000_1111_0000_0000_0000" => Instruction {
+                opcode: Opcode::Mov,
+                operand1: Some(Operand::Register(Register::R0, None)),
+                operand2: Some(Operand::Register(Register::R0, None)),
+                ..Instruction::default()
+            },
             // Data Processing
             "cccc_00io_ooos_yyyy_xxxx_zzzz_zzzz_zzzz" => {
                 let condition = Condition::from(c);
