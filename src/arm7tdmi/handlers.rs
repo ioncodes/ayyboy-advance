@@ -1070,6 +1070,88 @@ impl Handlers {
                     cpu.update_flag(Psr::Z, result == 0);
                 }
             }
+            Instruction {
+                opcode: Opcode::Umull,
+                operand1: Some(Operand::Register(lo, None)),
+                operand2: Some(Operand::Register(hi, None)),
+                operand3: Some(Operand::Register(lhs, None)),
+                operand4: Some(Operand::Register(rhs, None)),
+                set_condition_flags,
+                ..
+            } => {
+                let lhs = cpu.read_register(lhs);
+                let rhs = cpu.read_register(rhs);
+                let result = (lhs as u64).wrapping_mul(rhs as u64);
+                cpu.write_register(lo, result as u32);
+                cpu.write_register(hi, (result >> 32) as u32);
+
+                if *set_condition_flags {
+                    cpu.update_flag(Psr::N, result & 0x8000_0000_0000_0000 != 0);
+                    cpu.update_flag(Psr::Z, result == 0);
+                }
+            }
+            Instruction {
+                opcode: Opcode::Umlal,
+                operand1: Some(Operand::Register(lo, None)),
+                operand2: Some(Operand::Register(hi, None)),
+                operand3: Some(Operand::Register(lhs, None)),
+                operand4: Some(Operand::Register(rhs, None)),
+                set_condition_flags,
+                ..
+            } => {
+                let lhs = cpu.read_register(lhs);
+                let rhs = cpu.read_register(rhs);
+                let acc = (cpu.read_register(lo) as u64) | ((cpu.read_register(hi) as u64) << 32);
+                let result = acc.wrapping_add((lhs as u64).wrapping_mul(rhs as u64));
+                cpu.write_register(lo, result as u32);
+                cpu.write_register(hi, (result >> 32) as u32);
+
+                if *set_condition_flags {
+                    cpu.update_flag(Psr::N, result & 0x8000_0000_0000_0000 != 0);
+                    cpu.update_flag(Psr::Z, result == 0);
+                }
+            }
+            Instruction {
+                opcode: Opcode::Smull,
+                operand1: Some(Operand::Register(lo, None)),
+                operand2: Some(Operand::Register(hi, None)),
+                operand3: Some(Operand::Register(lhs, None)),
+                operand4: Some(Operand::Register(rhs, None)),
+                set_condition_flags,
+                ..
+            } => {
+                let lhs = cpu.read_register(lhs) as i32;
+                let rhs = cpu.read_register(rhs) as i32;
+                let result = (lhs as i64).wrapping_mul(rhs as i64);
+                cpu.write_register(lo, result as u32);
+                cpu.write_register(hi, (result >> 32) as u32);
+
+                if *set_condition_flags {
+                    cpu.update_flag(Psr::N, (result as u64) & 0x8000_0000_0000_0000 != 0);
+                    cpu.update_flag(Psr::Z, result == 0);
+                }
+            }
+            Instruction {
+                opcode: Opcode::Smlal,
+                operand1: Some(Operand::Register(lo, None)),
+                operand2: Some(Operand::Register(hi, None)),
+                operand3: Some(Operand::Register(lhs, None)),
+                operand4: Some(Operand::Register(rhs, None)),
+                set_condition_flags,
+                ..
+            } => {
+                let lhs = cpu.read_register(lhs) as i32;
+                let rhs = cpu.read_register(rhs) as i32;
+                let acc = (cpu.read_register(lo) as i64) | ((cpu.read_register(hi) as i64) << 32);
+                let result = acc.wrapping_add((lhs as i64).wrapping_mul(rhs as i64));
+                cpu.write_register(lo, result as u32);
+                cpu.write_register(hi, (result >> 32) as u32);
+
+                if *set_condition_flags {
+                    cpu.update_flag(Psr::N, (result as u64) & 0x8000_0000_0000_0000 != 0);
+                    cpu.update_flag(Psr::Z, result == 0);
+                }
+            }
             _ => todo!("{:?}", instr),
         }
     }
