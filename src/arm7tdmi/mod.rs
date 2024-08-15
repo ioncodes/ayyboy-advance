@@ -3,4 +3,4 @@ pub mod decoder;
 mod handlers;
 pub mod mode;
 mod pipeline;
-mod registers;
+pub mod registers;
