@@ -9,6 +9,7 @@ mod tests;
 mod video;
 
 use arm7tdmi::cpu::Cpu;
+use arm7tdmi::decoder::Register;
 use arm7tdmi::mode::ProcessorMode;
 use eframe::NativeOptions;
 use egui::ViewportBuilder;
@@ -41,11 +42,15 @@ fn main() {
 
         let mut cpu = Cpu::new();
         // State for skipping BIOS
-        cpu.registers.r[13] = 0x03007f00; // sp
-        cpu.registers.r[15] = 0x08000000; // pc
+        cpu.set_processor_mode(ProcessorMode::Irq);
+        cpu.write_register(&Register::R13, 0x03007fa0);
+        cpu.set_processor_mode(ProcessorMode::Supervisor);
+        cpu.write_register(&Register::R13, 0x03007fe0);
+        cpu.set_processor_mode(ProcessorMode::User);
+        cpu.write_register(&Register::R13, 0x03007f00);
         cpu.set_processor_mode(ProcessorMode::System);
-        // State to boot BIOS
-        // cpu.set_processor_mode(ProcessorMode::Supervisor);
+        cpu.write_register(&Register::R13, 0x03007f00);
+        cpu.write_register(&Register::R15, 0x08000000);
 
         let mut frame_rendered = false;
 

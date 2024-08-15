@@ -71,7 +71,6 @@ impl Handlers {
                 ..
             } => {
                 let pc = cpu.get_pc();
-                cpu.write_register(&Register::R14, pc - 4);
                 cpu.registers.r[15] = 0x08;
 
                 // copy the current cpsr to spsr[current_mode]
@@ -79,6 +78,9 @@ impl Handlers {
 
                 // set the current mode to supervisor
                 cpu.set_processor_mode(ProcessorMode::Supervisor);
+
+                // set the link register to the address of the instruction after the SWI
+                cpu.write_register(&Register::R14, pc - 4);
             }
             _ => todo!("{:?}", instr),
         }
@@ -272,7 +274,7 @@ impl Handlers {
                 match length {
                     TransferLength::Byte => {
                         let value = mmio.read(address);
-                        cpu.write_register_u8(dst, value);
+                        cpu.write_register(dst, value as u32);
                         if *set_condition_flags {
                             cpu.update_flag(Psr::N, value & 0x80 != 0);
                             cpu.update_flag(Psr::Z, value == 0);
@@ -280,7 +282,7 @@ impl Handlers {
                     }
                     TransferLength::HalfWord => {
                         let value = mmio.read_u16(address);
-                        cpu.write_register_u16(dst, value);
+                        cpu.write_register(dst, value as u32);
                         if *set_condition_flags {
                             cpu.update_flag(Psr::N, value & 0x8000 != 0);
                             cpu.update_flag(Psr::Z, value == 0);
