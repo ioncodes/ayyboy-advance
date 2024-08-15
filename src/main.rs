@@ -41,7 +41,7 @@ fn main() {
         mmio.load(0x08000000, ARM_TEST); // gamepak addr
 
         let mut cpu = Cpu::new();
-        // State for skipping BIOS
+        // State for skipping BIOS, https://problemkaputt.de/gbatek.htm#biosramusage
         cpu.set_processor_mode(ProcessorMode::Irq);
         cpu.write_register(&Register::R13, 0x03007fa0);
         cpu.set_processor_mode(ProcessorMode::Supervisor);
