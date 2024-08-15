@@ -12,7 +12,7 @@ use arm7tdmi::cpu::Cpu;
 use arm7tdmi::decoder::Register;
 use arm7tdmi::mode::ProcessorMode;
 use eframe::NativeOptions;
-use egui::{FontFamily, FontId, Style, TextStyle, ViewportBuilder, Visuals};
+use egui::ViewportBuilder;
 use frontend::renderer::{Renderer, SCALE};
 use frontend::state::DbgState;
 use memory::mmio::Mmio;
@@ -82,20 +82,6 @@ fn main() {
     let _ = eframe::run_native(
         "ayyboy advance",
         native_options,
-        Box::new(move |cc| {
-            // let style = Style {
-            //     text_styles: [
-            //         (TextStyle::Small, FontId::new(9.0, FontFamily::Monospace)),
-            //         (TextStyle::Body, FontId::new(12.5, FontFamily::Monospace)),
-            //         (TextStyle::Button, FontId::new(12.5, FontFamily::Proportional)),
-            //         (TextStyle::Heading, FontId::new(18.0, FontFamily::Proportional)),
-            //         (TextStyle::Monospace, FontId::new(12.0, FontFamily::Monospace)),
-            //     ]
-            //     .into(),
-            //     ..Style::default()
-            // };
-            // cc.egui_ctx.set_style(style);
-            Ok(Box::new(Renderer::new(cc, display_rx, debugger_rx)))
-        }),
+        Box::new(move |cc| Ok(Box::new(Renderer::new(cc, display_rx, debugger_rx)))),
     );
 }
