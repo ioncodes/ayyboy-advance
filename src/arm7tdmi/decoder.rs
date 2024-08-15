@@ -218,8 +218,10 @@ pub enum Opcode {
     Ror,
     Mul,
     Mla,
-    Mull,
-    Mlal,
+    Umull,
+    Umlal,
+    Smull,
+    Smlal,
     Neg,
 }
 
@@ -270,8 +272,10 @@ impl Display for Opcode {
             Opcode::Ror => write!(f, "ror"),
             Opcode::Mul => write!(f, "mul"),
             Opcode::Mla => write!(f, "mla"),
-            Opcode::Mull => write!(f, "mull"),
-            Opcode::Mlal => write!(f, "mlal"),
+            Opcode::Umull => write!(f, "umull"),
+            Opcode::Umlal => write!(f, "umlal"),
+            Opcode::Smull => write!(f, "smull"),
+            Opcode::Smlal => write!(f, "smlal"),
             Opcode::Neg => write!(f, "neg"),
         }
     }
@@ -426,24 +430,28 @@ impl Instruction {
                 }
             }
             // Multiply Long and Multiply-Accumulate Long (MULL, MLAL)
-            "cccc_0000_1uas_hhhh_llll_ssss_1001_mmmm" => {
+            "cccc_0000_1uat_hhhh_llll_ssss_1001_mmmm" => {
                 let condition = Condition::from(c);
-                let set_condition_flags = s == 1;
+                let set_condition_flags = t == 1;
                 let accumulate = a == 1;
+                let unsigned = u == 0;
 
                 let rm = Register::from(m);
                 let rs = Register::from(s);
                 let rd_hi = Register::from(h);
                 let rd_lo = Register::from(l);
 
-                // TODO: unsigned?
-
                 Instruction {
-                    opcode: if !accumulate { Opcode::Mull } else { Opcode::Mlal },
+                    opcode: match (accumulate, unsigned) {
+                        (false, false) => Opcode::Smull,
+                        (false, true) => Opcode::Umull,
+                        (true, false) => Opcode::Smlal,
+                        (true, true) => Opcode::Umlal,
+                    },
                     condition,
                     set_condition_flags,
-                    operand1: Some(Operand::Register(rd_hi, None)),
-                    operand2: Some(Operand::Register(rd_lo, None)),
+                    operand1: Some(Operand::Register(rd_lo, None)),
+                    operand2: Some(Operand::Register(rd_hi, None)),
                     operand3: Some(Operand::Register(rm, None)),
                     operand4: Some(Operand::Register(rs, None)),
                     ..Instruction::default()

@@ -953,10 +953,11 @@ impl Handlers {
                 opcode: Opcode::Bic,
                 operand1: Some(Operand::Register(dst, None)),
                 operand2: Some(Operand::Register(src, None)),
-                operand3: Some(Operand::Immediate(pos, None)),
+                operand3: Some(pos),
                 set_condition_flags,
                 ..
             } => {
+                let pos = Handlers::resolve_operand(pos, cpu, *set_condition_flags);
                 let src = cpu.read_register(src);
                 let result = src & !pos;
                 cpu.write_register(dst, result);

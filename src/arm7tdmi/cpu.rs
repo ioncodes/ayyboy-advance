@@ -67,8 +67,10 @@ impl Cpu {
                 | Opcode::Lsr
                 | Opcode::Mul
                 | Opcode::Mla
-                | Opcode::Mull
-                | Opcode::Mlal => Handlers::alu(&instruction, self, mmio),
+                | Opcode::Umull
+                | Opcode::Umlal
+                | Opcode::Smull
+                | Opcode::Smlal => Handlers::alu(&instruction, self, mmio),
                 Opcode::Swi => Handlers::software_interrupt(&instruction, self, mmio),
                 _ => todo!(),
             }
