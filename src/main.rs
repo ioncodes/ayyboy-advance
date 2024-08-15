@@ -12,8 +12,9 @@ use arm7tdmi::cpu::Cpu;
 use arm7tdmi::decoder::Register;
 use arm7tdmi::mode::ProcessorMode;
 use eframe::NativeOptions;
-use egui::ViewportBuilder;
+use egui::{FontFamily, FontId, Style, TextStyle, ViewportBuilder, Visuals};
 use frontend::renderer::{Renderer, SCALE};
+use frontend::state::DbgState;
 use memory::mmio::Mmio;
 
 use tokio::sync::watch::{self, Receiver, Sender};
@@ -33,7 +34,9 @@ fn main() {
     env_logger::builder().format_timestamp(None).init();
 
     let frame = [[(0u8, 0u8, 0u8); SCREEN_WIDTH]; SCREEN_HEIGHT];
-    let (tx, rx): (Sender<Frame>, Receiver<Frame>) = watch::channel(frame);
+    let (display_tx, display_rx): (Sender<Frame>, Receiver<Frame>) = watch::channel(frame);
+    let state = DbgState::default();
+    let (debugger_tx, debugger_rx): (Sender<DbgState>, Receiver<DbgState>) = watch::channel(state);
 
     std::thread::spawn(move || {
         let mut mmio = Mmio::new();
@@ -58,8 +61,10 @@ fn main() {
             cpu.tick(&mut mmio);
             mmio.tick_components();
 
+            let _ = debugger_tx.send(DbgState::from(&cpu));
+
             if mmio.ppu.scanline == 160 && !frame_rendered {
-                let _ = tx.send(mmio.ppu.get_frame());
+                let _ = display_tx.send(mmio.ppu.get_frame());
                 frame_rendered = true;
             } else if mmio.ppu.scanline == 0 && frame_rendered {
                 frame_rendered = false;
@@ -77,6 +82,20 @@ fn main() {
     let _ = eframe::run_native(
         "ayyboy advance",
         native_options,
-        Box::new(move |cc| Ok(Box::new(Renderer::new(cc, rx)))),
+        Box::new(move |cc| {
+            // let style = Style {
+            //     text_styles: [
+            //         (TextStyle::Small, FontId::new(9.0, FontFamily::Monospace)),
+            //         (TextStyle::Body, FontId::new(12.5, FontFamily::Monospace)),
+            //         (TextStyle::Button, FontId::new(12.5, FontFamily::Proportional)),
+            //         (TextStyle::Heading, FontId::new(18.0, FontFamily::Proportional)),
+            //         (TextStyle::Monospace, FontId::new(12.0, FontFamily::Monospace)),
+            //     ]
+            //     .into(),
+            //     ..Style::default()
+            // };
+            // cc.egui_ctx.set_style(style);
+            Ok(Box::new(Renderer::new(cc, display_rx, debugger_rx)))
+        }),
     );
 }
