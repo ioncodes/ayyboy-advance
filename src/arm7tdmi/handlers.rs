@@ -263,6 +263,15 @@ impl Handlers {
                 };
                 let step = Handlers::resolve_operand(step, cpu, *set_condition_flags);
 
+                if address % 2 != 0 {
+                    // align address, https://problemkaputt.de/gbatek.htm#armcpumemoryalignments
+                    address &= !((match length {
+                        TransferLength::Byte => 0b00,
+                        TransferLength::HalfWord => 0b01, // TODO: This case may be handled differently
+                        TransferLength::Word => 0b11,
+                    }) as u32);
+                }
+
                 if *indexing == Indexing::Pre {
                     if *operation == Direction::Up {
                         address = address.wrapping_add(step)
@@ -273,7 +282,11 @@ impl Handlers {
 
                 match length {
                     TransferLength::Byte => {
-                        let value = mmio.read(address);
+                        let mut value = mmio.read(address);
+                        if address % 2 != 0 {
+                            value = value.rotate_right(2);
+                        }
+
                         cpu.write_register(dst, value as u32);
                         if *set_condition_flags {
                             cpu.update_flag(Psr::N, value & 0x80 != 0);
@@ -281,7 +294,11 @@ impl Handlers {
                         }
                     }
                     TransferLength::HalfWord => {
-                        let value = mmio.read_u16(address);
+                        let mut value = mmio.read_u16(address);
+                        if address % 2 != 0 {
+                            value = value.rotate_right(2);
+                        }
+
                         cpu.write_register(dst, value as u32);
                         if *set_condition_flags {
                             cpu.update_flag(Psr::N, value & 0x8000 != 0);
@@ -289,7 +306,11 @@ impl Handlers {
                         }
                     }
                     TransferLength::Word => {
-                        let value = mmio.read_u32(address);
+                        let mut value = mmio.read_u32(address);
+                        if address % 2 != 0 {
+                            value = value.rotate_right(2);
+                        }
+
                         cpu.write_register(dst, value);
                         if *set_condition_flags {
                             cpu.update_flag(Psr::N, value & 0x8000_0000 != 0);
@@ -332,6 +353,15 @@ impl Handlers {
                         address = address.wrapping_sub(step)
                     }
                 };
+
+                if address % 2 != 0 {
+                    // align address, https://problemkaputt.de/gbatek.htm#armcpumemoryalignments
+                    address &= !((match length {
+                        TransferLength::Byte => 0b00,
+                        TransferLength::HalfWord => 0b01,
+                        TransferLength::Word => 0b11,
+                    }) as u32);
+                }
 
                 match length {
                     TransferLength::Byte => {
