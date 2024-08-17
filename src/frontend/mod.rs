@@ -1,4 +1,2 @@
-mod debugger;
+pub mod dbg;
 pub mod renderer;
-pub mod state;
-mod widgets;

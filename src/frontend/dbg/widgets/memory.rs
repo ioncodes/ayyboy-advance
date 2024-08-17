@@ -1,4 +1,5 @@
-use crate::frontend::state::DbgState;
+use crate::frontend::dbg::event::{RequestEvent, ResponseEvent};
+use crossbeam_channel::{Receiver, Sender};
 use egui::{ComboBox, Context, RichText, ScrollArea, Window};
 
 #[derive(PartialEq, Eq, Hash, Copy, Clone)]
@@ -45,29 +46,53 @@ impl MemoryView {
 
 pub struct MemoryWidget {
     memory_view: MemoryView,
+    event_rx: Receiver<ResponseEvent>,
+    event_tx: Sender<RequestEvent>,
+    memory: Box<[u8; 0x0FFFFFFF + 1]>,
 }
 
 impl MemoryWidget {
-    pub fn new() -> MemoryWidget {
+    pub fn new(rx: Receiver<ResponseEvent>, tx: Sender<RequestEvent>) -> MemoryWidget {
         MemoryWidget {
             memory_view: MemoryView::Bios,
+            event_rx: rx,
+            event_tx: tx,
+            memory: unsafe {
+                let memory = Box::<[u8; 0x0FFFFFFF + 1]>::new_zeroed();
+                memory.assume_init()
+            },
         }
     }
 
-    pub fn render(&mut self, ctx: &Context, state: &DbgState) {
+    pub fn update(&mut self) {
+        match self.event_rx.try_recv() {
+            Ok(ResponseEvent::Memory(memory)) => {
+                self.memory = memory;
+            }
+            _ => {}
+        }
+    }
+
+    pub fn render(&mut self, ctx: &Context) {
         Window::new("Memory").resizable(false).min_width(500.0).show(ctx, |ui| {
-            ComboBox::from_label("Source")
-                .selected_text(format!("{}", self.memory_view))
-                .show_ui(ui, |ui| {
-                    ui.selectable_value(&mut self.memory_view, MemoryView::Bios, "BIOS");
-                    ui.selectable_value(&mut self.memory_view, MemoryView::OnboardWram, "On-board WRAM");
-                    ui.selectable_value(&mut self.memory_view, MemoryView::OnchipWram, "On-chip WRAM");
-                    ui.selectable_value(&mut self.memory_view, MemoryView::PaletteRam, "Palette RAM");
-                    ui.selectable_value(&mut self.memory_view, MemoryView::Vram, "VRAM");
-                    ui.selectable_value(&mut self.memory_view, MemoryView::Oam, "OAM - OBJ Attributes");
-                    ui.selectable_value(&mut self.memory_view, MemoryView::GamePak, "GamePak");
-                    ui.selectable_value(&mut self.memory_view, MemoryView::GamePakSram, "GamePak SRAM");
-                });
+            ui.horizontal(|ui| {
+                ComboBox::from_label("Memory Map")
+                    .selected_text(format!("{}", self.memory_view))
+                    .show_ui(ui, |ui| {
+                        ui.selectable_value(&mut self.memory_view, MemoryView::Bios, "BIOS");
+                        ui.selectable_value(&mut self.memory_view, MemoryView::OnboardWram, "On-board WRAM");
+                        ui.selectable_value(&mut self.memory_view, MemoryView::OnchipWram, "On-chip WRAM");
+                        ui.selectable_value(&mut self.memory_view, MemoryView::PaletteRam, "Palette RAM");
+                        ui.selectable_value(&mut self.memory_view, MemoryView::Vram, "VRAM");
+                        ui.selectable_value(&mut self.memory_view, MemoryView::Oam, "OAM - OBJ Attributes");
+                        ui.selectable_value(&mut self.memory_view, MemoryView::GamePak, "GamePak");
+                        ui.selectable_value(&mut self.memory_view, MemoryView::GamePakSram, "GamePak SRAM");
+                    });
+                ui.add_space(3.0);
+                if ui.button("Refresh").clicked() {
+                    let _ = self.event_tx.send(RequestEvent::UpdateMemory);
+                }
+            });
 
             ui.add_space(3.0);
             ui.label(
@@ -87,7 +112,7 @@ impl MemoryWidget {
                             let mut line = String::new();
                             for offset in 0..16 {
                                 let addr = addr + offset;
-                                line += &format!(" {:02x}", state.memory[addr as usize]);
+                                line += &format!(" {:02x}", self.memory[addr as usize]);
                             }
 
                             ui.label(RichText::new(line).monospace());

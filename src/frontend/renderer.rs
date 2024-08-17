@@ -1,10 +1,10 @@
-use super::debugger::Debugger;
-use super::state::DbgState;
+use super::dbg::debugger::Debugger;
+use super::dbg::event::{RequestEvent, ResponseEvent};
 use crate::video::{Frame, SCREEN_HEIGHT, SCREEN_WIDTH};
+use crossbeam_channel::{Receiver, Sender};
 use eframe::egui::{vec2, CentralPanel, Color32, ColorImage, Context, Image, TextureHandle, TextureOptions};
 use eframe::{App, CreationContext};
 use egui::Key;
-use tokio::sync::watch::Receiver;
 
 pub const SCALE: usize = 4;
 
@@ -15,13 +15,21 @@ pub struct Renderer {
 }
 
 impl Renderer {
-    pub fn new(cc: &CreationContext, display_rx: Receiver<Frame>, debugger_rx: Receiver<DbgState>) -> Renderer {
+    pub fn new(
+        cc: &CreationContext, display_rx: Receiver<Frame>, debugger_tx: Sender<RequestEvent>,
+        debugger_rx: Receiver<ResponseEvent>,
+    ) -> Renderer {
         let screen_texture = cc.egui_ctx.load_texture(
             "screen_texture",
             ColorImage::new([SCREEN_WIDTH, SCREEN_HEIGHT], Color32::BLACK),
             TextureOptions::NEAREST,
         );
-        let debugger = Debugger::new(debugger_rx);
+        let debugger = Debugger::new(
+            debugger_tx.clone(),
+            debugger_rx.clone(),
+            debugger_tx.clone(),
+            debugger_rx.clone(),
+        );
 
         Renderer {
             screen_texture,
@@ -61,11 +69,8 @@ impl App for Renderer {
 
         self.debugger.update(ctx);
 
-        match self.display_rx.has_changed() {
-            Ok(true) => {
-                let frame = self.display_rx.borrow_and_update().clone();
-                self.update_screen(&frame);
-            }
+        match self.display_rx.try_recv() {
+            Ok(frame) => self.update_screen(&frame),
             _ => {}
         }
 
