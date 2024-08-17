@@ -74,24 +74,32 @@ impl MemoryWidget {
     }
 
     pub fn render(&mut self, ctx: &Context) {
-        Window::new("Memory").resizable(false).min_width(500.0).show(ctx, |ui| {
+        Window::new("Memory").resizable(false).min_width(400.0).show(ctx, |ui| {
             ui.horizontal(|ui| {
-                ComboBox::from_label("Memory Map")
-                    .selected_text(format!("{}", self.memory_view))
-                    .show_ui(ui, |ui| {
-                        ui.selectable_value(&mut self.memory_view, MemoryView::Bios, "BIOS");
-                        ui.selectable_value(&mut self.memory_view, MemoryView::OnboardWram, "On-board WRAM");
-                        ui.selectable_value(&mut self.memory_view, MemoryView::OnchipWram, "On-chip WRAM");
-                        ui.selectable_value(&mut self.memory_view, MemoryView::PaletteRam, "Palette RAM");
-                        ui.selectable_value(&mut self.memory_view, MemoryView::Vram, "VRAM");
-                        ui.selectable_value(&mut self.memory_view, MemoryView::Oam, "OAM - OBJ Attributes");
-                        ui.selectable_value(&mut self.memory_view, MemoryView::GamePak, "GamePak");
-                        ui.selectable_value(&mut self.memory_view, MemoryView::GamePakSram, "GamePak SRAM");
-                    });
-                ui.add_space(3.0);
-                if ui.button("Refresh").clicked() {
-                    let _ = self.event_tx.send(RequestEvent::UpdateMemory);
-                }
+                ui.with_layout(egui::Layout::left_to_right(egui::Align::TOP), |ui| {
+                    ComboBox::from_label("Memory Map")
+                        .selected_text(format!("{}", self.memory_view))
+                        .show_ui(ui, |ui| {
+                            ui.selectable_value(&mut self.memory_view, MemoryView::Bios, "BIOS");
+                            ui.selectable_value(&mut self.memory_view, MemoryView::OnboardWram, "On-board WRAM");
+                            ui.selectable_value(&mut self.memory_view, MemoryView::OnchipWram, "On-chip WRAM");
+                            ui.selectable_value(&mut self.memory_view, MemoryView::PaletteRam, "Palette RAM");
+                            ui.selectable_value(&mut self.memory_view, MemoryView::Vram, "VRAM");
+                            ui.selectable_value(&mut self.memory_view, MemoryView::Oam, "OAM - OBJ Attributes");
+                            ui.selectable_value(&mut self.memory_view, MemoryView::GamePak, "GamePak");
+                            ui.selectable_value(&mut self.memory_view, MemoryView::GamePakSram, "GamePak SRAM");
+                        });
+                    ui.add_space(3.0);
+                });
+
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::TOP), |ui| {
+                    if ui
+                        .button(format!("{} Refresh", egui_phosphor::regular::ARROW_CLOCKWISE))
+                        .clicked()
+                    {
+                        let _ = self.event_tx.send(RequestEvent::UpdateMemory);
+                    }
+                });
             });
 
             ui.add_space(3.0);

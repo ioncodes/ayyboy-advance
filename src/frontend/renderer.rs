@@ -31,6 +31,10 @@ impl Renderer {
             debugger_rx.clone(),
         );
 
+        let mut fonts = egui::FontDefinitions::default();
+        egui_phosphor::add_to_fonts(&mut fonts, egui_phosphor::Variant::Regular);
+        cc.egui_ctx.set_fonts(fonts);
+
         Renderer {
             screen_texture,
             debugger,
