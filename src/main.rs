@@ -53,7 +53,6 @@ fn process_debug_events(
                 memory[0x08000000..=0x0FFFFFFF].copy_from_slice(&mmio.external_memory[..]);
                 let _ = dbg_resp_tx.send(ResponseEvent::Memory(memory));
             }
-            _ => {}
         });
 }
 
