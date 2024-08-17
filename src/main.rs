@@ -61,7 +61,7 @@ fn main() {
             cpu.tick(&mut mmio);
             mmio.tick_components();
 
-            let _ = debugger_tx.send(DbgState::from(&cpu));
+            let _ = debugger_tx.send(DbgState::from(&cpu, &mmio));
 
             if mmio.ppu.scanline == 160 && !frame_rendered {
                 let _ = display_tx.send(mmio.ppu.get_frame());

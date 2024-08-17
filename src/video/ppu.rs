@@ -9,7 +9,7 @@ use super::{Frame, DISPCNT_ADDR, SCREEN_HEIGHT, SCREEN_WIDTH};
 pub struct Ppu {
     pub h_counter: u16,
     pub scanline: u16,
-    vram: Box<[u8; (0x07FFFFFF - 0x05000000) + 1]>,
+    pub vram: Box<[u8; (0x07FFFFFF - 0x05000000) + 1]>,
     io: Box<[u8; (0x4000056 - 0x4000000) + 1]>,
     vblank_raised_for_frame: bool,
 }
