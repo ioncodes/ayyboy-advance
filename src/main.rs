@@ -8,14 +8,18 @@ mod memory;
 mod tests;
 mod video;
 
+use std::sync::Mutex;
+
 use arm7tdmi::cpu::Cpu;
-use arm7tdmi::decoder::Register;
+use arm7tdmi::decoder::{Instruction, Register};
 use arm7tdmi::mode::ProcessorMode;
 use eframe::NativeOptions;
 use egui::ViewportBuilder;
 use frontend::dbg::event::{RequestEvent, ResponseEvent};
 use frontend::dbg::widgets;
+use frontend::dbg::widgets::disasm::DecodedInstruction;
 use frontend::renderer::{Renderer, SCALE};
+use lazy_static::lazy_static;
 use memory::mmio::Mmio;
 
 use crossbeam_channel::{self, Receiver, Sender};
@@ -31,10 +35,22 @@ const ARM_TEST: &[u8] = include_bytes!("../external/gba-tests/arm/arm.gba");
 // const ARM_TEST: &[u8] = include_bytes!("../external/discord/armfuck.gba");
 const BIOS: &[u8] = include_bytes!("../external/gba_bios.bin");
 
+lazy_static! {
+    // breakspoints
+    static ref BREAKPOINTS: Mutex<Vec<u32>> = Mutex::new(Vec::new());
+}
+
+enum EventResult {
+    Break,
+    Continue,
+    Step,
+    None,
+}
+
 fn process_debug_events(
     cpu: &Cpu, mmio: &Mmio, dbg_req_rx: &Receiver<RequestEvent>, dbg_resp_tx: &Sender<ResponseEvent>,
-) {
-    let _ = dbg_req_rx
+) -> EventResult {
+    dbg_req_rx
         .try_recv() // check for new requests
         .map(|event| match event {
             RequestEvent::UpdateCpu => {
@@ -42,6 +58,7 @@ fn process_debug_events(
                     registers: cpu.registers.r,
                     cpsr: cpu.registers.cpsr,
                 }));
+                EventResult::None
             }
             RequestEvent::UpdateMemory => {
                 let mut memory = unsafe {
@@ -52,16 +69,51 @@ fn process_debug_events(
                 memory[0x05000000..=0x07FFFFFF].copy_from_slice(&mmio.ppu.vram[..]);
                 memory[0x08000000..=0x0FFFFFFF].copy_from_slice(&mmio.external_memory[..]);
                 let _ = dbg_resp_tx.send(ResponseEvent::Memory(memory));
+                EventResult::None
             }
-        });
+            RequestEvent::Break => EventResult::Break,
+            RequestEvent::Run => EventResult::Continue,
+            RequestEvent::Step => EventResult::Step,
+            RequestEvent::AddBreakpoint(addr) => {
+                BREAKPOINTS.lock().unwrap().push(addr);
+                EventResult::None
+            }
+            RequestEvent::RemoveBreakpoint(addr) => {
+                let mut breakpoints = BREAKPOINTS.lock().unwrap();
+                if let Some(index) = breakpoints.iter().position(|&x| x == addr) {
+                    breakpoints.remove(index);
+                }
+                EventResult::None
+            }
+            RequestEvent::UpdateDisassembly(base, count) => {
+                let mut disasm: Vec<DecodedInstruction> = Vec::new();
+                for addr in 0..count {
+                    let addr = base + (addr * if cpu.is_thumb() { 2 } else { 4 });
+                    let opcode = mmio.read_u32(addr);
+                    match Instruction::decode(opcode, cpu.is_thumb()) {
+                        Ok(instr) => disasm.push(DecodedInstruction {
+                            addr,
+                            instr: format!("{}", instr),
+                        }),
+                        Err(_) => disasm.push(DecodedInstruction {
+                            addr,
+                            instr: "???".to_string(),
+                        }),
+                    }
+                }
+                let _ = dbg_resp_tx.send(ResponseEvent::Disassembly(disasm));
+                EventResult::None
+            }
+        })
+        .unwrap_or(EventResult::None)
 }
 
 fn main() {
     env_logger::builder().format_timestamp(None).init();
 
     let (display_tx, display_rx): (Sender<Frame>, Receiver<Frame>) = crossbeam_channel::bounded(1);
-    let (dbg_req_tx, dbg_req_rx): (Sender<RequestEvent>, Receiver<RequestEvent>) = crossbeam_channel::bounded(5);
-    let (dbg_resp_tx, dbg_resp_rx): (Sender<ResponseEvent>, Receiver<ResponseEvent>) = crossbeam_channel::bounded(5);
+    let (dbg_req_tx, dbg_req_rx): (Sender<RequestEvent>, Receiver<RequestEvent>) = crossbeam_channel::bounded(25);
+    let (dbg_resp_tx, dbg_resp_rx): (Sender<ResponseEvent>, Receiver<ResponseEvent>) = crossbeam_channel::bounded(25);
 
     std::thread::spawn(move || {
         let mut mmio = Mmio::new();
@@ -81,12 +133,32 @@ fn main() {
         cpu.write_register(&Register::R15, 0x08000000);
 
         let mut frame_rendered = false;
+        let mut tick = false;
+
+        let tick_cpu = |cpu: &mut Cpu, mmio: &mut Mmio, tick_ref: &mut bool| {
+            if let Some((_, state)) = cpu.tick(mmio)
+                && BREAKPOINTS.lock().unwrap().contains(&state.pc)
+            {
+                *tick_ref = false;
+            }
+
+            mmio.tick_components();
+        };
 
         loop {
-            cpu.tick(&mut mmio);
-            mmio.tick_components();
+            if tick {
+                tick_cpu(&mut cpu, &mut mmio, &mut tick);
+            }
 
-            process_debug_events(&cpu, &mmio, &dbg_req_rx, &dbg_resp_tx);
+            match process_debug_events(&cpu, &mmio, &dbg_req_rx, &dbg_resp_tx) {
+                EventResult::Break => tick = false,
+                EventResult::Continue => tick = true,
+                EventResult::Step => {
+                    tick = false;
+                    tick_cpu(&mut cpu, &mut mmio, &mut tick); // TODO: this may cause a double tick if we're already ticking and we hit step
+                }
+                EventResult::None => (),
+            }
 
             if mmio.ppu.scanline == 160 && !frame_rendered {
                 let _ = display_tx.send(mmio.ppu.get_frame());

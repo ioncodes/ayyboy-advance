@@ -1,7 +1,7 @@
 use crate::arm7tdmi;
-use crate::frontend::dbg::event::{RequestEvent, ResponseEvent};
-use crossbeam_channel::{Receiver, Sender};
-use egui::{Context, RichText, Window};
+use crate::frontend::dbg::event::RequestEvent;
+use crossbeam_channel::Sender;
+use egui::{ComboBox, Context, RichText, TextEdit, Vec2, Window};
 
 #[derive(Default, Copy, Clone)]
 pub struct Cpu {
@@ -10,31 +10,89 @@ pub struct Cpu {
 }
 
 pub struct CpuWidget {
-    event_rx: Receiver<ResponseEvent>,
+    pub cpu: Cpu,
     event_tx: Sender<RequestEvent>,
-    cpu: Cpu,
+    breakpoint: String,
+    selected_breakpoint: String,
+    breakpoints: Vec<String>,
 }
 
 impl CpuWidget {
-    pub fn new(rx: Receiver<ResponseEvent>, tx: Sender<RequestEvent>) -> CpuWidget {
+    pub fn new(tx: Sender<RequestEvent>) -> CpuWidget {
+        let _ = tx.send(RequestEvent::UpdateCpu); // request initial CPU state
+
         CpuWidget {
-            event_rx: rx,
             event_tx: tx,
             cpu: Cpu::default(),
+            breakpoint: String::new(),
+            selected_breakpoint: String::new(),
+            breakpoints: Vec::new(),
         }
     }
 
-    pub fn update(&mut self) {
-        match self.event_rx.try_recv() {
-            Ok(ResponseEvent::Cpu(cpu)) => self.cpu = cpu,
-            _ => (),
-        }
-
+    pub fn update(&mut self, cpu: Cpu) {
+        self.cpu = cpu;
         let _ = self.event_tx.send(RequestEvent::UpdateCpu);
     }
 
-    pub fn render(&self, ctx: &Context) {
-        Window::new("CPU").resizable(false).show(ctx, |ui| {
+    pub fn render(&mut self, ctx: &Context) {
+        Window::new("CPU").resizable(false).max_width(100.0).show(ctx, |ui| {
+            ui.horizontal(|ui| {
+                if ui.button(format!("{} Run", egui_phosphor::regular::PLAY)).clicked() {
+                    let _ = self.event_tx.send(RequestEvent::Run);
+                }
+
+                if ui.button(format!("{} Step", egui_phosphor::regular::STEPS)).clicked() {
+                    let _ = self.event_tx.send(RequestEvent::Step);
+                }
+
+                if ui.button(format!("{} Break", egui_phosphor::regular::PAUSE)).clicked() {
+                    let _ = self.event_tx.send(RequestEvent::Break);
+                }
+            });
+
+            ui.separator();
+
+            ui.horizontal(|ui| {
+                TextEdit::singleline(&mut self.breakpoint)
+                    .hint_text("Breakpoint")
+                    .min_size(Vec2::new(249.0, 0.0))
+                    .show(ui);
+
+                if ui
+                    .button(format!("{} Add Breakpoint", egui_phosphor::regular::BUG))
+                    .clicked()
+                {
+                    self.breakpoints.push(self.breakpoint.clone());
+                    let _ = self.event_tx.send(RequestEvent::AddBreakpoint(
+                        u32::from_str_radix(&self.breakpoint, 16).unwrap(),
+                    ));
+                }
+            });
+
+            ui.horizontal(|ui| {
+                ComboBox::from_label("Breakpoints")
+                    .selected_text(format!("{}", self.selected_breakpoint))
+                    .width(175.0)
+                    .show_ui(ui, |ui| {
+                        for breakpoint in &self.breakpoints {
+                            ui.selectable_value(&mut self.selected_breakpoint, breakpoint.to_owned(), breakpoint);
+                        }
+                    });
+
+                if ui
+                    .button(format!("{} Delete Breakpoint", egui_phosphor::regular::TRASH))
+                    .clicked()
+                {
+                    self.breakpoints.retain(|x| x != &self.breakpoint);
+                    let _ = self.event_tx.send(RequestEvent::RemoveBreakpoint(
+                        u32::from_str_radix(&self.breakpoint, 16).unwrap(),
+                    ));
+                }
+            });
+
+            ui.separator();
+
             ui.horizontal(|ui| {
                 ui.label(RichText::new(format!(" R0: {:08x}", self.cpu.registers[0])).monospace());
                 ui.label(RichText::new(format!(" R1: {:08x}", self.cpu.registers[1])).monospace());

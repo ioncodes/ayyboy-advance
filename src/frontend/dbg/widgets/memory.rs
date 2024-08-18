@@ -1,5 +1,5 @@
-use crate::frontend::dbg::event::{RequestEvent, ResponseEvent};
-use crossbeam_channel::{Receiver, Sender};
+use crate::frontend::dbg::event::RequestEvent;
+use crossbeam_channel::Sender;
 use egui::{ComboBox, Context, RichText, ScrollArea, Window};
 
 #[derive(PartialEq, Eq, Hash, Copy, Clone)]
@@ -46,16 +46,16 @@ impl MemoryView {
 
 pub struct MemoryWidget {
     memory_view: MemoryView,
-    event_rx: Receiver<ResponseEvent>,
     event_tx: Sender<RequestEvent>,
     memory: Box<[u8; 0x0FFFFFFF + 1]>,
 }
 
 impl MemoryWidget {
-    pub fn new(rx: Receiver<ResponseEvent>, tx: Sender<RequestEvent>) -> MemoryWidget {
+    pub fn new(tx: Sender<RequestEvent>) -> MemoryWidget {
+        let _ = tx.send(RequestEvent::UpdateMemory); // request initial memory state
+
         MemoryWidget {
             memory_view: MemoryView::Bios,
-            event_rx: rx,
             event_tx: tx,
             memory: unsafe {
                 let memory = Box::<[u8; 0x0FFFFFFF + 1]>::new_zeroed();
@@ -64,13 +64,8 @@ impl MemoryWidget {
         }
     }
 
-    pub fn update(&mut self) {
-        match self.event_rx.try_recv() {
-            Ok(ResponseEvent::Memory(memory)) => {
-                self.memory = memory;
-            }
-            _ => {}
-        }
+    pub fn update(&mut self, memory: Box<[u8; 0x0FFFFFFF + 1]>) {
+        self.memory = memory;
     }
 
     pub fn render(&mut self, ctx: &Context) {

@@ -27,8 +27,11 @@ impl Pipeline {
 
     pub fn advance(&mut self, pc: u32, is_thumb: bool, mmio: &Mmio) {
         self.decode = if let Some(Item::Data(opcode, state)) = self.fetch.take() {
-            let instruction = Instruction::decode(opcode, is_thumb);
-            Some(Item::Instruction(instruction, state))
+            let instruction = match Instruction::decode(opcode, is_thumb) {
+                Ok(instr) => Some(instr),
+                Err(e) => panic!("{}", e),
+            };
+            Some(Item::Instruction(instruction.unwrap(), state))
         } else {
             None
         };

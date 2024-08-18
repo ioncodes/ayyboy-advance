@@ -21,24 +21,24 @@ pub enum Condition {
 }
 
 impl Condition {
-    pub fn from(value: u32) -> Condition {
+    pub fn from(value: u32) -> Result<Condition, String> {
         match value {
-            0b0000 => Condition::Equal,
-            0b0001 => Condition::NotEqual,
-            0b0010 => Condition::UnsignedHigherOrSame,
-            0b0011 => Condition::UnsignedLower,
-            0b0100 => Condition::Negative,
-            0b0101 => Condition::PositiveOrZero,
-            0b0110 => Condition::Overflow,
-            0b0111 => Condition::NoOverflow,
-            0b1000 => Condition::UnsignedHigher,
-            0b1001 => Condition::UnsignedLowerOrSame,
-            0b1010 => Condition::GreaterOrEqual,
-            0b1011 => Condition::LessThan,
-            0b1100 => Condition::GreaterThan,
-            0b1101 => Condition::LessThanOrEqual,
-            0b1110 => Condition::Always,
-            _ => panic!("Unknown condition code: {}", value),
+            0b0000 => Ok(Condition::Equal),
+            0b0001 => Ok(Condition::NotEqual),
+            0b0010 => Ok(Condition::UnsignedHigherOrSame),
+            0b0011 => Ok(Condition::UnsignedLower),
+            0b0100 => Ok(Condition::Negative),
+            0b0101 => Ok(Condition::PositiveOrZero),
+            0b0110 => Ok(Condition::Overflow),
+            0b0111 => Ok(Condition::NoOverflow),
+            0b1000 => Ok(Condition::UnsignedHigher),
+            0b1001 => Ok(Condition::UnsignedLowerOrSame),
+            0b1010 => Ok(Condition::GreaterOrEqual),
+            0b1011 => Ok(Condition::LessThan),
+            0b1100 => Ok(Condition::GreaterThan),
+            0b1101 => Ok(Condition::LessThanOrEqual),
+            0b1110 => Ok(Condition::Always),
+            _ => Err(format!("Unknown condition code: {}", value)),
         }
     }
 }
@@ -94,25 +94,25 @@ pub enum Register {
 }
 
 impl Register {
-    pub fn from(value: u32) -> Register {
+    pub fn from(value: u32) -> Result<Register, String> {
         match value {
-            0b0000 => Register::R0,
-            0b0001 => Register::R1,
-            0b0010 => Register::R2,
-            0b0011 => Register::R3,
-            0b0100 => Register::R4,
-            0b0101 => Register::R5,
-            0b0110 => Register::R6,
-            0b0111 => Register::R7,
-            0b1000 => Register::R8,
-            0b1001 => Register::R9,
-            0b1010 => Register::R10,
-            0b1011 => Register::R11,
-            0b1100 => Register::R12,
-            0b1101 => Register::R13,
-            0b1110 => Register::R14,
-            0b1111 => Register::R15,
-            _ => panic!("Unknown register code: {:b}", value),
+            0b0000 => Ok(Register::R0),
+            0b0001 => Ok(Register::R1),
+            0b0010 => Ok(Register::R2),
+            0b0011 => Ok(Register::R3),
+            0b0100 => Ok(Register::R4),
+            0b0101 => Ok(Register::R5),
+            0b0110 => Ok(Register::R6),
+            0b0111 => Ok(Register::R7),
+            0b1000 => Ok(Register::R8),
+            0b1001 => Ok(Register::R9),
+            0b1010 => Ok(Register::R10),
+            0b1011 => Ok(Register::R11),
+            0b1100 => Ok(Register::R12),
+            0b1101 => Ok(Register::R13),
+            0b1110 => Ok(Register::R14),
+            0b1111 => Ok(Register::R15),
+            _ => Err(format!("Unknown register code: {:b}", value)),
         }
     }
 }
@@ -142,13 +142,13 @@ pub enum ShiftType {
 }
 
 impl ShiftType {
-    pub fn from(shift_type: u32, value: ShiftSource) -> ShiftType {
+    pub fn from(shift_type: u32, value: ShiftSource) -> Result<ShiftType, String> {
         match shift_type {
-            0b00 => ShiftType::LogicalLeft(value),
-            0b01 => ShiftType::LogicalRight(value),
-            0b10 => ShiftType::ArithmeticRight(value),
-            0b11 => ShiftType::RotateRight(value),
-            _ => panic!("Unknown shift type: {}", shift_type),
+            0b00 => Ok(ShiftType::LogicalLeft(value)),
+            0b01 => Ok(ShiftType::LogicalRight(value)),
+            0b10 => Ok(ShiftType::ArithmeticRight(value)),
+            0b11 => Ok(ShiftType::RotateRight(value)),
+            _ => Err(format!("Unknown shift type: {}", shift_type)),
         }
     }
 }
@@ -336,7 +336,7 @@ pub struct Instruction {
 
 #[allow(unused_variables)]
 impl Instruction {
-    pub fn decode(opcode: u32, is_thumb: bool) -> Instruction {
+    pub fn decode(opcode: u32, is_thumb: bool) -> Result<Instruction, String> {
         if is_thumb {
             Instruction::decode_thumb(opcode)
         } else {
@@ -345,11 +345,11 @@ impl Instruction {
     }
 
     #[bitmatch]
-    fn decode_armv4t(opcode: u32) -> Instruction {
+    fn decode_armv4t(opcode: u32) -> Result<Instruction, String> {
         #[bitmatch]
         match opcode {
             // Software Interrupt (SWI) [also known as Supervisor Call (SVC)]
-            "1110_1111_iiii_iiii_iiii_iiii_iiii_iiii" => Instruction {
+            "1110_1111_iiii_iiii_iiii_iiii_iiii_iiii" => Ok(Instruction {
                 opcode: Opcode::Swi,
                 condition: Condition::Always,
                 set_condition_flags: false,
@@ -357,13 +357,13 @@ impl Instruction {
                 operand2: None,
                 operand3: None,
                 ..Instruction::default()
-            },
+            }),
             // Branch and Exchange (BX)
             "cccc_0001_0010_1111_1111_1111_0001_rrrr" => {
-                let condition = Condition::from(c);
-                let register = Register::from(r);
+                let condition = Condition::from(c)?;
+                let register = Register::from(r)?;
 
-                Instruction {
+                Ok(Instruction {
                     opcode: Opcode::Bx,
                     condition,
                     set_condition_flags: false,
@@ -371,19 +371,19 @@ impl Instruction {
                     operand2: None,
                     operand3: None,
                     ..Instruction::default()
-                }
+                })
             }
             // Branch (B) and Branch with Link (BL)
             "cccc_101l_oooo_oooo_oooo_oooo_oooo_oooo" => {
                 // 101 = Branch, l = has link
-                let condition = Condition::from(c);
+                let condition = Condition::from(c)?;
                 let offset = (((o << 2) as i32) << 6) >> 6; // sign extend 24-bit offset
 
                 // branch target is calculated by PC + (offset * 4)
                 // this requires PC to be ahead at time of decode to be correct
                 // pc should be 2 instructions ahead
 
-                Instruction {
+                Ok(Instruction {
                     opcode: if l == 1 { Opcode::Bl } else { Opcode::B },
                     condition,
                     set_condition_flags: false,
@@ -391,22 +391,22 @@ impl Instruction {
                     operand2: None,
                     operand3: None,
                     ..Instruction::default()
-                }
+                })
             }
             // Multiply and Multiply-Accumulate (MUL, MLA)
             "cccc_0000_00as_dddd_xxxx_yyyy_1001_zzzz" => {
-                let condition = Condition::from(c);
+                let condition = Condition::from(c)?;
                 let set_condition_flags = s == 1;
                 let accumulate = a == 1;
 
-                let rm = Register::from(z);
-                let rd = Register::from(d);
-                let rn = Register::from(x);
-                let rs = Register::from(y);
+                let rm = Register::from(z)?;
+                let rd = Register::from(d)?;
+                let rn = Register::from(x)?;
+                let rs = Register::from(y)?;
 
                 // TODO: signed?
 
-                if !accumulate {
+                Ok(if !accumulate {
                     Instruction {
                         opcode: Opcode::Mul,
                         condition,
@@ -427,21 +427,21 @@ impl Instruction {
                         operand4: Some(Operand::Register(rn, None)),
                         ..Instruction::default()
                     }
-                }
+                })
             }
             // Multiply Long and Multiply-Accumulate Long (MULL, MLAL)
             "cccc_0000_1uat_hhhh_llll_ssss_1001_mmmm" => {
-                let condition = Condition::from(c);
+                let condition = Condition::from(c)?;
                 let set_condition_flags = t == 1;
                 let accumulate = a == 1;
                 let unsigned = u == 0;
 
-                let rm = Register::from(m);
-                let rs = Register::from(s);
-                let rd_hi = Register::from(h);
-                let rd_lo = Register::from(l);
+                let rm = Register::from(m)?;
+                let rs = Register::from(s)?;
+                let rd_hi = Register::from(h)?;
+                let rd_lo = Register::from(l)?;
 
-                Instruction {
+                Ok(Instruction {
                     opcode: match (accumulate, unsigned) {
                         (false, false) => Opcode::Smull,
                         (false, true) => Opcode::Umull,
@@ -455,13 +455,13 @@ impl Instruction {
                     operand3: Some(Operand::Register(rm, None)),
                     operand4: Some(Operand::Register(rs, None)),
                     ..Instruction::default()
-                }
+                })
             }
             // Halfword Data Transfer (LDRH/STRH)
             "cccc_000p_uiwl_yyyy_xxxx_oooo_1sh1_zzzz" => {
-                let condition = Condition::from(c);
-                let dst = Register::from(x);
-                let src = Register::from(y);
+                let condition = Condition::from(c)?;
+                let dst = Register::from(x)?;
+                let src = Register::from(y)?;
                 let is_load = l == 1;
 
                 let offset = if i == 1 {
@@ -474,11 +474,11 @@ impl Instruction {
                     let shift_type = (z & 0b0000_0110_0000) >> 5;
 
                     if shift_amount == 0 {
-                        Operand::Register(Register::from(z), None)
+                        Operand::Register(Register::from(z)?, None)
                     } else {
                         Operand::Register(
-                            Register::from(z),
-                            Some(ShiftType::from(shift_type, ShiftSource::Immediate(shift_amount))),
+                            Register::from(z)?,
+                            Some(ShiftType::from(shift_type, ShiftSource::Immediate(shift_amount))?),
                         )
                     }
                 };
@@ -488,7 +488,7 @@ impl Instruction {
                 // the offset to zero. Therefore post-indexed data transfers always write back the
                 // modified base."
 
-                Instruction {
+                Ok(Instruction {
                     opcode: if is_load { Opcode::Ldr } else { Opcode::Str },
                     condition,
                     set_condition_flags: false,
@@ -508,19 +508,19 @@ impl Instruction {
                     },
                     writeback: w == 1 || p == 0,
                     ..Instruction::default()
-                }
+                })
             }
-            // NOP (MOV R0, R0)
-            "1110_0011_0010_0000_1111_0000_0000_0000" => Instruction {
+            // NOP (MOV R0, R0) TODO: wrong, empty msr
+            "1110_0011_0010_0000_1111_0000_0000_0000" => Ok(Instruction {
                 opcode: Opcode::Mov,
                 operand1: Some(Operand::Register(Register::R0, None)),
                 operand2: Some(Operand::Register(Register::R0, None)),
                 ..Instruction::default()
-            },
+            }),
             // Data Processing
             "cccc_00io_ooos_yyyy_xxxx_zzzz_zzzz_zzzz" => {
-                let condition = Condition::from(c);
-                let decoded_opcode = Instruction::translate_opcode_armv4t(o);
+                let condition = Condition::from(c)?;
+                let decoded_opcode = Instruction::translate_opcode_armv4t(o)?;
                 let set_condition_flags = s == 1;
 
                 if !set_condition_flags && decoded_opcode.is_test() {
@@ -528,11 +528,11 @@ impl Instruction {
                     match opcode {
                         // PSR Transfer (MRS)
                         "cccc_0001_0s00_1111_dddd_0000_0000_0000" => {
-                            let condition = Condition::from(c);
+                            let condition = Condition::from(c)?;
                             let source = if s == 1 { Register::Spsr } else { Register::Cpsr };
-                            let destination = Register::from(d);
+                            let destination = Register::from(d)?;
 
-                            return Instruction {
+                            return Ok(Instruction {
                                 opcode: Opcode::Mrs,
                                 condition,
                                 set_condition_flags: false,
@@ -540,15 +540,15 @@ impl Instruction {
                                 operand2: Some(Operand::Register(source, None)),
                                 operand3: None,
                                 ..Instruction::default()
-                            };
+                            });
                         }
                         // PSR Transfer (MSR) for register contents
                         "cccc_0001_0d10_1001_1111_0000_0000_ssss" => {
-                            let condition = Condition::from(c);
-                            let source = Register::from(s);
+                            let condition = Condition::from(c)?;
+                            let source = Register::from(s)?;
                             let destination = if d == 1 { Register::Spsr } else { Register::Cpsr };
 
-                            return Instruction {
+                            return Ok(Instruction {
                                 opcode: Opcode::Msr,
                                 condition,
                                 set_condition_flags: false,
@@ -556,12 +556,12 @@ impl Instruction {
                                 operand2: Some(Operand::Register(source, None)),
                                 operand3: None,
                                 ..Instruction::default()
-                            };
+                            });
                         }
                         // PSR Transfer (MSR) for register contents or immediate value to PSR flags
                         "cccc_00i1_0d10_f??x_1111_ssss_ssss_ssss" => {
                             // TODO: https://problemkaputt.de/gbatek-arm-opcodes-psr-transfer-mrs-msr.htm
-                            let condition = Condition::from(c);
+                            let condition = Condition::from(c)?;
                             let destination = match (d, f, x) {
                                 (1, 1, 0) => Register::SpsrFlag,
                                 (1, 0, 1) => Register::SpsrControl,
@@ -586,10 +586,10 @@ impl Instruction {
                                 }
                             } else {
                                 let s = s & 0b1111;
-                                Operand::Register(Register::from(s), None)
+                                Operand::Register(Register::from(s)?, None)
                             };
 
-                            return Instruction {
+                            return Ok(Instruction {
                                 opcode: Opcode::Msr,
                                 condition,
                                 set_condition_flags: false,
@@ -597,18 +597,18 @@ impl Instruction {
                                 operand2: Some(operand2),
                                 operand3: None,
                                 ..Instruction::default()
-                            };
+                            });
                         }
                         _ => {}
                     }
                 }
 
-                let dst = Operand::Register(Register::from(x), None);
+                let dst = Operand::Register(Register::from(x)?, None);
 
                 let rn = if decoded_opcode == Opcode::Mvn || decoded_opcode == Opcode::Mov {
                     None
                 } else {
-                    Some(Operand::Register(Register::from(y), None))
+                    Some(Operand::Register(Register::from(y)?, None))
                 };
 
                 let operand2 = if i == 0 {
@@ -617,8 +617,8 @@ impl Instruction {
                     #[bitmatch]
                     match z {
                         "rrrr_0tt1_dddd" => Operand::Register(
-                            Register::from(d),
-                            Some(ShiftType::from(t, ShiftSource::Register(Register::from(r)))),
+                            Register::from(d)?,
+                            Some(ShiftType::from(t, ShiftSource::Register(Register::from(r)?))?),
                         ),
                         "ssss_stt0_dddd" => {
                             // The form of the shift field which might be expected to correspond
@@ -642,11 +642,11 @@ impl Instruction {
                                 // shifter, rotate right extended (RRX). This instruction rotates
                                 // thx Atem!
 
-                                Operand::Register(Register::from(d), Some(ShiftType::RotateRightExtended))
+                                Operand::Register(Register::from(d)?, Some(ShiftType::RotateRightExtended))
                             } else {
                                 Operand::Register(
-                                    Register::from(d),
-                                    Some(ShiftType::from(t, ShiftSource::Immediate(s))),
+                                    Register::from(d)?,
+                                    Some(ShiftType::from(t, ShiftSource::Immediate(s))?),
                                 )
                             }
                         }
@@ -668,7 +668,7 @@ impl Instruction {
                     // TST, TEQ, CMP, CMN do not have a destination register,
                     // they only set the condition flags
 
-                    return Instruction {
+                    return Ok(Instruction {
                         opcode: decoded_opcode,
                         condition,
                         set_condition_flags: true,
@@ -676,12 +676,12 @@ impl Instruction {
                         operand2: Some(operand2),
                         operand3: None,
                         ..Instruction::default()
-                    };
+                    });
                 }
 
                 if decoded_opcode == Opcode::Mov || decoded_opcode == Opcode::Mvn {
                     // MOV and MVN do not have a source register
-                    return Instruction {
+                    return Ok(Instruction {
                         opcode: decoded_opcode,
                         condition,
                         set_condition_flags,
@@ -689,9 +689,9 @@ impl Instruction {
                         operand2: Some(operand2),
                         operand3: None,
                         ..Instruction::default()
-                    };
+                    });
                 } else {
-                    return Instruction {
+                    return Ok(Instruction {
                         opcode: decoded_opcode,
                         condition,
                         set_condition_flags,
@@ -699,13 +699,13 @@ impl Instruction {
                         operand2: rn,
                         operand3: Some(operand2),
                         ..Instruction::default()
-                    };
+                    });
                 }
             }
             // Block Data Transfer (LDM/STM)
             "cccc_100p_uswl_bbbb_rrrr_rrrr_rrrr_rrrr" => {
-                let condition = Condition::from(c);
-                let base_register = Register::from(b);
+                let condition = Condition::from(c)?;
+                let base_register = Register::from(b)?;
 
                 /*
                     lilyu — Today at 5:18 PM
@@ -715,13 +715,13 @@ impl Instruction {
                 let (opcode, operand1, operand2) = if l == 0 && base_register == Register::R13 {
                     (
                         Opcode::Push,
-                        Some(Operand::RegisterList(Instruction::extract_register_list(r))),
+                        Some(Operand::RegisterList(Instruction::extract_register_list(r)?)),
                         None,
                     )
                 } else if l == 1 && base_register == Register::R13 {
                     (
                         Opcode::Pop,
-                        Some(Operand::RegisterList(Instruction::extract_register_list(r))),
+                        Some(Operand::RegisterList(Instruction::extract_register_list(r)?)),
                         None,
                     )
                 } else {
@@ -729,18 +729,18 @@ impl Instruction {
                         (
                             Opcode::Stm,
                             Some(Operand::Register(base_register, None)),
-                            Some(Operand::RegisterList(Instruction::extract_register_list(r))),
+                            Some(Operand::RegisterList(Instruction::extract_register_list(r)?)),
                         )
                     } else {
                         (
                             Opcode::Ldm,
                             Some(Operand::Register(base_register, None)),
-                            Some(Operand::RegisterList(Instruction::extract_register_list(r))),
+                            Some(Operand::RegisterList(Instruction::extract_register_list(r)?)),
                         )
                     }
                 };
 
-                Instruction {
+                Ok(Instruction {
                     opcode,
                     condition,
                     set_condition_flags: false,
@@ -758,14 +758,14 @@ impl Instruction {
                         Some(Direction::Down)
                     },
                     ..Instruction::default()
-                }
+                })
             }
             // Single Data Transfer (LDR/STR)
             "cccc_01ip_ubwl_yyyy_xxxx_zzzz_zzzz_zzzz" => {
-                let condition = Condition::from(c);
+                let condition = Condition::from(c)?;
                 let is_load = l == 1;
-                let base_register = Register::from(y);
-                let src_or_dst_register = Register::from(x);
+                let base_register = Register::from(y)?;
+                let src_or_dst_register = Register::from(x)?;
 
                 let offset = if i == 0 {
                     // Immediate Operand
@@ -777,11 +777,11 @@ impl Instruction {
                     let register = z & 0b0001_1111;
 
                     if shift_amount == 0 {
-                        Operand::Register(Register::from(register), None)
+                        Operand::Register(Register::from(register)?, None)
                     } else {
                         Operand::Register(
-                            Register::from(register),
-                            Some(ShiftType::from(shift_type, ShiftSource::Immediate(shift_amount))),
+                            Register::from(register)?,
+                            Some(ShiftType::from(shift_type, ShiftSource::Immediate(shift_amount))?),
                         )
                     }
                 };
@@ -791,7 +791,7 @@ impl Instruction {
                 // the offset to zero. Therefore post-indexed data transfers always write back the
                 // modified base."
 
-                Instruction {
+                Ok(Instruction {
                     opcode: if is_load { Opcode::Ldr } else { Opcode::Str },
                     condition,
                     set_condition_flags: false,
@@ -815,28 +815,28 @@ impl Instruction {
                     },
                     writeback: w == 1 || p == 0,
                     ..Instruction::default()
-                }
+                })
             }
-            _ => panic!("Unknown instruction: {:08x} | {:032b}", opcode, opcode),
+            _ => Err(format!("Unknown instruction: {:08x} | {:032b}", opcode, opcode)),
         }
     }
 
     #[bitmatch]
-    fn decode_thumb(opcode: u32) -> Instruction {
+    fn decode_thumb(opcode: u32) -> Result<Instruction, String> {
         #[bitmatch]
         match opcode & 0xffff {
             // add/subtract
             "0001_1ico_ooss_sddd" => {
                 let opcode = if c == 0 { Opcode::Add } else { Opcode::Sub };
-                let operand1 = Register::from(d);
-                let operand2 = Register::from(s);
+                let operand1 = Register::from(d)?;
+                let operand2 = Register::from(s)?;
                 let operand3 = if i == 0 {
-                    Operand::Register(Register::from(o), None)
+                    Operand::Register(Register::from(o)?, None)
                 } else {
                     Operand::Immediate(o, None)
                 };
 
-                Instruction {
+                Ok(Instruction {
                     opcode,
                     condition: Condition::Always,
                     set_condition_flags: true,
@@ -844,7 +844,7 @@ impl Instruction {
                     operand2: Some(Operand::Register(operand2, None)),
                     operand3: Some(operand3),
                     ..Instruction::default()
-                }
+                })
             }
             // Move shifted register
             "000c_cooo_ooss_sddd" => {
@@ -854,10 +854,10 @@ impl Instruction {
                     0b10 if o != 0 => Opcode::Asr,
                     _ => Opcode::Mov, // 0 shift amount is a mov
                 };
-                let operand1 = Register::from(d);
-                let operand2 = Register::from(s);
+                let operand1 = Register::from(d)?;
+                let operand2 = Register::from(s)?;
 
-                Instruction {
+                Ok(Instruction {
                     opcode,
                     condition: Condition::Always,
                     set_condition_flags: true,
@@ -869,7 +869,7 @@ impl Instruction {
                         None
                     },
                     ..Instruction::default()
-                }
+                })
             }
             // Move/compare/add/subtract immediate
             "001o_orrr_iiii_iiii" => {
@@ -880,12 +880,12 @@ impl Instruction {
                     0b11 => Opcode::Sub,
                     _ => unreachable!(),
                 };
-                let operand1 = Register::from(r);
+                let operand1 = Register::from(r)?;
                 let operand2 = Operand::Immediate(i, None);
 
                 let set_condition_flags = opcode != Opcode::Mov && opcode != Opcode::Cmp;
 
-                Instruction {
+                Ok(Instruction {
                     opcode,
                     condition: Condition::Always,
                     set_condition_flags,
@@ -893,16 +893,16 @@ impl Instruction {
                     operand2: Some(operand2),
                     operand3: None,
                     ..Instruction::default()
-                }
+                })
             }
             // load/store with immediate offset
             "011b_looo_oobb_bddd" => {
                 let opcode = if l == 1 { Opcode::Ldr } else { Opcode::Str };
-                let operand1 = Register::from(d);
-                let operand2 = Register::from(b);
+                let operand1 = Register::from(d)?;
+                let operand2 = Register::from(b)?;
                 let operand3 = Operand::Immediate(o << 2, None);
 
-                Instruction {
+                Ok(Instruction {
                     opcode,
                     condition: Condition::Always,
                     set_condition_flags: false,
@@ -917,92 +917,92 @@ impl Instruction {
                     offset_direction: Some(Direction::Up),
                     indexing: Some(Indexing::Pre),
                     ..Instruction::default()
-                }
+                })
             }
             // ALU operations
             "0100_00oo_ooss_sddd" => {
-                let opcode = Instruction::translate_opcode_thumb(o);
-                let operand1 = Register::from(d);
-                let operand2 = Register::from(s);
+                let opcode = Instruction::translate_opcode_thumb(o)?;
+                let operand1 = Register::from(d)?;
+                let operand2 = Register::from(s)?;
 
-                Instruction {
+                Ok(Instruction {
                     opcode,
                     condition: Condition::Always,
                     set_condition_flags: true,
                     operand1: Some(Operand::Register(operand1, None)),
                     operand2: Some(Operand::Register(operand2, None)),
                     ..Instruction::default()
-                }
+                })
             }
             // Hi register operations/branch exchange
             "0100_01oo_xyss_sddd" => {
                 let (opcode, operand1, operand2) = match (o, x, y) {
                     (0b00, 0, 1) => (
                         Opcode::Add,
-                        Some(Operand::Register(Register::from(d), None)),
-                        Some(Operand::Register(Register::from(8 + s), None)),
+                        Some(Operand::Register(Register::from(d)?, None)),
+                        Some(Operand::Register(Register::from(8 + s)?, None)),
                     ),
                     (0b00, 1, 0) => (
                         Opcode::Add,
-                        Some(Operand::Register(Register::from(8 + d), None)),
-                        Some(Operand::Register(Register::from(s), None)),
+                        Some(Operand::Register(Register::from(8 + d)?, None)),
+                        Some(Operand::Register(Register::from(s)?, None)),
                     ),
                     (0b00, 1, 1) => (
                         Opcode::Add,
-                        Some(Operand::Register(Register::from(8 + d), None)),
-                        Some(Operand::Register(Register::from(8 + s), None)),
+                        Some(Operand::Register(Register::from(8 + d)?, None)),
+                        Some(Operand::Register(Register::from(8 + s)?, None)),
                     ),
                     (0b01, 0, 1) => (
                         Opcode::Cmp,
-                        Some(Operand::Register(Register::from(d), None)),
-                        Some(Operand::Register(Register::from(8 + s), None)),
+                        Some(Operand::Register(Register::from(d)?, None)),
+                        Some(Operand::Register(Register::from(8 + s)?, None)),
                     ),
                     (0b01, 1, 0) => (
                         Opcode::Cmp,
-                        Some(Operand::Register(Register::from(8 + d), None)),
-                        Some(Operand::Register(Register::from(s), None)),
+                        Some(Operand::Register(Register::from(8 + d)?, None)),
+                        Some(Operand::Register(Register::from(s)?, None)),
                     ),
                     (0b01, 1, 1) => (
                         Opcode::Cmp,
-                        Some(Operand::Register(Register::from(8 + d), None)),
-                        Some(Operand::Register(Register::from(8 + s), None)),
+                        Some(Operand::Register(Register::from(8 + d)?, None)),
+                        Some(Operand::Register(Register::from(8 + s)?, None)),
                     ),
                     (0b10, 0, 1) => (
                         Opcode::Mov,
-                        Some(Operand::Register(Register::from(d), None)),
-                        Some(Operand::Register(Register::from(8 + s), None)),
+                        Some(Operand::Register(Register::from(d)?, None)),
+                        Some(Operand::Register(Register::from(8 + s)?, None)),
                     ),
                     (0b10, 1, 0) => (
                         Opcode::Mov,
-                        Some(Operand::Register(Register::from(8 + d), None)),
-                        Some(Operand::Register(Register::from(s), None)),
+                        Some(Operand::Register(Register::from(8 + d)?, None)),
+                        Some(Operand::Register(Register::from(s)?, None)),
                     ),
                     (0b10, 1, 1) => (
                         Opcode::Mov,
-                        Some(Operand::Register(Register::from(8 + d), None)),
-                        Some(Operand::Register(Register::from(8 + s), None)),
+                        Some(Operand::Register(Register::from(8 + d)?, None)),
+                        Some(Operand::Register(Register::from(8 + s)?, None)),
                     ),
-                    (0b11, 0, 0) => (Opcode::Bx, Some(Operand::Register(Register::from(s), None)), None),
-                    (0b11, 0, 1) => (Opcode::Bx, Some(Operand::Register(Register::from(8 + s), None)), None),
+                    (0b11, 0, 0) => (Opcode::Bx, Some(Operand::Register(Register::from(s)?, None)), None),
+                    (0b11, 0, 1) => (Opcode::Bx, Some(Operand::Register(Register::from(8 + s)?, None)), None),
                     _ => unreachable!(),
                 };
 
                 let set_condition_flags = opcode != Opcode::Bx && opcode != Opcode::Cmn && opcode != Opcode::Mov;
 
-                Instruction {
+                Ok(Instruction {
                     opcode,
                     operand1,
                     operand2,
                     set_condition_flags,
                     ..Instruction::default()
-                }
+                })
             }
             // PC-relative load
             "0100_1ddd_iiii_iiii" => {
-                let destination = Register::from(d);
+                let destination = Register::from(d)?;
                 let offset = i << 2;
 
-                Instruction {
+                Ok(Instruction {
                     opcode: Opcode::Ldr,
                     condition: Condition::Always,
                     set_condition_flags: false,
@@ -1013,16 +1013,16 @@ impl Instruction {
                     indexing: Some(Indexing::Pre),
                     transfer_length: Some(TransferLength::Word),
                     ..Instruction::default()
-                }
+                })
             }
             // load/store with register offset
             "0101_lb0o_oobb_bddd" => {
                 let opcode = if l == 1 { Opcode::Ldr } else { Opcode::Str };
-                let destination = Register::from(d);
-                let base = Register::from(b);
-                let offset = Register::from(o);
+                let destination = Register::from(d)?;
+                let base = Register::from(b)?;
+                let offset = Register::from(o)?;
 
-                Instruction {
+                Ok(Instruction {
                     opcode,
                     condition: Condition::Always,
                     set_condition_flags: false,
@@ -1037,16 +1037,16 @@ impl Instruction {
                     offset_direction: Some(Direction::Up),
                     indexing: Some(Indexing::Pre),
                     ..Instruction::default()
-                }
+                })
             }
             // load/store halfword
             "1000_looo_oobb_bddd" => {
                 let opcode = if l == 1 { Opcode::Ldr } else { Opcode::Str };
-                let destination = Register::from(d);
-                let base = Register::from(b);
+                let destination = Register::from(d)?;
+                let base = Register::from(b)?;
                 let offset = Operand::Immediate(o << 2, None);
 
-                Instruction {
+                Ok(Instruction {
                     opcode,
                     condition: Condition::Always,
                     set_condition_flags: false,
@@ -1057,7 +1057,7 @@ impl Instruction {
                     offset_direction: Some(Direction::Up),
                     indexing: Some(Indexing::Pre),
                     ..Instruction::default()
-                }
+                })
             }
             // Load address
             "1010_sddd_cccc_cccc" => {
@@ -1066,20 +1066,20 @@ impl Instruction {
                     1 => Register::R13,
                     _ => unreachable!(),
                 };
-                let destination = Register::from(d);
+                let destination = Register::from(d)?;
                 let offset = c << 2;
 
-                Instruction {
+                Ok(Instruction {
                     opcode: Opcode::Add,
                     operand1: Some(Operand::Register(destination, None)),
                     operand2: Some(Operand::Register(source, None)),
                     operand3: Some(Operand::Immediate(offset, None)),
                     ..Instruction::default()
-                }
+                })
             }
             // Push and Pop
             "1011_l10r_xxxx_xxxx" => {
-                let mut registers = Instruction::extract_register_list(x);
+                let mut registers = Instruction::extract_register_list(x)?;
                 let opcode = match (l, r) {
                     (0, 0) => Opcode::Push,
                     (0, 1) => {
@@ -1094,7 +1094,7 @@ impl Instruction {
                     _ => unreachable!(),
                 };
 
-                Instruction {
+                Ok(Instruction {
                     opcode,
                     condition: Condition::Always,
                     set_condition_flags: false,
@@ -1102,28 +1102,28 @@ impl Instruction {
                     operand2: None,
                     operand3: None,
                     ..Instruction::default()
-                }
+                })
             }
             // multiple load/store
-            "1100_lbbb_rrrr_rrrr" => Instruction {
+            "1100_lbbb_rrrr_rrrr" => Ok(Instruction {
                 opcode: if l == 0 { Opcode::Stm } else { Opcode::Ldm },
                 condition: Condition::Always,
                 set_condition_flags: false,
-                operand1: Some(Operand::Register(Register::from(b), None)),
-                operand2: Some(Operand::RegisterList(Instruction::extract_register_list(r))),
+                operand1: Some(Operand::Register(Register::from(b)?, None)),
+                operand2: Some(Operand::RegisterList(Instruction::extract_register_list(r)?)),
                 operand3: None,
                 indexing: Some(Indexing::Pre),
                 offset_direction: Some(Direction::Up),
                 ..Instruction::default()
-            },
+            }),
             // Conditional Branch
-            "1101_cccc_iiii_iiii" => Instruction {
+            "1101_cccc_iiii_iiii" => Ok(Instruction {
                 opcode: Opcode::B,
-                condition: Condition::from(c),
+                condition: Condition::from(c)?,
                 set_condition_flags: false,
                 operand1: Some(Operand::Offset(((i as i8) << 1) as i32)),
                 ..Instruction::default()
-            },
+            }),
             // Unconditional Branch
             "1110_0iii_iiii_iiii" => {
                 let offset = i as u16;
@@ -1133,13 +1133,13 @@ impl Instruction {
                     offset
                 };
 
-                Instruction {
+                Ok(Instruction {
                     opcode: Opcode::B,
                     condition: Condition::Always,
                     set_condition_flags: false,
                     operand1: Some(Operand::Offset(((offset as i16) << 1) as i32)),
                     ..Instruction::default()
-                }
+                })
             }
             // Long branch with link
             "1111_hiii_iiii_iiii" => {
@@ -1154,74 +1154,74 @@ impl Instruction {
                     offset |= 0xFF800000; // Sign extend if the 23rd bit is set
                 }
 
-                Instruction {
+                Ok(Instruction {
                     opcode: Opcode::Bl,
                     condition: Condition::Always,
                     set_condition_flags: false,
                     operand1: Some(Operand::Offset(offset as i32)),
                     ..Instruction::default()
-                }
+                })
             }
-            _ => panic!(
+            _ => Err(format!(
                 "Unknown instruction: {:04x} | {:016b}",
                 opcode & 0xffff,
                 opcode & 0xffff
-            ),
+            )),
         }
     }
 
-    fn translate_opcode_armv4t(opcode: u32) -> Opcode {
+    fn translate_opcode_armv4t(opcode: u32) -> Result<Opcode, String> {
         match opcode {
-            0b0000 => Opcode::And,
-            0b0001 => Opcode::Eor,
-            0b0010 => Opcode::Sub,
-            0b0011 => Opcode::Rsb,
-            0b0100 => Opcode::Add,
-            0b0101 => Opcode::Adc,
-            0b0110 => Opcode::Sbc,
-            0b0111 => Opcode::Rsc,
-            0b1000 => Opcode::Tst,
-            0b1001 => Opcode::Teq,
-            0b1010 => Opcode::Cmp,
-            0b1011 => Opcode::Cmn,
-            0b1100 => Opcode::Orr,
-            0b1101 => Opcode::Mov,
-            0b1110 => Opcode::Bic,
-            0b1111 => Opcode::Mvn,
-            _ => panic!("Unknown opcode: {:04b}", opcode),
+            0b0000 => Ok(Opcode::And),
+            0b0001 => Ok(Opcode::Eor),
+            0b0010 => Ok(Opcode::Sub),
+            0b0011 => Ok(Opcode::Rsb),
+            0b0100 => Ok(Opcode::Add),
+            0b0101 => Ok(Opcode::Adc),
+            0b0110 => Ok(Opcode::Sbc),
+            0b0111 => Ok(Opcode::Rsc),
+            0b1000 => Ok(Opcode::Tst),
+            0b1001 => Ok(Opcode::Teq),
+            0b1010 => Ok(Opcode::Cmp),
+            0b1011 => Ok(Opcode::Cmn),
+            0b1100 => Ok(Opcode::Orr),
+            0b1101 => Ok(Opcode::Mov),
+            0b1110 => Ok(Opcode::Bic),
+            0b1111 => Ok(Opcode::Mvn),
+            _ => Err(format!("Unknown opcode: {:04b}", opcode)),
         }
     }
 
-    fn translate_opcode_thumb(opcode: u32) -> Opcode {
+    fn translate_opcode_thumb(opcode: u32) -> Result<Opcode, String> {
         match opcode {
-            0b0000 => Opcode::And,
-            0b0001 => Opcode::Eor,
-            0b0010 => Opcode::Lsl,
-            0b0011 => Opcode::Lsr,
-            0b0100 => Opcode::Asr,
-            0b0101 => Opcode::Adc,
-            0b0110 => Opcode::Sbc,
-            0b0111 => Opcode::Ror,
-            0b1000 => Opcode::Tst,
-            0b1001 => Opcode::Neg,
-            0b1010 => Opcode::Cmp,
-            0b1011 => Opcode::Cmn,
-            0b1100 => Opcode::Orr,
-            0b1101 => Opcode::Mul,
-            0b1110 => Opcode::Bic,
-            0b1111 => Opcode::Mvn,
-            _ => panic!("Unknown opcode: {:04b}", opcode),
+            0b0000 => Ok(Opcode::And),
+            0b0001 => Ok(Opcode::Eor),
+            0b0010 => Ok(Opcode::Lsl),
+            0b0011 => Ok(Opcode::Lsr),
+            0b0100 => Ok(Opcode::Asr),
+            0b0101 => Ok(Opcode::Adc),
+            0b0110 => Ok(Opcode::Sbc),
+            0b0111 => Ok(Opcode::Ror),
+            0b1000 => Ok(Opcode::Tst),
+            0b1001 => Ok(Opcode::Neg),
+            0b1010 => Ok(Opcode::Cmp),
+            0b1011 => Ok(Opcode::Cmn),
+            0b1100 => Ok(Opcode::Orr),
+            0b1101 => Ok(Opcode::Mul),
+            0b1110 => Ok(Opcode::Bic),
+            0b1111 => Ok(Opcode::Mvn),
+            _ => Err(format!("Unknown opcode: {:04b}", opcode)),
         }
     }
 
-    fn extract_register_list(value: u32) -> Vec<Register> {
+    fn extract_register_list(value: u32) -> Result<Vec<Register>, String> {
         let mut registers = Vec::new();
         for i in 0..16 {
             if value & (1 << i) != 0 {
-                registers.push(Register::from(i as u32));
+                registers.push(Register::from(i as u32)?);
             }
         }
-        registers
+        Ok(registers)
     }
 }
 

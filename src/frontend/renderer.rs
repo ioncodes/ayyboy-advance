@@ -26,7 +26,7 @@ impl Renderer {
         );
         let debugger = Debugger::new(
             debugger_tx.clone(),
-            debugger_rx.clone(),
+            debugger_tx.clone(),
             debugger_tx.clone(),
             debugger_rx.clone(),
         );
