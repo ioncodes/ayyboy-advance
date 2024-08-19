@@ -1,3 +1,5 @@
+use log::error;
+
 use crate::video::ppu::Ppu;
 
 use super::device::Addressable;
@@ -32,7 +34,10 @@ impl Mmio {
             0x08000000..=0x09FFFFFF => self.external_memory[(addr - 0x08000000) as usize],
             0x0A000000..=0x0BFFFFFF => self.external_memory[(addr - 0x0A000000) as usize], // Mirror of 0x08000000..=0x09FFFFFF
             0x0C000000..=0x0DFFFFFF => self.external_memory[(addr - 0x0C000000) as usize], // Mirror of 0x08000000..=0x09FFFFFF
-            _ => panic!("Invalid memory address: {:08x}", addr),
+            _ => {
+                error!("Reading from unmapped memory address: {:08x}", addr);
+                0
+            }
         }
     }
 
@@ -57,7 +62,9 @@ impl Mmio {
             0x08000000..=0x09FFFFFF => self.external_memory[(addr - 0x08000000) as usize] = value,
             0x0A000000..=0x0BFFFFFF => self.external_memory[(addr - 0x0A000000) as usize] = value, // Mirror of 0x08000000..=0x09FFFFFF
             0x0C000000..=0x0DFFFFFF => self.external_memory[(addr - 0x0C000000) as usize] = value, // Mirror of 0x08000000..=0x09FFFFFF
-            _ => panic!("Invalid memory address: {:08x}", addr),
+            _ => {
+                error!("Writing to unmapped memory address: {:08x}", addr);
+            }
         }
     }
 
@@ -78,13 +85,11 @@ impl Mmio {
     pub fn load(&mut self, addr: u32, data: &[u8]) {
         let addr = addr as usize;
         match addr {
-            0x00000000..=0x04FFFFFF => {
-                self.internal_memory[addr..addr + data.len()].copy_from_slice(data)
-            }
+            0x00000000..=0x04FFFFFF => self.internal_memory[addr..addr + data.len()].copy_from_slice(data),
             0x05000000..=0x07FFFFFF => self.ppu.load(addr as u32, data),
-            0x08000000..=0x0FFFFFFF => self.external_memory
-                [(addr - 0x08000000)..(addr - 0x08000000) + data.len()]
-                .copy_from_slice(data),
+            0x08000000..=0x0FFFFFFF => {
+                self.external_memory[(addr - 0x08000000)..(addr - 0x08000000) + data.len()].copy_from_slice(data)
+            }
             _ => panic!("Invalid memory address: {:08x}", addr),
         }
     }
