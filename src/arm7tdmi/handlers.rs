@@ -263,15 +263,6 @@ impl Handlers {
                 };
                 let step = Handlers::resolve_operand(step, cpu, *set_condition_flags);
 
-                if address % 2 != 0 {
-                    // align address, https://problemkaputt.de/gbatek.htm#armcpumemoryalignments
-                    address &= !((match length {
-                        TransferLength::Byte => 0b00,
-                        TransferLength::HalfWord => 0b01, // TODO: This case may be handled differently
-                        TransferLength::Word => 0b11,
-                    }) as u32);
-                }
-
                 if *indexing == Indexing::Pre {
                     if *operation == Direction::Up {
                         address = address.wrapping_add(step)
@@ -280,12 +271,22 @@ impl Handlers {
                     }
                 };
 
+                let mut rotation = 0;
+                if address % 2 != 0 {
+                    // align address, https://problemkaputt.de/gbatek.htm#armcpumemoryalignments
+                    let aligned_address = address
+                        & !((match length {
+                            TransferLength::Byte => 0b00,
+                            TransferLength::HalfWord => 0b01, // TODO: This case may be handled differently
+                            TransferLength::Word => 0b11,
+                        }) as u32);
+                    rotation = (address - aligned_address) * 8;
+                    address = aligned_address;
+                }
+
                 match length {
                     TransferLength::Byte => {
-                        let mut value = mmio.read(address);
-                        if address % 2 != 0 {
-                            value = value.rotate_right(2);
-                        }
+                        let value = mmio.read(address).rotate_right(rotation);
 
                         cpu.write_register(dst, value as u32);
                         if *set_condition_flags {
@@ -294,10 +295,7 @@ impl Handlers {
                         }
                     }
                     TransferLength::HalfWord => {
-                        let mut value = mmio.read_u16(address);
-                        if address % 2 != 0 {
-                            value = value.rotate_right(2);
-                        }
+                        let value = mmio.read_u16(address).rotate_right(rotation);
 
                         cpu.write_register(dst, value as u32);
                         if *set_condition_flags {
@@ -306,10 +304,7 @@ impl Handlers {
                         }
                     }
                     TransferLength::Word => {
-                        let mut value = mmio.read_u32(address);
-                        if address % 2 != 0 {
-                            value = value.rotate_right(2);
-                        }
+                        let value = mmio.read_u32(address).rotate_right(rotation);
 
                         cpu.write_register(dst, value);
                         if *set_condition_flags {
