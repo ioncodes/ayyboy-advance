@@ -143,11 +143,20 @@ pub enum ShiftType {
 
 impl ShiftType {
     pub fn from(shift_type: u32, value: ShiftSource) -> Result<ShiftType, String> {
+        // The form of the shift field which might be expected to give
+        // ROR #0 is used to encode a special function of the barrel
+        // shifter, rotate right extended (RRX). This instruction rotates
+        // thx Atem!
+
         match shift_type {
             0b00 => Ok(ShiftType::LogicalLeft(value)),
             0b01 => Ok(ShiftType::LogicalRight(value)),
             0b10 => Ok(ShiftType::ArithmeticRight(value)),
-            0b11 => Ok(ShiftType::RotateRight(value)),
+            0b11 => match value {
+                ShiftSource::Register(_) => Ok(ShiftType::RotateRight(value)),
+                ShiftSource::Immediate(0) => Ok(ShiftType::RotateRightExtended),
+                ShiftSource::Immediate(i) => Ok(ShiftType::RotateRight(ShiftSource::Immediate(i))),
+            },
             _ => Err(format!("Unknown shift type: {}", shift_type)),
         }
     }
@@ -307,7 +316,7 @@ pub enum Direction {
 impl Display for Direction {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
-            Direction::Up => write!(f, "+"),
+            Direction::Up => write!(f, ""),
             Direction::Down => write!(f, "-"),
         }
     }
@@ -636,19 +645,12 @@ impl Instruction {
                                 _ => s,
                             };
 
-                            if t == 0b11 && s == 0 {
-                                // The form of the shift field which might be expected to give
-                                // ROR #0 is used to encode a special function of the barrel
-                                // shifter, rotate right extended (RRX). This instruction rotates
-                                // thx Atem!
+                            // The form of the shift field which might be expected to give
+                            // ROR #0 is used to encode a special function of the barrel
+                            // shifter, rotate right extended (RRX). This instruction rotates
+                            // thx Atem!
 
-                                Operand::Register(Register::from(d)?, Some(ShiftType::RotateRightExtended))
-                            } else {
-                                Operand::Register(
-                                    Register::from(d)?,
-                                    Some(ShiftType::from(t, ShiftSource::Immediate(s))?),
-                                )
-                            }
+                            Operand::Register(Register::from(d)?, Some(ShiftType::from(t, ShiftSource::Immediate(s))?))
                         }
                         _ => unreachable!(),
                     }
@@ -776,14 +778,10 @@ impl Instruction {
                     let shift_type = (z & 0b0000_0110_0000) >> 5;
                     let register = z & 0b0001_1111;
 
-                    if shift_amount == 0 {
-                        Operand::Register(Register::from(register)?, None)
-                    } else {
-                        Operand::Register(
-                            Register::from(register)?,
-                            Some(ShiftType::from(shift_type, ShiftSource::Immediate(shift_amount))?),
-                        )
-                    }
+                    Operand::Register(
+                        Register::from(register)?,
+                        Some(ShiftType::from(shift_type, ShiftSource::Immediate(shift_amount))?),
+                    )
                 };
 
                 // "In the case of post-indexed addressing, the write back bit is redundant and
