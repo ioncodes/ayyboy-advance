@@ -24,15 +24,6 @@ impl ProcessorMode {
             _ => panic!("Invalid processor mode: {:08b}", value),
         }
     }
-
-    pub fn register_range(&self) -> std::ops::RangeInclusive<usize> {
-        match self {
-            ProcessorMode::User | ProcessorMode::System => 0..=0,
-            ProcessorMode::Fiq => 8..=14,
-            ProcessorMode::Irq | ProcessorMode::Supervisor | ProcessorMode::Abort => 13..=14,
-            ProcessorMode::Undefined => todo!(),
-        }
-    }
 }
 
 impl Display for ProcessorMode {

@@ -305,11 +305,6 @@ impl Cpu {
         self.read_register(&Register::R15)
     }
 
-    // link register
-    pub fn get_lr(&self) -> u32 {
-        self.read_register(&Register::R14)
-    }
-
     // stack pointer
     pub fn get_sp(&self) -> u32 {
         self.read_register(&Register::R13)

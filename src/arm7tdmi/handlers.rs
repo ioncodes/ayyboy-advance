@@ -358,9 +358,17 @@ impl Handlers {
                     }) as u32);
                 }
 
+                let cpu_read_reg = |reg: &Register| {
+                    if *reg == Register::R15 {
+                        cpu.read_register(reg) + 4
+                    } else {
+                        cpu.read_register(reg)
+                    }
+                };
+
                 match length {
                     TransferLength::Byte => {
-                        let value = cpu.read_register(src) as u8;
+                        let value = cpu_read_reg(src) as u8;
                         mmio.write(address, value);
                         if *set_condition_flags {
                             cpu.update_flag(Psr::N, value & 0x80 != 0);
@@ -368,7 +376,7 @@ impl Handlers {
                         }
                     }
                     TransferLength::HalfWord => {
-                        let value = cpu.read_register(src) as u16;
+                        let value = cpu_read_reg(src) as u16;
                         mmio.write_u16(address, value);
                         if *set_condition_flags {
                             cpu.update_flag(Psr::N, value & 0x8000 != 0);
@@ -376,7 +384,7 @@ impl Handlers {
                         }
                     }
                     TransferLength::Word => {
-                        let value = cpu.read_register(src);
+                        let value = cpu_read_reg(src);
                         mmio.write_u32(address, value);
                         if *set_condition_flags {
                             cpu.update_flag(Psr::N, value & 0x8000_0000 != 0);
