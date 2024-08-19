@@ -269,7 +269,7 @@ impl Handlers {
                     } else {
                         address = address.wrapping_sub(step)
                     }
-                };
+                }
 
                 let mut rotation = 0;
                 if address % 2 != 0 {
@@ -347,7 +347,7 @@ impl Handlers {
                     } else {
                         address = address.wrapping_sub(step)
                     }
-                };
+                }
 
                 if address % 2 != 0 {
                     // align address, https://problemkaputt.de/gbatek.htm#armcpumemoryalignments
