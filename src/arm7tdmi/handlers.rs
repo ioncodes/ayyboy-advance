@@ -287,7 +287,6 @@ impl Handlers {
                 match length {
                     TransferLength::Byte => {
                         let value = mmio.read(address).rotate_right(rotation);
-
                         cpu.write_register(dst, value as u32);
                         if *set_condition_flags {
                             cpu.update_flag(Psr::N, value & 0x80 != 0);
@@ -296,7 +295,6 @@ impl Handlers {
                     }
                     TransferLength::HalfWord => {
                         let value = mmio.read_u16(address).rotate_right(rotation);
-
                         cpu.write_register(dst, value as u32);
                         if *set_condition_flags {
                             cpu.update_flag(Psr::N, value & 0x8000 != 0);
@@ -305,7 +303,6 @@ impl Handlers {
                     }
                     TransferLength::Word => {
                         let value = mmio.read_u32(address).rotate_right(rotation);
-
                         cpu.write_register(dst, value);
                         if *set_condition_flags {
                             cpu.update_flag(Psr::N, value & 0x8000_0000 != 0);
@@ -314,7 +311,9 @@ impl Handlers {
                     }
                 }
 
-                if *indexing == Indexing::Post {
+                // if dst == src, then the loaded value would overwrite the register after writeback
+
+                if *indexing == Indexing::Post && *dst != *src {
                     if *operation == Direction::Up {
                         address = address.wrapping_add(step);
                     } else {
@@ -322,7 +321,7 @@ impl Handlers {
                     }
                 }
 
-                if *writeback {
+                if *writeback && *dst != *src {
                     cpu.write_register(src, address);
                 }
             }
