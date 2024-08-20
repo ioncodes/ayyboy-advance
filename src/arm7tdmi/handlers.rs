@@ -272,18 +272,20 @@ impl Handlers {
                     }
                 }
 
-                let mut rotation = 0;
-                if address % 2 != 0 {
-                    // align address, https://problemkaputt.de/gbatek.htm#armcpumemoryalignments
+                // align address, https://problemkaputt.de/gbatek.htm#armcpumemoryalignments
+                let (mut aligned_address, rotation) = if address % 2 != 0 {
                     let aligned_address = address
                         & !((match length {
                             TransferLength::Byte => 0b00,
-                            TransferLength::HalfWord => 0b01, // TODO: This case may be handled differently
+                            TransferLength::HalfWord if *signed_transfer => 0b11, // ldrsh quirk
+                            TransferLength::HalfWord => 0b01,
                             TransferLength::Word => 0b11,
                         }) as u32);
-                    rotation = (address - aligned_address) * 8;
-                    address = aligned_address;
-                }
+                    let rotation = (address - aligned_address) * 8;
+                    (aligned_address, rotation)
+                } else {
+                    (address, 0)
+                };
 
                 match length {
                     TransferLength::Byte => {
@@ -291,12 +293,14 @@ impl Handlers {
                             // The LDRSB instruction loads the selected Byte into bits 7
                             // to 0 of the destination register and bits 31 to 8 of the desti-
                             // nation register are set to the value of bit 7, the sign bit.
-                            let value = mmio.read(address).rotate_right(rotation);
+                            let value = mmio.read(aligned_address).rotate_right(rotation);
                             value as i8 as u32
                         } else {
-                            mmio.read(address).rotate_right(rotation) as u32
+                            mmio.read(aligned_address).rotate_right(rotation) as u32
                         };
+
                         cpu.write_register(dst, value as u32);
+
                         if *set_condition_flags {
                             cpu.update_flag(Psr::N, value & 0x80 != 0);
                             cpu.update_flag(Psr::Z, value == 0);
@@ -308,20 +312,34 @@ impl Handlers {
                             // bits 15 to 0 of the destination register and bits 31 to 16 of
                             // the destination register are set to the value of bit 15, the
                             // sign bit.
-                            let value = mmio.read_u16(address).rotate_right(rotation);
-                            value as i16 as u32
+                            let value = mmio.read_u16(aligned_address).rotate_right(rotation);
+                            value as i16 as u16
                         } else {
-                            mmio.read_u16(address).rotate_right(rotation) as u32
+                            mmio.read_u16(aligned_address).rotate_right(rotation) as u16
                         };
-                        cpu.write_register(dst, value);
+
+                        let result = if aligned_address != address {
+                            // Mis-aligned LDRH,LDRSH (does or does not do strange things)
+                            // On ARM7 aka ARMv4 aka NDS7/GBA:
+                            //   LDRH Rd,[odd]   -->  LDRH Rd,[odd-1] ROR 8  ;read to bit0-7 and bit24-31
+                            //   LDRSH Rd,[odd]  -->  LDRSB Rd,[odd]         ;sign-expand BYTE value
+                            let lo = value as u8; // Bits 0-7
+                            let hi = (value >> 8) as u8; // Bits 8-15
+                            (hi as u32) << 24 | (lo as u32)
+                        } else {
+                            value as u32
+                        };
+                        cpu.write_register(dst, result);
+
                         if *set_condition_flags {
                             cpu.update_flag(Psr::N, value & 0x8000 != 0);
                             cpu.update_flag(Psr::Z, value == 0);
                         }
                     }
                     TransferLength::Word => {
-                        let value = mmio.read_u32(address).rotate_right(rotation);
+                        let value = mmio.read_u32(aligned_address).rotate_right(rotation);
                         cpu.write_register(dst, value);
+
                         if *set_condition_flags {
                             cpu.update_flag(Psr::N, value & 0x8000_0000 != 0);
                             cpu.update_flag(Psr::Z, value == 0);
@@ -333,14 +351,14 @@ impl Handlers {
 
                 if *indexing == Indexing::Post && *dst != *src {
                     if *operation == Direction::Up {
-                        address = address.wrapping_add(step);
+                        aligned_address = aligned_address.wrapping_add(step);
                     } else {
-                        address = address.wrapping_sub(step);
+                        aligned_address = aligned_address.wrapping_sub(step);
                     }
                 }
 
                 if *writeback && *dst != *src {
-                    cpu.write_register(src, address);
+                    cpu.write_register(src, aligned_address);
                 }
             }
             Instruction {
