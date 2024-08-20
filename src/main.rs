@@ -135,7 +135,7 @@ fn main() {
         let mut frame_rendered = false;
         let mut tick = false;
 
-        let tick_cpu = |cpu: &mut Cpu, mmio: &mut Mmio, tick_ref: &mut bool| {
+        let do_tick = |cpu: &mut Cpu, mmio: &mut Mmio, tick_ref: &mut bool| {
             if let Some((_, state)) = cpu.tick(mmio)
                 && BREAKPOINTS.lock().unwrap().contains(&state.pc)
             {
@@ -147,7 +147,7 @@ fn main() {
 
         loop {
             if tick {
-                tick_cpu(&mut cpu, &mut mmio, &mut tick);
+                do_tick(&mut cpu, &mut mmio, &mut tick);
             }
 
             match process_debug_events(&cpu, &mmio, &dbg_req_rx, &dbg_resp_tx) {
@@ -155,7 +155,7 @@ fn main() {
                 EventResult::Continue => tick = true,
                 EventResult::Step => {
                     tick = false;
-                    tick_cpu(&mut cpu, &mut mmio, &mut tick); // TODO: this may cause a double tick if we're already ticking and we hit step
+                    do_tick(&mut cpu, &mut mmio, &mut tick); // TODO: this may cause a double tick if we're already ticking and we hit step
                 }
                 EventResult::None => (),
             }

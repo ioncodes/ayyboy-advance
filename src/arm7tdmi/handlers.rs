@@ -248,6 +248,7 @@ impl Handlers {
                 operand2: Some(Operand::Register(src, None)),
                 operand3: Some(step),
                 transfer_length: Some(length),
+                signed_transfer,
                 offset_direction: Some(operation),
                 set_condition_flags,
                 indexing: Some(indexing),
@@ -286,7 +287,15 @@ impl Handlers {
 
                 match length {
                     TransferLength::Byte => {
-                        let value = mmio.read(address).rotate_right(rotation);
+                        let value = if *signed_transfer {
+                            // The LDRSB instruction loads the selected Byte into bits 7
+                            // to 0 of the destination register and bits 31 to 8 of the desti-
+                            // nation register are set to the value of bit 7, the sign bit.
+                            let value = mmio.read(address).rotate_right(rotation);
+                            value as i8 as u32
+                        } else {
+                            mmio.read(address).rotate_right(rotation) as u32
+                        };
                         cpu.write_register(dst, value as u32);
                         if *set_condition_flags {
                             cpu.update_flag(Psr::N, value & 0x80 != 0);
@@ -294,8 +303,17 @@ impl Handlers {
                         }
                     }
                     TransferLength::HalfWord => {
-                        let value = mmio.read_u16(address).rotate_right(rotation);
-                        cpu.write_register(dst, value as u32);
+                        let value = if *signed_transfer {
+                            // The LDRSH instruction loads the selected Half-word into
+                            // bits 15 to 0 of the destination register and bits 31 to 16 of
+                            // the destination register are set to the value of bit 15, the
+                            // sign bit.
+                            let value = mmio.read_u16(address).rotate_right(rotation);
+                            value as i16 as u32
+                        } else {
+                            mmio.read_u16(address).rotate_right(rotation) as u32
+                        };
+                        cpu.write_register(dst, value);
                         if *set_condition_flags {
                             cpu.update_flag(Psr::N, value & 0x8000 != 0);
                             cpu.update_flag(Psr::Z, value == 0);
