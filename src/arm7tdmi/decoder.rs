@@ -338,6 +338,7 @@ pub struct Instruction {
     pub operand3: Option<Operand>,
     pub operand4: Option<Operand>,
     pub transfer_length: Option<TransferLength>,
+    pub signed_transfer: bool,
     pub offset_direction: Option<Direction>,
     pub writeback: bool,
     pub indexing: Option<Indexing>,
@@ -466,7 +467,7 @@ impl Instruction {
                     ..Instruction::default()
                 })
             }
-            // Halfword Data Transfer (LDRH/STRH)
+            // Halfword and Signed Data Transfer (LDRH/STRH/LDRSB/LDRSH)
             "cccc_000p_uiwl_yyyy_xxxx_oooo_1sh1_zzzz" => {
                 let condition = Condition::from(c)?;
                 let dst = Register::from(x)?;
@@ -504,7 +505,14 @@ impl Instruction {
                     operand1: Some(Operand::Register(dst, None)),
                     operand2: Some(Operand::Register(src, None)),
                     operand3: Some(offset),
-                    transfer_length: Some(TransferLength::HalfWord),
+                    transfer_length: match (s, h) {
+                        (0, 0) => todo!("SWP"),
+                        (0, 1) => Some(TransferLength::HalfWord), // unsigned
+                        (1, 0) => Some(TransferLength::Byte),     // signed
+                        (1, 1) => Some(TransferLength::HalfWord), // signed
+                        _ => unreachable!(),
+                    },
+                    signed_transfer: s == 1,
                     offset_direction: if u == 1 {
                         Some(Direction::Up)
                     } else {
@@ -1234,6 +1242,7 @@ impl Default for Instruction {
             operand3: None,
             operand4: None,
             transfer_length: None,
+            signed_transfer: false,
             offset_direction: None,
             writeback: false,
             indexing: None,
@@ -1250,8 +1259,9 @@ impl Display for Instruction {
             Opcode::Ldr | Opcode::Str if self.indexing == Some(Indexing::Post) => {
                 write!(
                     f,
-                    "{}{}{}{} {}",
+                    "{}{}{}{}{} {}",
                     self.opcode,
+                    self.signed_transfer.then(|| "s").unwrap_or(""),
                     self.transfer_length.as_ref().unwrap_or(&TransferLength::Word),
                     self.condition,
                     if self.set_condition_flags && !self.opcode.is_test() {
@@ -1277,8 +1287,9 @@ impl Display for Instruction {
             Opcode::Ldr | Opcode::Str if self.indexing == Some(Indexing::Pre) => {
                 write!(
                     f,
-                    "{}{}{}{} {}",
+                    "{}{}{}{}{} {}",
                     self.opcode,
+                    self.signed_transfer.then(|| "s").unwrap_or(""),
                     self.transfer_length.as_ref().unwrap_or(&TransferLength::Word),
                     self.condition,
                     if self.set_condition_flags && !self.opcode.is_test() {
