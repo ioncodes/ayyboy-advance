@@ -198,6 +198,7 @@ fn main() {
             .with_inner_size([(SCREEN_WIDTH * SCALE) as f32, (SCREEN_HEIGHT * SCALE) as f32])
             .with_resizable(false),
         vsync: false,
+        default_theme: eframe::Theme::Dark,
         ..Default::default()
     };
 
