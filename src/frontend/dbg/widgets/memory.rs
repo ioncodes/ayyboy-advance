@@ -137,13 +137,11 @@ impl MemoryWidget {
 
                             row.col(|ui| {
                                 let value = self.memory[addr as usize];
-                                let richtext = if value.has_changed() {
-                                    RichText::new(format!("{:02x}", value.get()))
-                                        .monospace()
-                                        .color(egui::Color32::from_rgba_premultiplied(250, 160, 160, 255))
-                                } else {
-                                    RichText::new(format!("{:02x}", value.get())).monospace()
-                                };
+                                let mut richtext = RichText::new(format!("{:02x}", value.get())).monospace();
+                                if value.has_changed() {
+                                    richtext =
+                                        richtext.color(egui::Color32::from_rgba_premultiplied(250, 160, 160, 255))
+                                }
                                 ui.label(richtext);
                             });
                         }
