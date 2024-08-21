@@ -42,8 +42,8 @@ impl DisassemblyWidget {
                             let mut addr_label = RichText::new(format!("{:08x}", line.addr)).monospace().strong();
                             let mut instr_label = RichText::new(line.instr.clone()).monospace();
                             if line.addr == self.pc {
-                                addr_label = addr_label.color(Color32::from_rgba_premultiplied(250, 160, 160, 255));
-                                instr_label = instr_label.color(Color32::from_rgba_premultiplied(250, 160, 160, 255));
+                                addr_label = addr_label.color(Color32::from_rgba_premultiplied(193, 225, 193, 255));
+                                instr_label = instr_label.color(Color32::from_rgba_premultiplied(193, 225, 193, 255));
                             } else if line.addr == self.r15 {
                                 addr_label = addr_label.color(Color32::from_rgba_premultiplied(195, 177, 225, 255));
                                 instr_label = instr_label.color(Color32::from_rgba_premultiplied(195, 177, 225, 255));
