@@ -53,9 +53,9 @@ impl Pipeline {
         self.decode = None;
     }
 
-    pub fn peek(&self) -> Option<(&Instruction, &State)> {
-        match &self.decode {
-            Some(Item::Instruction(instr, state)) => Some((instr, state)),
+    pub fn peek_fetch(&self) -> Option<(&u32, &State)> {
+        match &self.fetch {
+            Some(Item::Data(data, state)) => Some((data, state)),
             _ => None,
         }
     }

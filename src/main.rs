@@ -86,7 +86,8 @@ fn process_debug_events(
                 EventResult::None
             }
             RequestEvent::UpdateDisassembly(base, count) => {
-                let base = base.unwrap_or(if let Some((_, state)) = cpu.pipeline.peek() {
+                // decoded instruction would never be available here
+                let base = base.unwrap_or(if let Some((_, state)) = cpu.pipeline.peek_fetch() {
                     state.pc
                 } else {
                     cpu.read_register(&Register::R15)
@@ -139,30 +140,45 @@ fn main() {
 
         let mut frame_rendered = false;
         let mut tick = false;
+        let mut step = false;
 
-        let do_tick = |cpu: &mut Cpu, mmio: &mut Mmio, tick_ref: &mut bool| {
-            if let Some((_, state)) = cpu.tick(mmio)
-                && BREAKPOINTS.lock().unwrap().contains(&state.pc)
-            {
-                *tick_ref = false;
+        let do_tick = |cpu: &mut Cpu, mmio: &mut Mmio, tick_ref: &mut bool| -> Option<Instruction> {
+            let mut executed_instr: Option<Instruction> = None;
+            if let Some((instr, state)) = cpu.tick(mmio) {
+                if BREAKPOINTS.lock().unwrap().contains(&state.pc) {
+                    *tick_ref = false;
+                }
+                executed_instr = Some(instr);
             }
 
             mmio.tick_components();
+
+            executed_instr
+        };
+
+        let do_step = |cpu: &mut Cpu, mmio: &mut Mmio, tick: &mut bool| loop {
+            if let Some(_) = do_tick(cpu, mmio, tick) {
+                break;
+            }
         };
 
         loop {
-            if tick {
-                do_tick(&mut cpu, &mut mmio, &mut tick);
-            }
-
             match process_debug_events(&cpu, &mmio, &dbg_req_rx, &dbg_resp_tx) {
                 EventResult::Break => tick = false,
                 EventResult::Continue => tick = true,
-                EventResult::Step => {
+                EventResult::Step if !tick => {
+                    step = true;
                     tick = false;
-                    do_tick(&mut cpu, &mut mmio, &mut tick); // TODO: this may cause a double tick if we're already ticking and we hit step
                 }
-                EventResult::None => (),
+                _ => (),
+            }
+
+            if tick || step {
+                do_step(&mut cpu, &mut mmio, &mut tick);
+            }
+
+            if step {
+                step = false;
             }
 
             if mmio.ppu.scanline == 160 && !frame_rendered {
