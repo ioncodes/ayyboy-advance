@@ -1,16 +1,22 @@
-use crate::arm7tdmi;
+use crate::arm7tdmi::registers::Psr;
 use crate::frontend::dbg::event::RequestEvent;
+use crate::frontend::dbg::tracked_value::TrackedValue;
 use crossbeam_channel::Sender;
-use egui::{ComboBox, Context, RichText, TextEdit, Vec2, Window};
+use egui::{Color32, ComboBox, Context, RichText, TextEdit, Vec2, Window};
 
 #[derive(Default, Copy, Clone)]
+pub struct TrackedCpu {
+    registers: [TrackedValue<u32>; 16],
+    cpsr: TrackedValue<Psr>,
+}
+
 pub struct Cpu {
     pub registers: [u32; 16],
-    pub cpsr: arm7tdmi::registers::Psr,
+    pub cpsr: Psr,
 }
 
 pub struct CpuWidget {
-    pub cpu: Cpu,
+    pub cpu: TrackedCpu,
     event_tx: Sender<RequestEvent>,
     breakpoint: String,
     selected_breakpoint: String,
@@ -23,7 +29,7 @@ impl CpuWidget {
 
         CpuWidget {
             event_tx: tx,
-            cpu: Cpu::default(),
+            cpu: TrackedCpu::default(),
             breakpoint: String::new(),
             selected_breakpoint: String::new(),
             breakpoints: Vec::new(),
@@ -31,8 +37,10 @@ impl CpuWidget {
     }
 
     pub fn update(&mut self, cpu: Cpu) {
-        self.cpu = cpu;
-        let _ = self.event_tx.send(RequestEvent::UpdateCpu);
+        self.cpu.registers.iter_mut().enumerate().for_each(|(i, reg)| {
+            reg.set(cpu.registers[i]);
+        });
+        self.cpu.cpsr.set(cpu.cpsr);
     }
 
     pub fn render(&mut self, ctx: &Context) {
@@ -44,10 +52,12 @@ impl CpuWidget {
 
                 if ui.button(format!("{} Step", egui_phosphor::regular::STEPS)).clicked() {
                     let _ = self.event_tx.send(RequestEvent::Step);
+                    let _ = self.event_tx.send(RequestEvent::UpdateCpu);
                 }
 
                 if ui.button(format!("{} Break", egui_phosphor::regular::PAUSE)).clicked() {
                     let _ = self.event_tx.send(RequestEvent::Break);
+                    let _ = self.event_tx.send(RequestEvent::UpdateCpu);
                 }
             });
 
@@ -93,31 +103,49 @@ impl CpuWidget {
 
             ui.separator();
 
+            let format_register = |idx: usize| {
+                let alignment = if idx <= 9 { " " } else { "" };
+                let reg = self.cpu.registers[idx];
+                if reg.has_changed() {
+                    RichText::new(format!("{}R{}: {:08x}", alignment, idx, reg.get()))
+                        .monospace()
+                        .color(Color32::from_rgba_premultiplied(250, 160, 160, 255))
+                } else {
+                    RichText::new(format!("{}R{}: {:08x}", alignment, idx, reg.get())).monospace()
+                }
+            };
+
             ui.horizontal(|ui| {
-                ui.label(RichText::new(format!(" R0: {:08x}", self.cpu.registers[0])).monospace());
-                ui.label(RichText::new(format!(" R1: {:08x}", self.cpu.registers[1])).monospace());
-                ui.label(RichText::new(format!(" R2: {:08x}", self.cpu.registers[2])).monospace());
-                ui.label(RichText::new(format!(" R3: {:08x}", self.cpu.registers[3])).monospace());
+                ui.label(format_register(0));
+                ui.label(format_register(1));
+                ui.label(format_register(2));
+                ui.label(format_register(3));
             });
             ui.horizontal(|ui| {
-                ui.label(RichText::new(format!(" R4: {:08x}", self.cpu.registers[4])).monospace());
-                ui.label(RichText::new(format!(" R5: {:08x}", self.cpu.registers[5])).monospace());
-                ui.label(RichText::new(format!(" R6: {:08x}", self.cpu.registers[6])).monospace());
-                ui.label(RichText::new(format!(" R7: {:08x}", self.cpu.registers[7])).monospace());
+                ui.label(format_register(4));
+                ui.label(format_register(5));
+                ui.label(format_register(6));
+                ui.label(format_register(7));
             });
             ui.horizontal(|ui| {
-                ui.label(RichText::new(format!(" R8: {:08x}", self.cpu.registers[8])).monospace());
-                ui.label(RichText::new(format!(" R9: {:08x}", self.cpu.registers[9])).monospace());
-                ui.label(RichText::new(format!("R10: {:08x}", self.cpu.registers[10])).monospace());
-                ui.label(RichText::new(format!("R11: {:08x}", self.cpu.registers[11])).monospace());
+                ui.label(format_register(8));
+                ui.label(format_register(9));
+                ui.label(format_register(10));
+                ui.label(format_register(11));
             });
             ui.horizontal(|ui| {
-                ui.label(RichText::new(format!("R12: {:08x}", self.cpu.registers[12])).monospace());
-                ui.label(RichText::new(format!("R13: {:08x}", self.cpu.registers[13])).monospace());
-                ui.label(RichText::new(format!("R14: {:08x}", self.cpu.registers[14])).monospace());
-                ui.label(RichText::new(format!("R15: {:08x}", self.cpu.registers[15])).monospace());
+                ui.label(format_register(12));
+                ui.label(format_register(13));
+                ui.label(format_register(14));
+                ui.label(format_register(15));
             });
-            ui.label(RichText::new(format!("CPSR: {:032b} ({})", self.cpu.cpsr, self.cpu.cpsr)).monospace());
+            ui.label(if self.cpu.cpsr.has_changed() {
+                RichText::new(format!("CPSR: {:032b} ({})", self.cpu.cpsr.get(), self.cpu.cpsr.get()))
+                    .monospace()
+                    .color(Color32::from_rgba_premultiplied(250, 160, 160, 255))
+            } else {
+                RichText::new(format!("CPSR: {:032b} ({})", self.cpu.cpsr.get(), self.cpu.cpsr.get())).monospace()
+            });
         });
     }
 }

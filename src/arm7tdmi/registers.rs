@@ -5,7 +5,7 @@ use std::fmt::Display;
 use std::hash::Hash;
 
 bitflags! {
-    #[derive(Copy, Clone, Default)]
+    #[derive(Copy, Clone, Default, PartialEq)]
     pub struct Psr: u32 {
         const N = 1 << 31;
         const Z = 1 << 30;

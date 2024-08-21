@@ -1,4 +1,5 @@
 use crate::frontend::dbg::event::RequestEvent;
+use crate::frontend::dbg::tracked_value::TrackedValue;
 use crossbeam_channel::Sender;
 use egui::{ComboBox, Context, RichText, ScrollArea, Window};
 
@@ -47,7 +48,7 @@ impl MemoryView {
 pub struct MemoryWidget {
     memory_view: MemoryView,
     event_tx: Sender<RequestEvent>,
-    memory: Box<[u8; 0x0FFFFFFF + 1]>,
+    memory: Vec<TrackedValue<u8>>,
 }
 
 impl MemoryWidget {
@@ -57,15 +58,14 @@ impl MemoryWidget {
         MemoryWidget {
             memory_view: MemoryView::Bios,
             event_tx: tx,
-            memory: unsafe {
-                let memory = Box::<[u8; 0x0FFFFFFF + 1]>::new_zeroed();
-                memory.assume_init()
-            },
+            memory: vec![TrackedValue::default(); 0x0FFFFFFF + 1],
         }
     }
 
     pub fn update(&mut self, memory: Box<[u8; 0x0FFFFFFF + 1]>) {
-        self.memory = memory;
+        memory[..].iter().enumerate().for_each(|(i, v)| {
+            self.memory[i].set(*v);
+        });
     }
 
     pub fn render(&mut self, ctx: &Context) {
@@ -112,13 +112,18 @@ impl MemoryWidget {
                         ui.horizontal(|ui| {
                             ui.label(RichText::new(format!("0x{:08x}", addr)).monospace().strong());
 
-                            let mut line = String::new();
                             for offset in 0..16 {
                                 let addr = addr + offset;
-                                line += &format!("{:02x} ", self.memory[addr as usize]);
+                                let value = self.memory[addr as usize];
+                                let richtext = if value.has_changed() {
+                                    RichText::new(format!("{:02x}", value.get()))
+                                        .monospace()
+                                        .color(egui::Color32::from_rgba_premultiplied(250, 160, 160, 255))
+                                } else {
+                                    RichText::new(format!("{:02x}", value.get())).monospace()
+                                };
+                                ui.label(richtext);
                             }
-
-                            ui.label(RichText::new(line).monospace());
                         });
                     });
                 });
