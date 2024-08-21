@@ -414,8 +414,6 @@ impl Instruction {
                 let rn = Register::from(x)?;
                 let rs = Register::from(y)?;
 
-                // TODO: signed?
-
                 Ok(if !accumulate {
                     Instruction {
                         opcode: Opcode::Mul,
@@ -506,7 +504,7 @@ impl Instruction {
                     operand2: Some(Operand::Register(src, None)),
                     operand3: Some(offset),
                     transfer_length: match (s, h) {
-                        (0, 0) => todo!("SWP"),
+                        (0, 0) => return Err(String::from("SWP not implemented")),
                         (0, 1) => Some(TransferLength::HalfWord), // unsigned
                         (1, 0) => Some(TransferLength::Byte),     // signed
                         (1, 1) => Some(TransferLength::HalfWord), // signed

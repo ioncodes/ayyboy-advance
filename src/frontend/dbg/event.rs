@@ -16,5 +16,5 @@ pub enum RequestEvent {
 pub enum ResponseEvent {
     Memory(Box<[u8; 0x0FFFFFFF + 1]>),
     Cpu(Cpu),
-    Disassembly(Vec<DecodedInstruction>),
+    Disassembly(u32, u32, Vec<DecodedInstruction>),
 }

@@ -107,7 +107,11 @@ fn process_debug_events(
                         }),
                     }
                 }
-                let _ = dbg_resp_tx.send(ResponseEvent::Disassembly(disasm));
+                let _ = dbg_resp_tx.send(ResponseEvent::Disassembly(
+                    base,
+                    cpu.read_register(&Register::R15),
+                    disasm,
+                ));
                 EventResult::None
             }
         })
@@ -168,7 +172,6 @@ fn main() {
                 EventResult::Continue => tick = true,
                 EventResult::Step if !tick => {
                     step = true;
-                    tick = false;
                 }
                 _ => (),
             }
