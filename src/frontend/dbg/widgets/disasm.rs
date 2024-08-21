@@ -14,7 +14,7 @@ pub struct DisassemblyWidget {
 
 impl DisassemblyWidget {
     pub fn new(tx: Sender<RequestEvent>) -> DisassemblyWidget {
-        let _ = tx.send(RequestEvent::UpdateDisassembly(0x08000000, 25)); // request initial disassembly
+        let _ = tx.send(RequestEvent::UpdateDisassembly(None, 25)); // request initial disassembly
 
         DisassemblyWidget {
             event_tx: tx,
@@ -22,9 +22,9 @@ impl DisassemblyWidget {
         }
     }
 
-    pub fn update(&mut self, disassembly: Vec<DecodedInstruction>, base_addr: u32) {
+    pub fn update(&mut self, disassembly: Vec<DecodedInstruction>) {
         self.disassembly = disassembly;
-        let _ = self.event_tx.send(RequestEvent::UpdateDisassembly(base_addr, 25));
+        let _ = self.event_tx.send(RequestEvent::UpdateDisassembly(None, 25));
     }
 
     pub fn render(&mut self, ctx: &Context) {

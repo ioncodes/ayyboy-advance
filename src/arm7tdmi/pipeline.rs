@@ -52,6 +52,13 @@ impl Pipeline {
         self.fetch = None;
         self.decode = None;
     }
+
+    pub fn peek(&self) -> Option<(&Instruction, &State)> {
+        match &self.decode {
+            Some(Item::Instruction(instr, state)) => Some((instr, state)),
+            _ => None,
+        }
+    }
 }
 
 impl Display for Pipeline {

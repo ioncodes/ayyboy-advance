@@ -99,7 +99,7 @@ impl MemoryWidget {
 
             ui.add_space(3.0);
             ui.label(
-                RichText::new("            00 01 02 03 04 05 06 07 08 09 0a 0b 0c 0d 0e 0f")
+                RichText::new("           00 01 02 03 04 05 06 07 08 09 0a 0b 0c 0d 0e 0f")
                     .monospace()
                     .strong(),
             );
@@ -115,7 +115,7 @@ impl MemoryWidget {
                             let mut line = String::new();
                             for offset in 0..16 {
                                 let addr = addr + offset;
-                                line += &format!(" {:02x}", self.memory[addr as usize]);
+                                line += &format!("{:02x} ", self.memory[addr as usize]);
                             }
 
                             ui.label(RichText::new(line).monospace());

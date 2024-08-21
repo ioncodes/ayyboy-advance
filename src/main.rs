@@ -86,6 +86,11 @@ fn process_debug_events(
                 EventResult::None
             }
             RequestEvent::UpdateDisassembly(base, count) => {
+                let base = base.unwrap_or(if let Some((_, state)) = cpu.pipeline.peek() {
+                    state.pc
+                } else {
+                    cpu.read_register(&Register::R15)
+                });
                 let mut disasm: Vec<DecodedInstruction> = Vec::new();
                 for addr in 0..count {
                     let addr = base + (addr * if cpu.is_thumb() { 2 } else { 4 });

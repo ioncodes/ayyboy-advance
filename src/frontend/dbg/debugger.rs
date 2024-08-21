@@ -35,9 +35,7 @@ impl Debugger {
         match self.rx.try_recv() {
             Ok(ResponseEvent::Cpu(cpu)) => self.cpu_widget.update(cpu),
             Ok(ResponseEvent::Memory(memory)) => self.memory_widget.update(memory),
-            Ok(ResponseEvent::Disassembly(disassembly)) => self
-                .disasm_widget
-                .update(disassembly, self.cpu_widget.cpu.registers[15] - (4 * 3)),
+            Ok(ResponseEvent::Disassembly(disassembly)) => self.disasm_widget.update(disassembly),
             _ => (),
         }
 

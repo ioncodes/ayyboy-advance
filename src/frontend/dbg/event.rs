@@ -5,7 +5,7 @@ use super::widgets::disasm::DecodedInstruction;
 pub enum RequestEvent {
     UpdateMemory,
     UpdateCpu,
-    UpdateDisassembly(u32, u32),
+    UpdateDisassembly(Option<u32>, u32),
     Break,
     Run,
     Step,
