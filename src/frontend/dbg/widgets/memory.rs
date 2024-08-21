@@ -98,11 +98,13 @@ impl MemoryWidget {
             });
 
             ui.add_space(3.0);
-            ui.label(
-                RichText::new("           00 01 02 03 04 05 06 07 08 09 0a 0b 0c 0d 0e 0f")
-                    .monospace()
-                    .strong(),
-            );
+
+            ui.horizontal(|ui| {
+                ui.label(RichText::new("          ").monospace().strong());
+                for idx in 0..16 {
+                    ui.label(RichText::new(format!("{:02x}", idx)).monospace().strong());
+                }
+            });
 
             ScrollArea::vertical().show(ui, |ui| {
                 ui.vertical(|ui| {
