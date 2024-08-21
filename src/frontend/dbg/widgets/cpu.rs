@@ -2,7 +2,7 @@ use crate::arm7tdmi::registers::Psr;
 use crate::frontend::dbg::event::RequestEvent;
 use crate::frontend::dbg::tracked_value::TrackedValue;
 use crossbeam_channel::Sender;
-use egui::{Color32, ComboBox, Context, RichText, TextEdit, Vec2, Window};
+use egui::{Color32, ComboBox, Context, RichText, TextEdit, Window};
 
 #[derive(Default, Copy, Clone)]
 pub struct TrackedCpu {
@@ -87,7 +87,6 @@ impl CpuWidget {
 
                 TextEdit::singleline(&mut self.breakpoint)
                     .hint_text("Breakpoint")
-                    .min_size(Vec2::new(249.0, 0.0))
                     .show(ui);
             });
 
