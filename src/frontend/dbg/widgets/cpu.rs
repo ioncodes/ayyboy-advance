@@ -44,31 +44,37 @@ impl CpuWidget {
     }
 
     pub fn render(&mut self, ctx: &Context) {
-        Window::new("CPU").resizable(false).max_width(100.0).show(ctx, |ui| {
+        Window::new("CPU").resizable(false).show(ctx, |ui| {
             ui.horizontal(|ui| {
-                if ui.button(format!("{} Run", egui_phosphor::regular::PLAY)).clicked() {
-                    let _ = self.event_tx.send(RequestEvent::Run);
-                }
+                ui.with_layout(egui::Layout::left_to_right(egui::Align::TOP), |ui| {
+                    if ui.button(format!("{} Run", egui_phosphor::regular::PLAY)).clicked() {
+                        let _ = self.event_tx.send(RequestEvent::Run);
+                    }
 
-                if ui.button(format!("{} Step", egui_phosphor::regular::STEPS)).clicked() {
-                    let _ = self.event_tx.send(RequestEvent::Step);
-                    let _ = self.event_tx.send(RequestEvent::UpdateCpu);
-                }
+                    if ui.button(format!("{} Step", egui_phosphor::regular::STEPS)).clicked() {
+                        let _ = self.event_tx.send(RequestEvent::Step);
+                        let _ = self.event_tx.send(RequestEvent::UpdateCpu);
+                    }
 
-                if ui.button(format!("{} Break", egui_phosphor::regular::PAUSE)).clicked() {
-                    let _ = self.event_tx.send(RequestEvent::Break);
-                    let _ = self.event_tx.send(RequestEvent::UpdateCpu);
-                }
+                    if ui.button(format!("{} Break", egui_phosphor::regular::PAUSE)).clicked() {
+                        let _ = self.event_tx.send(RequestEvent::Break);
+                        let _ = self.event_tx.send(RequestEvent::UpdateCpu);
+                    }
+                });
+
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::TOP), |ui| {
+                    if ui
+                        .button(format!("{} Refresh", egui_phosphor::regular::ARROW_CLOCKWISE))
+                        .clicked()
+                    {
+                        let _ = self.event_tx.send(RequestEvent::UpdateCpu);
+                    }
+                });
             });
 
             ui.separator();
 
             ui.horizontal(|ui| {
-                TextEdit::singleline(&mut self.breakpoint)
-                    .hint_text("Breakpoint")
-                    .min_size(Vec2::new(249.0, 0.0))
-                    .show(ui);
-
                 if ui
                     .button(format!("{} Add Breakpoint", egui_phosphor::regular::BUG))
                     .clicked()
@@ -78,18 +84,14 @@ impl CpuWidget {
                         u32::from_str_radix(&self.breakpoint, 16).unwrap(),
                     ));
                 }
+
+                TextEdit::singleline(&mut self.breakpoint)
+                    .hint_text("Breakpoint")
+                    .min_size(Vec2::new(249.0, 0.0))
+                    .show(ui);
             });
 
             ui.horizontal(|ui| {
-                ComboBox::from_label("Breakpoints")
-                    .selected_text(format!("{}", self.selected_breakpoint))
-                    .width(175.0)
-                    .show_ui(ui, |ui| {
-                        for breakpoint in &self.breakpoints {
-                            ui.selectable_value(&mut self.selected_breakpoint, breakpoint.to_owned(), breakpoint);
-                        }
-                    });
-
                 if ui
                     .button(format!("{} Delete Breakpoint", egui_phosphor::regular::TRASH))
                     .clicked()
@@ -99,6 +101,15 @@ impl CpuWidget {
                         u32::from_str_radix(&self.breakpoint, 16).unwrap(),
                     ));
                 }
+
+                ComboBox::from_label("Breakpoints")
+                    .selected_text(format!("{}", self.selected_breakpoint))
+                    .width(175.0)
+                    .show_ui(ui, |ui| {
+                        for breakpoint in &self.breakpoints {
+                            ui.selectable_value(&mut self.selected_breakpoint, breakpoint.to_owned(), breakpoint);
+                        }
+                    });
             });
 
             ui.separator();

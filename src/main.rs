@@ -149,7 +149,11 @@ fn main() {
         let do_tick = |cpu: &mut Cpu, mmio: &mut Mmio, tick_ref: &mut bool| -> Option<Instruction> {
             let mut executed_instr: Option<Instruction> = None;
             if let Some((instr, state)) = cpu.tick(mmio) {
-                if BREAKPOINTS.lock().unwrap().contains(&state.pc) {
+                if BREAKPOINTS
+                    .lock()
+                    .unwrap()
+                    .contains(&(state.pc + if cpu.is_thumb() { 2 } else { 4 }))
+                {
                     *tick_ref = false;
                 }
                 executed_instr = Some(instr);

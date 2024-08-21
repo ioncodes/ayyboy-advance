@@ -277,7 +277,7 @@ impl Handlers {
                     let aligned_address = address
                         & !((match length {
                             TransferLength::Byte => 0b00,
-                            TransferLength::HalfWord if *signed_transfer => 0b11, // ldrsh quirk
+                            TransferLength::HalfWord if *signed_transfer => 0b11, // ldrsh misaligned reads the byte at the misaligned address
                             TransferLength::HalfWord => 0b01,
                             TransferLength::Word => 0b11,
                         }) as u32);
@@ -307,13 +307,20 @@ impl Handlers {
                         }
                     }
                     TransferLength::HalfWord => {
-                        let value = if *signed_transfer {
+                        let value = if aligned_address == address && *signed_transfer {
                             // The LDRSH instruction loads the selected Half-word into
                             // bits 15 to 0 of the destination register and bits 31 to 16 of
                             // the destination register are set to the value of bit 15, the
                             // sign bit.
                             let value = mmio.read_u16(aligned_address).rotate_right(rotation);
                             value as i16 as u16
+                        } else if aligned_address != address && *signed_transfer {
+                            // Mis-aligned LDRH,LDRSH (does or does not do strange things)
+                            // On ARM7 aka ARMv4 aka NDS7/GBA:
+                            //   LDRH Rd,[odd]   -->  LDRH Rd,[odd-1] ROR 8  ;read to bit0-7 and bit24-31
+                            //   LDRSH Rd,[odd]  -->  LDRSB Rd,[odd]         ;sign-expand BYTE value
+                            let value = mmio.read(address); // Bits 0-7
+                            value as i8 as u16
                         } else {
                             mmio.read_u16(aligned_address).rotate_right(rotation) as u16
                         };
