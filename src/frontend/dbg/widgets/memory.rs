@@ -1,7 +1,8 @@
 use crate::frontend::dbg::event::RequestEvent;
 use crate::frontend::dbg::tracked_value::TrackedValue;
 use crossbeam_channel::Sender;
-use egui::{ComboBox, Context, RichText, ScrollArea, Window};
+use egui::{ComboBox, Context, RichText, Window};
+use egui_extras::{Column, TableBuilder};
 
 #[derive(PartialEq, Eq, Hash, Copy, Clone)]
 pub enum MemoryView {
@@ -42,6 +43,14 @@ impl MemoryView {
             MemoryView::GamePak => 0x08000000..=0x09FFFFFF,
             MemoryView::GamePakSram => 0x0E000000..=0x0E00FFFF,
         }
+    }
+
+    pub fn size(self) -> usize {
+        *self.range().end() as usize - *self.range().start() as usize + 1
+    }
+
+    pub fn start(self) -> u32 {
+        *self.range().start()
     }
 }
 
@@ -97,25 +106,36 @@ impl MemoryWidget {
                 });
             });
 
-            ui.add_space(3.0);
+            ui.separator();
 
-            ui.horizontal(|ui| {
-                ui.label(RichText::new("          ").monospace().strong());
-                for idx in 0..16 {
-                    ui.label(RichText::new(format!("{:02x}", idx)).monospace().strong());
-                }
-            });
+            TableBuilder::new(ui)
+                .columns(Column::auto(), 17)
+                .header(0.0, |mut header| {
+                    header.col(|ui| {
+                        ui.label("");
+                    });
+                    for idx in 0..16 {
+                        header.col(|ui| {
+                            ui.label(RichText::new(format!("{:02x}", idx)).monospace().strong());
+                        });
+                    }
+                })
+                .body(|body| {
+                    let range_start = self.memory_view.start();
+                    let range_count = self.memory_view.size();
 
-            ScrollArea::vertical().show(ui, |ui| {
-                ui.vertical(|ui| {
-                    let range = self.memory_view.range();
+                    body.rows(0.0, range_count / 16, |mut row| {
+                        let idx = row.index() as u32;
+                        let addr = range_start + (idx * 16);
 
-                    range.step_by(16).for_each(|addr| {
-                        ui.horizontal(|ui| {
+                        row.col(|ui| {
                             ui.label(RichText::new(format!("0x{:08x}", addr)).monospace().strong());
+                        });
 
-                            for offset in 0..16 {
-                                let addr = addr + offset;
+                        for idx in 0..16 {
+                            let addr = addr + idx;
+
+                            row.col(|ui| {
                                 let value = self.memory[addr as usize];
                                 let richtext = if value.has_changed() {
                                     RichText::new(format!("{:02x}", value.get()))
@@ -125,11 +145,10 @@ impl MemoryWidget {
                                     RichText::new(format!("{:02x}", value.get())).monospace()
                                 };
                                 ui.label(richtext);
-                            }
-                        });
+                            });
+                        }
                     });
                 });
-            });
         });
     }
 }
