@@ -354,6 +354,15 @@ impl Instruction {
         }
     }
 
+    pub fn nop() -> Instruction {
+        Instruction {
+            opcode: Opcode::Mov,
+            operand1: Some(Operand::Register(Register::R0, None)),
+            operand2: Some(Operand::Register(Register::R0, None)),
+            ..Instruction::default()
+        }
+    }
+
     #[bitmatch]
     fn decode_armv4t(opcode: u32) -> Result<Instruction, String> {
         #[bitmatch]

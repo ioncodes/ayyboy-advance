@@ -1,3 +1,5 @@
+use log::error;
+
 use super::decoder::Instruction;
 use crate::memory::mmio::Mmio;
 use std::fmt::Display;
@@ -29,7 +31,10 @@ impl Pipeline {
         self.decode = if let Some(Item::Data(opcode, state)) = self.fetch.take() {
             let instruction = match Instruction::decode(opcode, is_thumb) {
                 Ok(instr) => Some(instr),
-                Err(e) => panic!("{}", e),
+                Err(e) => {
+                    error!("Failed to decode instruction: {:?}", e);
+                    Some(Instruction::nop())
+                }
             };
             Some(Item::Instruction(instruction.unwrap(), state))
         } else {

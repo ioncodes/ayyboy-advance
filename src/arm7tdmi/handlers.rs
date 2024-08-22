@@ -312,7 +312,8 @@ impl Handlers {
                             // bits 15 to 0 of the destination register and bits 31 to 16 of
                             // the destination register are set to the value of bit 15, the
                             // sign bit.
-                            let value = mmio.read_u16(aligned_address).rotate_right(rotation) as u32;
+                            let value = mmio.read_u16(aligned_address) as u32;
+                            let value = value.rotate_right(rotation);
                             let sign_bit = value & (1 << 15);
                             if sign_bit != 0 {
                                 value | 0xffff_0000
@@ -327,7 +328,8 @@ impl Handlers {
                             let value = mmio.read(address); // Bits 0-7
                             value as i8 as u32
                         } else {
-                            mmio.read_u16(aligned_address).rotate_right(rotation) as u32
+                            let value = mmio.read_u16(aligned_address) as u32;
+                            value.rotate_right(rotation)
                         };
 
                         cpu.write_register(dst, value);
