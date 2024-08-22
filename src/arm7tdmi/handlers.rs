@@ -312,31 +312,25 @@ impl Handlers {
                             // bits 15 to 0 of the destination register and bits 31 to 16 of
                             // the destination register are set to the value of bit 15, the
                             // sign bit.
-                            let value = mmio.read_u16(aligned_address).rotate_right(rotation);
-                            value as i16 as u16
+                            let value = mmio.read_u16(aligned_address).rotate_right(rotation) as u32;
+                            let sign_bit = value & (1 << 15);
+                            if sign_bit != 0 {
+                                value | 0xffff_0000
+                            } else {
+                                value & 0x0000_ffff
+                            }
                         } else if aligned_address != address && *signed_transfer {
                             // Mis-aligned LDRH,LDRSH (does or does not do strange things)
                             // On ARM7 aka ARMv4 aka NDS7/GBA:
                             //   LDRH Rd,[odd]   -->  LDRH Rd,[odd-1] ROR 8  ;read to bit0-7 and bit24-31
                             //   LDRSH Rd,[odd]  -->  LDRSB Rd,[odd]         ;sign-expand BYTE value
                             let value = mmio.read(address); // Bits 0-7
-                            value as i8 as u16
+                            value as i8 as u32
                         } else {
-                            mmio.read_u16(aligned_address).rotate_right(rotation) as u16
+                            mmio.read_u16(aligned_address).rotate_right(rotation) as u32
                         };
 
-                        let result = if aligned_address != address {
-                            // Mis-aligned LDRH,LDRSH (does or does not do strange things)
-                            // On ARM7 aka ARMv4 aka NDS7/GBA:
-                            //   LDRH Rd,[odd]   -->  LDRH Rd,[odd-1] ROR 8  ;read to bit0-7 and bit24-31
-                            //   LDRSH Rd,[odd]  -->  LDRSB Rd,[odd]         ;sign-expand BYTE value
-                            let lo = value as u8; // Bits 0-7
-                            let hi = (value >> 8) as u8; // Bits 8-15
-                            (hi as u32) << 24 | (lo as u32)
-                        } else {
-                            value as u32
-                        };
-                        cpu.write_register(dst, result);
+                        cpu.write_register(dst, value);
 
                         if *set_condition_flags {
                             cpu.update_flag(Psr::N, value & 0x8000 != 0);
