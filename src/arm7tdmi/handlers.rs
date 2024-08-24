@@ -486,7 +486,7 @@ impl Handlers {
             } => {
                 let mut address = cpu.read_register(src_base);
 
-                for register in registers {
+                for register in registers.iter().rev() {
                     if *indexing == Indexing::Pre {
                         if *operation == Direction::Up {
                             address += 4;
