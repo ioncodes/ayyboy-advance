@@ -192,7 +192,7 @@ impl Handlers {
                 opcode: Opcode::Mov,
                 operand1: Some(Operand::Register(dst, None)),
                 operand2: Some(src),
-                set_condition_flags,
+                set_psr_flags: set_condition_flags,
                 ..
             } => {
                 let value = Handlers::resolve_operand(src, cpu, *set_condition_flags);
@@ -215,7 +215,7 @@ impl Handlers {
                 opcode: Opcode::Mvn,
                 operand1: Some(Operand::Register(dst, None)),
                 operand2: Some(src),
-                set_condition_flags,
+                set_psr_flags: set_condition_flags,
                 ..
             } => {
                 let value = Handlers::resolve_operand(src, cpu, *set_condition_flags);
@@ -250,7 +250,7 @@ impl Handlers {
                 transfer_length: Some(length),
                 signed_transfer,
                 offset_direction: Some(operation),
-                set_condition_flags,
+                set_psr_flags: set_condition_flags,
                 indexing: Some(indexing),
                 writeback,
                 ..
@@ -365,7 +365,7 @@ impl Handlers {
                 operand3: Some(step),
                 transfer_length: Some(length),
                 offset_direction: Some(operation),
-                set_condition_flags,
+                set_psr_flags: set_condition_flags,
                 indexing: Some(indexing),
                 writeback,
                 ..
@@ -589,7 +589,7 @@ impl Handlers {
                 operand1: Some(Operand::Register(dst, None)),
                 operand2: Some(x),
                 operand3: Some(y),
-                set_condition_flags,
+                set_psr_flags: set_condition_flags,
                 ..
             } => {
                 let extra_fetch = match (
@@ -623,7 +623,7 @@ impl Handlers {
                 operand1: Some(Operand::Register(dst, None)),
                 operand2: Some(src),
                 operand3: None,
-                set_condition_flags,
+                set_psr_flags: set_condition_flags,
                 ..
             } => {
                 let x = cpu.read_register(dst);
@@ -646,7 +646,7 @@ impl Handlers {
                 operand1: Some(Operand::Register(dst, None)),
                 operand2: Some(x),
                 operand3: Some(y),
-                set_condition_flags,
+                set_psr_flags: set_condition_flags,
                 ..
             } => {
                 let carry = cpu.registers.cpsr.contains(Psr::C) as u32; // Grab carry first, as it may be modified due to shifter
@@ -674,7 +674,7 @@ impl Handlers {
                 operand1: Some(Operand::Register(dst, None)),
                 operand2: Some(x),
                 operand3: Some(y),
-                set_condition_flags,
+                set_psr_flags: set_condition_flags,
                 ..
             } => {
                 let extra_fetch = match (
@@ -707,7 +707,7 @@ impl Handlers {
                 operand1: Some(Operand::Register(dst, None)),
                 operand2: Some(src),
                 operand3: None,
-                set_condition_flags,
+                set_psr_flags: set_condition_flags,
                 ..
             } => {
                 let x = cpu.read_register(dst);
@@ -730,7 +730,7 @@ impl Handlers {
                 operand1: Some(Operand::Register(dst, None)),
                 operand2: Some(x),
                 operand3: Some(y),
-                set_condition_flags,
+                set_psr_flags: set_condition_flags,
                 ..
             } => {
                 let extra_fetch = match (
@@ -768,7 +768,7 @@ impl Handlers {
                 operand1: Some(Operand::Register(dst, None)),
                 operand2: Some(src),
                 operand3: None,
-                set_condition_flags,
+                set_psr_flags: set_condition_flags,
                 ..
             } => {
                 let x = cpu.read_register(dst);
@@ -796,7 +796,7 @@ impl Handlers {
                 operand1: Some(Operand::Register(dst, None)),
                 operand2: Some(x),
                 operand3: Some(y),
-                set_condition_flags,
+                set_psr_flags: set_condition_flags,
                 ..
             } => {
                 let extra_fetch = match (
@@ -826,7 +826,7 @@ impl Handlers {
                 operand1: Some(Operand::Register(dst, None)),
                 operand2: Some(Operand::Register(src, None)),
                 operand3: None,
-                set_condition_flags,
+                set_psr_flags: set_condition_flags,
                 ..
             } => {
                 let x = cpu.read_register(dst);
@@ -846,7 +846,7 @@ impl Handlers {
                 operand1: Some(Operand::Register(dst, None)),
                 operand2: Some(x),
                 operand3: Some(y),
-                set_condition_flags,
+                set_psr_flags: set_condition_flags,
                 ..
             } => {
                 let extra_fetch = match (
@@ -876,7 +876,7 @@ impl Handlers {
                 operand1: Some(Operand::Register(dst, None)),
                 operand2: Some(Operand::Register(src, None)),
                 operand3: None,
-                set_condition_flags,
+                set_psr_flags: set_condition_flags,
                 ..
             } => {
                 let x = cpu.read_register(dst);
@@ -896,7 +896,7 @@ impl Handlers {
                 operand1: Some(Operand::Register(dst, None)),
                 operand2: Some(x),
                 operand3: Some(y),
-                set_condition_flags,
+                set_psr_flags: set_condition_flags,
                 ..
             } => {
                 let extra_fetch = match (
@@ -926,7 +926,7 @@ impl Handlers {
                 operand1: Some(Operand::Register(dst, None)),
                 operand2: Some(Operand::Register(src, None)),
                 operand3: None,
-                set_condition_flags,
+                set_psr_flags: set_condition_flags,
                 ..
             } => {
                 let x = cpu.read_register(dst);
@@ -946,7 +946,7 @@ impl Handlers {
                 operand1: Some(Operand::Register(dst, None)),
                 operand2: Some(x),
                 operand3: Some(y),
-                set_condition_flags,
+                set_psr_flags: set_condition_flags,
                 ..
             } => {
                 let extra_fetch = match (
@@ -979,7 +979,7 @@ impl Handlers {
                 operand1: Some(Operand::Register(dst, None)),
                 operand2: Some(x),
                 operand3: Some(y),
-                set_condition_flags,
+                set_psr_flags: set_condition_flags,
                 ..
             } => {
                 let extra_fetch = match (
@@ -1016,7 +1016,7 @@ impl Handlers {
                 operand1: Some(Operand::Register(dst, None)),
                 operand2: Some(Operand::Register(src, None)),
                 operand3: None,
-                set_condition_flags,
+                set_psr_flags: set_condition_flags,
                 ..
             } => {
                 let x = cpu.read_register(dst);
@@ -1038,7 +1038,7 @@ impl Handlers {
                 operand1: Some(Operand::Register(dst, None)),
                 operand2: Some(Operand::Register(src, None)),
                 operand3: None,
-                set_condition_flags,
+                set_psr_flags: set_condition_flags,
                 ..
             } => {
                 let src = cpu.read_register(src);
@@ -1057,7 +1057,7 @@ impl Handlers {
                 operand1: Some(Operand::Register(dst, None)),
                 operand2: Some(Operand::Register(src, None)),
                 operand3: Some(pos),
-                set_condition_flags,
+                set_psr_flags: set_condition_flags,
                 ..
             } => {
                 let pos = Handlers::resolve_operand(pos, cpu, *set_condition_flags);
@@ -1077,7 +1077,7 @@ impl Handlers {
                 operand1: Some(Operand::Register(dst, None)),
                 operand2: Some(Operand::Register(src, None)),
                 operand3: Some(Operand::Immediate(shift, None)),
-                set_condition_flags,
+                set_psr_flags: set_condition_flags,
                 ..
             } => {
                 let value = cpu.read_register(src);
@@ -1097,7 +1097,7 @@ impl Handlers {
                 operand1: Some(Operand::Register(dst, None)),
                 operand2: Some(Operand::Register(src, None)),
                 operand3: Some(Operand::Immediate(shift, None)),
-                set_condition_flags,
+                set_psr_flags: set_condition_flags,
                 ..
             } => {
                 let value = cpu.read_register(src);
@@ -1117,7 +1117,7 @@ impl Handlers {
                 operand1: Some(Operand::Register(dst, None)),
                 operand2: Some(Operand::Register(src, None)),
                 operand3: Some(Operand::Immediate(shift, None)),
-                set_condition_flags,
+                set_psr_flags: set_condition_flags,
                 ..
             } => {
                 let value = cpu.read_register(src);
@@ -1138,7 +1138,7 @@ impl Handlers {
                 operand2: Some(Operand::Register(lhs, None)),
                 operand3: Some(Operand::Register(rhs, None)),
                 operand4: None,
-                set_condition_flags,
+                set_psr_flags: set_condition_flags,
                 ..
             } => {
                 let lhs = cpu.read_register(lhs);
@@ -1159,7 +1159,7 @@ impl Handlers {
                 operand2: Some(Operand::Register(lhs, None)),
                 operand3: Some(Operand::Register(rhs, None)),
                 operand4: Some(Operand::Register(acc, None)),
-                set_condition_flags,
+                set_psr_flags: set_condition_flags,
                 ..
             } => {
                 let lhs = cpu.read_register(lhs);
@@ -1179,7 +1179,7 @@ impl Handlers {
                 operand2: Some(Operand::Register(hi, None)),
                 operand3: Some(Operand::Register(lhs, None)),
                 operand4: Some(Operand::Register(rhs, None)),
-                set_condition_flags,
+                set_psr_flags: set_condition_flags,
                 ..
             } => {
                 let lhs = cpu.read_register(lhs);
@@ -1199,7 +1199,7 @@ impl Handlers {
                 operand2: Some(Operand::Register(hi, None)),
                 operand3: Some(Operand::Register(lhs, None)),
                 operand4: Some(Operand::Register(rhs, None)),
-                set_condition_flags,
+                set_psr_flags: set_condition_flags,
                 ..
             } => {
                 let lhs = cpu.read_register(lhs);
@@ -1220,7 +1220,7 @@ impl Handlers {
                 operand2: Some(Operand::Register(hi, None)),
                 operand3: Some(Operand::Register(lhs, None)),
                 operand4: Some(Operand::Register(rhs, None)),
-                set_condition_flags,
+                set_psr_flags: set_condition_flags,
                 ..
             } => {
                 let lhs = cpu.read_register(lhs) as i32;
@@ -1240,7 +1240,7 @@ impl Handlers {
                 operand2: Some(Operand::Register(hi, None)),
                 operand3: Some(Operand::Register(lhs, None)),
                 operand4: Some(Operand::Register(rhs, None)),
-                set_condition_flags,
+                set_psr_flags: set_condition_flags,
                 ..
             } => {
                 let lhs = cpu.read_register(lhs) as i32;

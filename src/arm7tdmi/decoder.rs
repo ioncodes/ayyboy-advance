@@ -335,7 +335,7 @@ pub enum Indexing {
 pub struct Instruction {
     pub opcode: Opcode,
     pub condition: Condition,
-    pub set_condition_flags: bool,
+    pub set_psr_flags: bool,
     pub operand1: Option<Operand>,
     pub operand2: Option<Operand>,
     pub operand3: Option<Operand>,
@@ -374,7 +374,7 @@ impl Instruction {
             "1110_1111_iiii_iiii_iiii_iiii_iiii_iiii" => Ok(Instruction {
                 opcode: Opcode::Swi,
                 condition: Condition::Always,
-                set_condition_flags: false,
+                set_psr_flags: false,
                 operand1: Some(Operand::Immediate(i, None)),
                 operand2: None,
                 operand3: None,
@@ -388,7 +388,7 @@ impl Instruction {
                 Ok(Instruction {
                     opcode: Opcode::Bx,
                     condition,
-                    set_condition_flags: false,
+                    set_psr_flags: false,
                     operand1: Some(Operand::Register(register, None)),
                     operand2: None,
                     operand3: None,
@@ -408,7 +408,7 @@ impl Instruction {
                 Ok(Instruction {
                     opcode: if l == 1 { Opcode::Bl } else { Opcode::B },
                     condition,
-                    set_condition_flags: false,
+                    set_psr_flags: false,
                     operand1: Some(Operand::Offset(offset)),
                     operand2: None,
                     operand3: None,
@@ -418,7 +418,7 @@ impl Instruction {
             // Multiply and Multiply-Accumulate (MUL, MLA)
             "cccc_0000_00as_dddd_xxxx_yyyy_1001_zzzz" => {
                 let condition = Condition::from(c)?;
-                let set_condition_flags = s == 1;
+                let set_psr_flags = s == 1;
                 let accumulate = a == 1;
 
                 let rm = Register::from(z)?;
@@ -430,7 +430,7 @@ impl Instruction {
                     Instruction {
                         opcode: Opcode::Mul,
                         condition,
-                        set_condition_flags,
+                        set_psr_flags,
                         operand1: Some(Operand::Register(rd, None)),
                         operand2: Some(Operand::Register(rm, None)),
                         operand3: Some(Operand::Register(rs, None)),
@@ -440,7 +440,7 @@ impl Instruction {
                     Instruction {
                         opcode: Opcode::Mla,
                         condition,
-                        set_condition_flags,
+                        set_psr_flags,
                         operand1: Some(Operand::Register(rd, None)),
                         operand2: Some(Operand::Register(rm, None)),
                         operand3: Some(Operand::Register(rs, None)),
@@ -452,7 +452,7 @@ impl Instruction {
             // Multiply Long and Multiply-Accumulate Long (MULL, MLAL)
             "cccc_0000_1uat_hhhh_llll_ssss_1001_mmmm" => {
                 let condition = Condition::from(c)?;
-                let set_condition_flags = t == 1;
+                let set_psr_flags = t == 1;
                 let accumulate = a == 1;
                 let unsigned = u == 0;
 
@@ -469,7 +469,7 @@ impl Instruction {
                         (true, true) => Opcode::Umlal,
                     },
                     condition,
-                    set_condition_flags,
+                    set_psr_flags,
                     operand1: Some(Operand::Register(rd_lo, None)),
                     operand2: Some(Operand::Register(rd_hi, None)),
                     operand3: Some(Operand::Register(rm, None)),
@@ -532,7 +532,7 @@ impl Instruction {
                 Ok(Instruction {
                     opcode: if is_load { Opcode::Ldr } else { Opcode::Str },
                     condition,
-                    set_condition_flags: false,
+                    set_psr_flags: false,
                     operand1: Some(Operand::Register(dst, None)),
                     operand2: Some(Operand::Register(src, None)),
                     operand3: Some(offset),
@@ -561,9 +561,9 @@ impl Instruction {
             "cccc_00io_ooos_yyyy_xxxx_zzzz_zzzz_zzzz" => {
                 let condition = Condition::from(c)?;
                 let decoded_opcode = Instruction::translate_opcode_armv4t(o)?;
-                let set_condition_flags = s == 1;
+                let set_psr_flags = s == 1;
 
-                if !set_condition_flags && decoded_opcode.is_test() {
+                if !set_psr_flags && decoded_opcode.is_test() {
                     #[bitmatch]
                     match opcode {
                         // PSR Transfer (MRS)
@@ -575,7 +575,7 @@ impl Instruction {
                             return Ok(Instruction {
                                 opcode: Opcode::Mrs,
                                 condition,
-                                set_condition_flags: false,
+                                set_psr_flags: false,
                                 operand1: Some(Operand::Register(destination, None)),
                                 operand2: Some(Operand::Register(source, None)),
                                 operand3: None,
@@ -591,7 +591,7 @@ impl Instruction {
                             return Ok(Instruction {
                                 opcode: Opcode::Msr,
                                 condition,
-                                set_condition_flags: false,
+                                set_psr_flags: false,
                                 operand1: Some(Operand::Register(destination, None)),
                                 operand2: Some(Operand::Register(source, None)),
                                 operand3: None,
@@ -633,7 +633,7 @@ impl Instruction {
                             return Ok(Instruction {
                                 opcode: Opcode::Msr,
                                 condition,
-                                set_condition_flags: false,
+                                set_psr_flags: false,
                                 operand1: Some(Operand::Register(destination, None)),
                                 operand2: Some(operand2),
                                 operand3: None,
@@ -705,7 +705,7 @@ impl Instruction {
                     return Ok(Instruction {
                         opcode: decoded_opcode,
                         condition,
-                        set_condition_flags: true,
+                        set_psr_flags: true,
                         operand1: rn,
                         operand2: Some(operand2),
                         operand3: None,
@@ -718,7 +718,7 @@ impl Instruction {
                     return Ok(Instruction {
                         opcode: decoded_opcode,
                         condition,
-                        set_condition_flags,
+                        set_psr_flags,
                         operand1: Some(dst),
                         operand2: Some(operand2),
                         operand3: None,
@@ -728,7 +728,7 @@ impl Instruction {
                     return Ok(Instruction {
                         opcode: decoded_opcode,
                         condition,
-                        set_condition_flags,
+                        set_psr_flags,
                         operand1: Some(dst),
                         operand2: rn,
                         operand3: Some(operand2),
@@ -777,7 +777,7 @@ impl Instruction {
                 Ok(Instruction {
                     opcode,
                     condition,
-                    set_condition_flags: false,
+                    set_psr_flags: s == 1,
                     operand1,
                     operand2,
                     indexing: if p == 1 {
@@ -824,7 +824,7 @@ impl Instruction {
                 Ok(Instruction {
                     opcode: if is_load { Opcode::Ldr } else { Opcode::Str },
                     condition,
-                    set_condition_flags: false,
+                    set_psr_flags: false,
                     operand1: Some(Operand::Register(src_or_dst_register, None)),
                     operand2: Some(Operand::Register(base_register, None)),
                     operand3: Some(offset),
@@ -869,7 +869,7 @@ impl Instruction {
                 Ok(Instruction {
                     opcode,
                     condition: Condition::Always,
-                    set_condition_flags: true,
+                    set_psr_flags: true,
                     operand1: Some(Operand::Register(operand1, None)),
                     operand2: Some(Operand::Register(operand2, None)),
                     operand3: Some(operand3),
@@ -890,7 +890,7 @@ impl Instruction {
                 Ok(Instruction {
                     opcode,
                     condition: Condition::Always,
-                    set_condition_flags: true,
+                    set_psr_flags: true,
                     operand1: Some(Operand::Register(operand1, None)),
                     operand2: Some(Operand::Register(operand2, None)),
                     operand3: if o != 0 {
@@ -913,12 +913,12 @@ impl Instruction {
                 let operand1 = Register::from(r)?;
                 let operand2 = Operand::Immediate(i, None);
 
-                let set_condition_flags = opcode != Opcode::Mov && opcode != Opcode::Cmp;
+                let set_psr_flags = opcode != Opcode::Mov && opcode != Opcode::Cmp;
 
                 Ok(Instruction {
                     opcode,
                     condition: Condition::Always,
-                    set_condition_flags,
+                    set_psr_flags,
                     operand1: Some(Operand::Register(operand1, None)),
                     operand2: Some(operand2),
                     operand3: None,
@@ -935,7 +935,7 @@ impl Instruction {
                 Ok(Instruction {
                     opcode,
                     condition: Condition::Always,
-                    set_condition_flags: false,
+                    set_psr_flags: false,
                     operand1: Some(Operand::Register(operand1, None)),
                     operand2: Some(Operand::Register(operand2, None)),
                     operand3: Some(operand3),
@@ -958,7 +958,7 @@ impl Instruction {
                 Ok(Instruction {
                     opcode,
                     condition: Condition::Always,
-                    set_condition_flags: true,
+                    set_psr_flags: true,
                     operand1: Some(Operand::Register(operand1, None)),
                     operand2: Some(Operand::Register(operand2, None)),
                     ..Instruction::default()
@@ -1017,13 +1017,13 @@ impl Instruction {
                     _ => unreachable!(),
                 };
 
-                let set_condition_flags = opcode != Opcode::Bx && opcode != Opcode::Cmn && opcode != Opcode::Mov;
+                let set_psr_flags = opcode != Opcode::Bx && opcode != Opcode::Cmn && opcode != Opcode::Mov;
 
                 Ok(Instruction {
                     opcode,
                     operand1,
                     operand2,
-                    set_condition_flags,
+                    set_psr_flags,
                     ..Instruction::default()
                 })
             }
@@ -1035,7 +1035,7 @@ impl Instruction {
                 Ok(Instruction {
                     opcode: Opcode::Ldr,
                     condition: Condition::Always,
-                    set_condition_flags: false,
+                    set_psr_flags: false,
                     operand1: Some(Operand::Register(destination, None)),
                     operand2: Some(Operand::Register(Register::R15, None)),
                     operand3: Some(Operand::Immediate(offset, None)),
@@ -1055,7 +1055,7 @@ impl Instruction {
                 Ok(Instruction {
                     opcode,
                     condition: Condition::Always,
-                    set_condition_flags: false,
+                    set_psr_flags: false,
                     operand1: Some(Operand::Register(destination, None)),
                     operand2: Some(Operand::Register(base, None)),
                     operand3: Some(Operand::Register(offset, None)),
@@ -1079,7 +1079,7 @@ impl Instruction {
                 Ok(Instruction {
                     opcode,
                     condition: Condition::Always,
-                    set_condition_flags: false,
+                    set_psr_flags: false,
                     operand1: Some(Operand::Register(destination, None)),
                     operand2: Some(Operand::Register(base, None)),
                     operand3: Some(offset),
@@ -1127,7 +1127,7 @@ impl Instruction {
                 Ok(Instruction {
                     opcode,
                     condition: Condition::Always,
-                    set_condition_flags: false,
+                    set_psr_flags: false,
                     operand1: Some(Operand::RegisterList(registers)),
                     operand2: None,
                     operand3: None,
@@ -1138,7 +1138,7 @@ impl Instruction {
             "1100_lbbb_rrrr_rrrr" => Ok(Instruction {
                 opcode: if l == 0 { Opcode::Stm } else { Opcode::Ldm },
                 condition: Condition::Always,
-                set_condition_flags: false,
+                set_psr_flags: false,
                 operand1: Some(Operand::Register(Register::from(b)?, None)),
                 operand2: Some(Operand::RegisterList(Instruction::extract_register_list(r)?)),
                 operand3: None,
@@ -1150,7 +1150,7 @@ impl Instruction {
             "1101_cccc_iiii_iiii" => Ok(Instruction {
                 opcode: Opcode::B,
                 condition: Condition::from(c)?,
-                set_condition_flags: false,
+                set_psr_flags: false,
                 operand1: Some(Operand::Offset(((i as i8) << 1) as i32)),
                 ..Instruction::default()
             }),
@@ -1166,7 +1166,7 @@ impl Instruction {
                 Ok(Instruction {
                     opcode: Opcode::B,
                     condition: Condition::Always,
-                    set_condition_flags: false,
+                    set_psr_flags: false,
                     operand1: Some(Operand::Offset(((offset as i16) << 1) as i32)),
                     ..Instruction::default()
                 })
@@ -1187,7 +1187,7 @@ impl Instruction {
                 Ok(Instruction {
                     opcode: Opcode::Bl,
                     condition: Condition::Always,
-                    set_condition_flags: false,
+                    set_psr_flags: false,
                     operand1: Some(Operand::Offset(offset as i32)),
                     ..Instruction::default()
                 })
@@ -1260,7 +1260,7 @@ impl Default for Instruction {
         Instruction {
             opcode: Opcode::And,
             condition: Condition::Always,
-            set_condition_flags: false,
+            set_psr_flags: false,
             operand1: None,
             operand2: None,
             operand3: None,
@@ -1288,7 +1288,7 @@ impl Display for Instruction {
                     self.signed_transfer.then(|| "s").unwrap_or(""),
                     self.transfer_length.as_ref().unwrap_or(&TransferLength::Word),
                     self.condition,
-                    if self.set_condition_flags && !self.opcode.is_test() {
+                    if self.set_psr_flags && !self.opcode.is_test() {
                         ".s"
                     } else {
                         ""
@@ -1316,7 +1316,7 @@ impl Display for Instruction {
                     self.signed_transfer.then(|| "s").unwrap_or(""),
                     self.transfer_length.as_ref().unwrap_or(&TransferLength::Word),
                     self.condition,
-                    if self.set_condition_flags && !self.opcode.is_test() {
+                    if self.set_psr_flags && !self.opcode.is_test() {
                         ".s"
                     } else {
                         ""
@@ -1352,12 +1352,17 @@ impl Display for Instruction {
 
                 write!(
                     f,
-                    "{}{} {}{}, {}",
+                    "{}{} {}{}, {}{}",
                     opcode,
                     self.condition,
                     self.operand1.as_ref().unwrap(),
                     if self.writeback { "!" } else { "" },
                     self.operand2.as_ref().unwrap(),
+                    if self.set_psr_flags && !self.opcode.is_test() {
+                        "^"
+                    } else {
+                        ""
+                    },
                 )?;
             }
             Opcode::Swp => {
@@ -1371,7 +1376,7 @@ impl Display for Instruction {
                         Some(TransferLength::Word) => "",
                         _ => unreachable!(),
                     },
-                    if self.set_condition_flags && !self.opcode.is_test() {
+                    if self.set_psr_flags && !self.opcode.is_test() {
                         ".s"
                     } else {
                         ""
@@ -1389,7 +1394,7 @@ impl Display for Instruction {
             //         f,
             //         "adr{}{} {}, [{}, {}]",
             //         self.condition,
-            //         if self.set_condition_flags && !self.opcode.is_test() {
+            //         if self.set_psr_flags && !self.opcode.is_test() {
             //             ".s"
             //         } else {
             //             ""
@@ -1406,7 +1411,7 @@ impl Display for Instruction {
                     self.opcode,
                     self.transfer_length.as_ref().unwrap_or(&TransferLength::Word),
                     self.condition,
-                    if self.set_condition_flags && !self.opcode.is_test() {
+                    if self.set_psr_flags && !self.opcode.is_test() {
                         ".s"
                     } else {
                         ""
