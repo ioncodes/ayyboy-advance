@@ -91,6 +91,7 @@ pub enum Register {
     SpsrFlag,
     SpsrControl,
     SpsrFlagControl,
+    PsrNone, // Nop
 }
 
 impl Register {
@@ -534,13 +535,6 @@ impl Instruction {
                     ..Instruction::default()
                 })
             }
-            // NOP (MOV R0, R0) TODO: wrong, empty msr
-            "1110_0011_0010_0000_1111_0000_0000_0000" => Ok(Instruction {
-                opcode: Opcode::Mov,
-                operand1: Some(Operand::Register(Register::R0, None)),
-                operand2: Some(Operand::Register(Register::R0, None)),
-                ..Instruction::default()
-            }),
             // Data Processing
             "cccc_00io_ooos_yyyy_xxxx_zzzz_zzzz_zzzz" => {
                 let condition = Condition::from(c)?;
@@ -593,7 +587,8 @@ impl Instruction {
                                 (0, 0, 1) => Register::CpsrControl,
                                 (1, 1, 1) => Register::SpsrFlagControl,
                                 (0, 1, 1) => Register::CpsrFlagControl,
-                                _ => panic!("Unknown PSR transfer: {:08x} | {:032b}", opcode, opcode),
+                                (0, 0, 0) => Register::PsrNone,
+                                _ => unreachable!(),
                             };
 
                             let operand2 = if i == 1 {
@@ -1468,6 +1463,7 @@ impl Display for Register {
             Register::SpsrControl => write!(f, "spsr_ctl"),
             Register::CpsrFlagControl => write!(f, "cpsr_fc"),
             Register::SpsrFlagControl => write!(f, "spsr_fc"),
+            Register::PsrNone => write!(f, "psr_none"),
         }
     }
 }

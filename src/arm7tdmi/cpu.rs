@@ -269,6 +269,9 @@ impl Cpu {
                 current = Psr::from_bits_truncate((current.bits() & !Psr::M.bits()) | (spsr.bits() & Psr::M.bits()));
                 self.write_to_current_spsr(current);
             }
+            Register::PsrNone => {
+                // basically a nop
+            }
         }
     }
 
