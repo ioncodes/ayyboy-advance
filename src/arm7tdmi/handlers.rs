@@ -525,7 +525,11 @@ impl Handlers {
                         }
                     }
 
-                    let value = cpu.read_register(register);
+                    let value = if *register == Register::R15 {
+                        cpu.read_register(register) + 4
+                    } else {
+                        cpu.read_register(register)
+                    };
                     mmio.write_u32(address, value);
 
                     if *indexing == Indexing::Post {
