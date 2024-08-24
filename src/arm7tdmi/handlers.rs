@@ -472,7 +472,7 @@ impl Handlers {
                 }
                 .rotate_right(rotation);
 
-                mmio.write_u32(addr, cpu.read_register(src));
+                mmio.write_u32(aligned_addr, cpu.read_register(src));
                 cpu.write_register(dst, original_value);
             }
             Instruction {
