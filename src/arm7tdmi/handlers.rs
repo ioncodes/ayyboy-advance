@@ -452,15 +452,27 @@ impl Handlers {
                 ..
             } => {
                 let addr = cpu.read_register(addr);
-                let src = cpu.read_register(src);
-
-                let original_value = match length {
-                    TransferLength::Byte => mmio.read(addr) as u32,
-                    TransferLength::Word => mmio.read_u32(addr),
-                    _ => unreachable!(),
+                let (aligned_addr, rotation) = if addr % 2 != 0 {
+                    let aligned_addr = addr
+                        & !((match length {
+                            TransferLength::Byte => 0b00,
+                            TransferLength::Word => 0b11,
+                            _ => unreachable!(),
+                        }) as u32);
+                    let rotation = (addr - aligned_addr) * 8;
+                    (aligned_addr, rotation)
+                } else {
+                    (addr, 0)
                 };
 
-                mmio.write_u32(addr, src);
+                let original_value = match length {
+                    TransferLength::Byte => mmio.read(aligned_addr) as u32,
+                    TransferLength::Word => mmio.read_u32(aligned_addr),
+                    _ => unreachable!(),
+                }
+                .rotate_right(rotation);
+
+                mmio.write_u32(addr, cpu.read_register(src));
                 cpu.write_register(dst, original_value);
             }
             Instruction {
