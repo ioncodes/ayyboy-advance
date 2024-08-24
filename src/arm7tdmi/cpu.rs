@@ -131,7 +131,15 @@ impl Cpu {
                 ProcessorMode::Undefined => self.registers.bank[&ProcessorMode::Undefined][1],
                 _ => self.registers.r[14],
             },
-            Register::R15 => self.registers.r[15],
+            Register::R15 => {
+                // WhenGryphonsFly — Today at 1:51 PM
+                // In thumb mode, PC-relative loads treat bit 1 of PC as always 0
+                if self.is_thumb() {
+                    self.registers.r[15] & !1
+                } else {
+                    self.registers.r[15]
+                }
+            }
             Register::Cpsr => self.registers.cpsr.bits(),
             Register::Spsr => self.read_from_current_spsr().bits(),
             _ => todo!(),
