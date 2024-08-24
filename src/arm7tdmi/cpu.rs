@@ -86,6 +86,10 @@ impl Cpu {
     }
 
     pub fn read_register(&self, register: &Register) -> u32 {
+        self.read_register_for_mode(register, self.get_processor_mode())
+    }
+
+    pub fn read_register_for_mode(&self, register: &Register, mode: ProcessorMode) -> u32 {
         match register {
             Register::R0 => self.registers.r[0],
             Register::R1 => self.registers.r[1],
@@ -95,27 +99,27 @@ impl Cpu {
             Register::R5 => self.registers.r[5],
             Register::R6 => self.registers.r[6],
             Register::R7 => self.registers.r[7],
-            Register::R8 => match self.get_processor_mode() {
+            Register::R8 => match mode {
                 ProcessorMode::Fiq => self.registers.bank[&ProcessorMode::Fiq][0],
                 _ => self.registers.r[8],
             },
-            Register::R9 => match self.get_processor_mode() {
+            Register::R9 => match mode {
                 ProcessorMode::Fiq => self.registers.bank[&ProcessorMode::Fiq][1],
                 _ => self.registers.r[9],
             },
-            Register::R10 => match self.get_processor_mode() {
+            Register::R10 => match mode {
                 ProcessorMode::Fiq => self.registers.bank[&ProcessorMode::Fiq][2],
                 _ => self.registers.r[10],
             },
-            Register::R11 => match self.get_processor_mode() {
+            Register::R11 => match mode {
                 ProcessorMode::Fiq => self.registers.bank[&ProcessorMode::Fiq][3],
                 _ => self.registers.r[11],
             },
-            Register::R12 => match self.get_processor_mode() {
+            Register::R12 => match mode {
                 ProcessorMode::Fiq => self.registers.bank[&ProcessorMode::Fiq][4],
                 _ => self.registers.r[12],
             },
-            Register::R13 => match self.get_processor_mode() {
+            Register::R13 => match mode {
                 ProcessorMode::Fiq => self.registers.bank[&ProcessorMode::Fiq][5],
                 ProcessorMode::Supervisor => self.registers.bank[&ProcessorMode::Supervisor][0],
                 ProcessorMode::Abort => self.registers.bank[&ProcessorMode::Abort][0],
@@ -123,7 +127,7 @@ impl Cpu {
                 ProcessorMode::Undefined => self.registers.bank[&ProcessorMode::Undefined][0],
                 _ => self.registers.r[13],
             },
-            Register::R14 => match self.get_processor_mode() {
+            Register::R14 => match mode {
                 ProcessorMode::Fiq => self.registers.bank[&ProcessorMode::Fiq][6],
                 ProcessorMode::Supervisor => self.registers.bank[&ProcessorMode::Supervisor][1],
                 ProcessorMode::Abort => self.registers.bank[&ProcessorMode::Abort][1],
@@ -147,6 +151,10 @@ impl Cpu {
     }
 
     pub fn write_register(&mut self, register: &Register, value: u32) {
+        self.write_register_for_mode(register, value, self.get_processor_mode());
+    }
+
+    pub fn write_register_for_mode(&mut self, register: &Register, value: u32, mode: ProcessorMode) {
         match register {
             Register::R0 => self.registers.r[0] = value,
             Register::R1 => self.registers.r[1] = value,
@@ -156,27 +164,27 @@ impl Cpu {
             Register::R5 => self.registers.r[5] = value,
             Register::R6 => self.registers.r[6] = value,
             Register::R7 => self.registers.r[7] = value,
-            Register::R8 => match self.get_processor_mode() {
+            Register::R8 => match mode {
                 ProcessorMode::Fiq => self.registers.bank.get_mut(&ProcessorMode::Fiq).unwrap()[0] = value,
                 _ => self.registers.r[8] = value,
             },
-            Register::R9 => match self.get_processor_mode() {
+            Register::R9 => match mode {
                 ProcessorMode::Fiq => self.registers.bank.get_mut(&ProcessorMode::Fiq).unwrap()[1] = value,
                 _ => self.registers.r[9] = value,
             },
-            Register::R10 => match self.get_processor_mode() {
+            Register::R10 => match mode {
                 ProcessorMode::Fiq => self.registers.bank.get_mut(&ProcessorMode::Fiq).unwrap()[2] = value,
                 _ => self.registers.r[10] = value,
             },
-            Register::R11 => match self.get_processor_mode() {
+            Register::R11 => match mode {
                 ProcessorMode::Fiq => self.registers.bank.get_mut(&ProcessorMode::Fiq).unwrap()[3] = value,
                 _ => self.registers.r[11] = value,
             },
-            Register::R12 => match self.get_processor_mode() {
+            Register::R12 => match mode {
                 ProcessorMode::Fiq => self.registers.bank.get_mut(&ProcessorMode::Fiq).unwrap()[4] = value,
                 _ => self.registers.r[12] = value,
             },
-            Register::R13 => match self.get_processor_mode() {
+            Register::R13 => match mode {
                 ProcessorMode::Fiq => self.registers.bank.get_mut(&ProcessorMode::Fiq).unwrap()[5] = value,
                 ProcessorMode::Supervisor => {
                     self.registers.bank.get_mut(&ProcessorMode::Supervisor).unwrap()[0] = value
@@ -186,7 +194,7 @@ impl Cpu {
                 ProcessorMode::Undefined => self.registers.bank.get_mut(&ProcessorMode::Undefined).unwrap()[0] = value,
                 _ => self.registers.r[13] = value,
             },
-            Register::R14 => match self.get_processor_mode() {
+            Register::R14 => match mode {
                 ProcessorMode::Fiq => self.registers.bank.get_mut(&ProcessorMode::Fiq).unwrap()[6] = value,
                 ProcessorMode::Supervisor => {
                     self.registers.bank.get_mut(&ProcessorMode::Supervisor).unwrap()[1] = value
@@ -284,16 +292,6 @@ impl Cpu {
             }
         }
     }
-
-    // pub fn write_register_u8(&mut self, register: &Register, value: u8) {
-    //     let original_value = self.read_register(register);
-    //     self.write_register(register, (original_value & 0xffffff00) | value as u32);
-    // }
-
-    // pub fn write_register_u16(&mut self, register: &Register, value: u16) {
-    //     let original_value = self.read_register(register);
-    //     self.write_register(register, (original_value & 0xffff0000) | value as u32);
-    // }
 
     pub fn update_flag(&mut self, flag: Psr, value: bool) {
         self.registers.cpsr.set(flag, value);

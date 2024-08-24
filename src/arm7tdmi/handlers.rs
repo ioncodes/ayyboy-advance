@@ -476,8 +476,17 @@ impl Handlers {
                 offset_direction: Some(operation),
                 indexing: Some(indexing),
                 writeback,
+                set_psr_flags,
                 ..
             } => {
+                let cpu_write_register = |register: &Register, value: u32| {
+                    if *set_psr_flags {
+                        cpu.write_register_for_mode(register, value, ProcessorMode::User);
+                    } else {
+                        cpu.write_register(register, value);
+                    }
+                };
+
                 let mut address = cpu.read_register(src_base);
 
                 for register in registers.iter().rev() {
@@ -512,8 +521,21 @@ impl Handlers {
                 offset_direction: Some(operation),
                 indexing: Some(indexing),
                 writeback,
+                set_psr_flags,
                 ..
             } => {
+                let cpu_read_register = |register: &Register| {
+                    if *set_psr_flags {
+                        cpu.read_register_for_mode(register, ProcessorMode::User)
+                    } else {
+                        if *register == Register::R15 {
+                            cpu.read_register(register) + 4
+                        } else {
+                            cpu.read_register(register)
+                        }
+                    }
+                };
+
                 let mut address = cpu.read_register(dst_base);
 
                 for register in registers {
@@ -525,11 +547,7 @@ impl Handlers {
                         }
                     }
 
-                    let value = if *register == Register::R15 {
-                        cpu.read_register(register) + 4
-                    } else {
-                        cpu.read_register(register)
-                    };
+                    let value = cpu_read_register(register);
                     mmio.write_u32(address, value);
 
                     if *indexing == Indexing::Post {

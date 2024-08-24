@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests {
     use crate::arm7tdmi::cpu::Cpu;
-    use crate::arm7tdmi::decoder::Instruction;
+    use crate::arm7tdmi::decoder::{Instruction, Register};
     use crate::arm7tdmi::mode::ProcessorMode;
     use crate::memory::mmio::Mmio;
 
@@ -51,7 +51,7 @@ mod tests {
                     }
                 }
 
-                assert!(false, "Failed test: {}", cpu.registers.r[12]);
+                assert!(false, "Failed test: {}", cpu.read_register(&Register::R12));
             }
 
             if cpu.registers.r[15] == 0x08001d8c {
