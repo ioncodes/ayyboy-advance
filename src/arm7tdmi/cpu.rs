@@ -49,7 +49,9 @@ impl Cpu {
                 Opcode::Push | Opcode::Pop => Handlers::push_pop(&instruction, self, mmio),
                 Opcode::Cmp | Opcode::Tst | Opcode::Teq | Opcode::Cmn => Handlers::test(&instruction, self, mmio),
                 Opcode::Mov | Opcode::Mvn => Handlers::move_data(&instruction, self, mmio),
-                Opcode::Ldm | Opcode::Stm | Opcode::Ldr | Opcode::Str => Handlers::load_store(&instruction, self, mmio),
+                Opcode::Ldm | Opcode::Stm | Opcode::Ldr | Opcode::Str | Opcode::Swp => {
+                    Handlers::load_store(&instruction, self, mmio)
+                }
                 Opcode::Mrs | Opcode::Msr => Handlers::psr_transfer(&instruction, self, mmio),
                 Opcode::Add
                 | Opcode::Adc

@@ -91,7 +91,7 @@ pub enum Register {
     SpsrFlag,
     SpsrControl,
     SpsrFlagControl,
-    PsrNone, // Nop
+    PsrNone, // Nop, TODO: rewrite PSR flag access
 }
 
 impl Register {
@@ -233,6 +233,7 @@ pub enum Opcode {
     Smull,
     Smlal,
     Neg,
+    Swp,
 }
 
 impl Opcode {
@@ -287,6 +288,7 @@ impl Display for Opcode {
             Opcode::Smull => write!(f, "smull"),
             Opcode::Smlal => write!(f, "smlal"),
             Opcode::Neg => write!(f, "neg"),
+            Opcode::Swp => write!(f, "swp"),
         }
     }
 }
@@ -475,6 +477,27 @@ impl Instruction {
                     ..Instruction::default()
                 })
             }
+            // Single Data Swap (SWP)
+            "cccc_0001_0l00_bbbb_dddd_0000_1001_ssss" => {
+                let condition = Condition::from(c)?;
+                let dst = Register::from(d)?;
+                let src = Register::from(s)?;
+                let base = Register::from(b)?;
+
+                Ok(Instruction {
+                    opcode: Opcode::Swp,
+                    condition,
+                    operand1: Some(Operand::Register(dst, None)),
+                    operand2: Some(Operand::Register(src, None)),
+                    operand3: Some(Operand::Register(base, None)),
+                    transfer_length: Some(if l == 1 {
+                        TransferLength::Byte
+                    } else {
+                        TransferLength::Word
+                    }),
+                    ..Instruction::default()
+                })
+            }
             // Halfword and Signed Data Transfer (LDRH/STRH/LDRSB/LDRSH)
             "cccc_000p_uiwl_yyyy_xxxx_oooo_1sh1_zzzz" => {
                 let condition = Condition::from(c)?;
@@ -514,7 +537,6 @@ impl Instruction {
                     operand2: Some(Operand::Register(src, None)),
                     operand3: Some(offset),
                     transfer_length: match (s, h) {
-                        (0, 0) => return Err(String::from("SWP not implemented")),
                         (0, 1) => Some(TransferLength::HalfWord), // unsigned
                         (1, 0) => Some(TransferLength::Byte),     // signed
                         (1, 1) => Some(TransferLength::HalfWord), // signed
@@ -1337,6 +1359,27 @@ impl Display for Instruction {
                     if self.writeback { "!" } else { "" },
                     self.operand2.as_ref().unwrap(),
                 )?;
+            }
+            Opcode::Swp => {
+                write!(
+                    f,
+                    "{}{}{}{} {}, {}",
+                    self.opcode,
+                    self.condition,
+                    match self.transfer_length {
+                        Some(TransferLength::Byte) => "b",
+                        Some(TransferLength::Word) => "",
+                        _ => unreachable!(),
+                    },
+                    if self.set_condition_flags && !self.opcode.is_test() {
+                        ".s"
+                    } else {
+                        ""
+                    },
+                    self.operand1.as_ref().unwrap(),
+                    self.operand2.as_ref().unwrap(),
+                )?;
+                write!(f, ", [{}]", self.operand3.as_ref().unwrap())?;
             }
             // Opcode::Add | Opcode::Sub
             //     if let Some(Operand::Register(reg, None)) = &self.operand2

@@ -444,6 +444,38 @@ impl Handlers {
                 }
             }
             Instruction {
+                opcode: Opcode::Swp,
+                operand1: Some(Operand::Register(dst, None)),
+                operand2: Some(Operand::Register(src, None)),
+                operand3: Some(step),
+                transfer_length: Some(length),
+                set_condition_flags,
+                ..
+            } => {
+                let step = Handlers::resolve_operand(step, cpu, *set_condition_flags);
+                let src_addr = cpu.read_register(src);
+                let dst_addr = cpu.read_register(dst);
+
+                let src_value = match length {
+                    TransferLength::Byte => mmio.read(src_addr) as u32,
+                    TransferLength::Word => mmio.read_u32(src_addr),
+                    _ => unreachable!(),
+                };
+                let dst_value = match length {
+                    TransferLength::Byte => mmio.read(dst_addr) as u32,
+                    TransferLength::Word => mmio.read_u32(dst_addr),
+                    _ => unreachable!(),
+                };
+
+                mmio.write_u32(dst_addr, src_value);
+                mmio.write_u32(src_addr, dst_value);
+
+                if *set_condition_flags {
+                    cpu.update_flag(Psr::N, src_value & 0x8000_0000 != 0 || dst_value & 0x8000_0000 != 0);
+                    cpu.update_flag(Psr::Z, src_value == 0 || dst_value == 0);
+                }
+            }
+            Instruction {
                 opcode: Opcode::Ldm,
                 operand1: Some(Operand::Register(src_base, None)),
                 operand2: Some(Operand::RegisterList(registers)),
