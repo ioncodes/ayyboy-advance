@@ -479,7 +479,7 @@ impl Handlers {
                 set_psr_flags,
                 ..
             } => {
-                let cpu_write_register = |register: &Register, value: u32| {
+                let cpu_write_register = |cpu: &mut Cpu, register: &Register, value: u32| {
                     if *set_psr_flags {
                         cpu.write_register_for_mode(register, value, ProcessorMode::User);
                     } else {
@@ -499,7 +499,7 @@ impl Handlers {
                     }
 
                     let value = mmio.read_u32(address);
-                    cpu.write_register(register, value);
+                    cpu_write_register(cpu, register, value);
 
                     if *indexing == Indexing::Post {
                         if *operation == Direction::Up {
