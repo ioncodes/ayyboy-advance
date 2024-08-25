@@ -489,12 +489,21 @@ impl Handlers {
 
                 let mut address = cpu.read_register(src_base);
 
+                // Empty Rlist: R15 loaded/stored (ARMv4 only), and Rb=Rb+/-40h (ARMv4-v5).
+                // http://problemkaputt.de/gbatek-arm-opcodes-memory-block-data-transfer-ldm-stm.htms
+                let increment_amount = if registers.is_empty() { 0x40 } else { 4 };
+                let registers = if registers.is_empty() {
+                    &vec![Register::R15]
+                } else {
+                    registers
+                };
+
                 for register in registers.iter().rev() {
                     if *indexing == Indexing::Pre {
                         if *operation == Direction::Up {
-                            address += 4;
+                            address += increment_amount;
                         } else {
-                            address -= 4;
+                            address -= increment_amount;
                         }
                     }
 
@@ -503,9 +512,9 @@ impl Handlers {
 
                     if *indexing == Indexing::Post {
                         if *operation == Direction::Up {
-                            address += 4;
+                            address += increment_amount;
                         } else {
-                            address -= 4;
+                            address -= increment_amount;
                         }
                     }
                 }
