@@ -490,7 +490,7 @@ impl Handlers {
                 let mut address = cpu.read_register(src_base);
 
                 // Empty Rlist: R15 loaded/stored (ARMv4 only), and Rb=Rb+/-40h (ARMv4-v5).
-                // http://problemkaputt.de/gbatek-arm-opcodes-memory-block-data-transfer-ldm-stm.htms
+                // http://problemkaputt.de/gbatek-arm-opcodes-memory-block-data-transfer-ldm-stm.htm
                 let increment_amount = if registers.is_empty() { 0x40 } else { 4 };
                 let registers = if registers.is_empty() {
                     &vec![Register::R15]
@@ -519,7 +519,16 @@ impl Handlers {
                     }
                 }
 
-                if *writeback {
+                // Writeback with Rb included in Rlist: Store OLD base if Rb is FIRST entry
+                // in Rlist, otherwise store NEW base (STM/ARMv4), always store OLD base
+                // (STM/ARMv5), no writeback (LDM/ARMv4), writeback if Rb is "the ONLY register,
+                // or NOT the LAST register" in Rlist (LDM/ARMv5).
+                if *writeback
+                    && let Some(reg) = registers.first()
+                    && reg != src_base
+                    && let Some(reg) = registers.last()
+                    && reg != src_base
+                {
                     cpu.write_register(src_base, address);
                 }
             }
@@ -548,7 +557,7 @@ impl Handlers {
                 let mut address = cpu.read_register(dst_base);
 
                 // Empty Rlist: R15 loaded/stored (ARMv4 only), and Rb=Rb+/-40h (ARMv4-v5).
-                // http://problemkaputt.de/gbatek-arm-opcodes-memory-block-data-transfer-ldm-stm.htms
+                // http://problemkaputt.de/gbatek-arm-opcodes-memory-block-data-transfer-ldm-stm.htm
                 let increment_amount = if registers.is_empty() { 0x40 } else { 4 };
                 let registers = if registers.is_empty() {
                     &vec![Register::R15]
