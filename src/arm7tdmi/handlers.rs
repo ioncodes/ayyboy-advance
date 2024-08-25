@@ -507,7 +507,7 @@ impl Handlers {
                         }
                     }
 
-                    let value = mmio.read_u32(address);
+                    let value = mmio.read_u32(address & !0b11);
                     cpu_write_register(cpu, register, value);
 
                     if *indexing == Indexing::Post {
@@ -605,10 +605,10 @@ impl Handlers {
                         };
 
                         let value = cpu_read_register(register);
-                        mmio.write_u32(temp_addr, value);
+                        mmio.write_u32(temp_addr & !0b11, value);
                     } else {
                         let value = cpu_read_register(register);
-                        mmio.write_u32(address, value);
+                        mmio.write_u32(address & !0b11, value);
                     }
 
                     if *indexing == Indexing::Post {
