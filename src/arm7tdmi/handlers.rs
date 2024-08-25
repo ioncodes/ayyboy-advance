@@ -542,7 +542,28 @@ impl Handlers {
                 set_psr_flags,
                 ..
             } => {
+                let mut address = cpu.read_register(dst_base);
+                let end_address = registers.iter().fold(address, |addr, _| match *operation {
+                    Direction::Up => addr + 4,
+                    Direction::Down => addr - 4,
+                });
+
                 let cpu_read_register = |register: &Register| {
+                    // if the dest base register is in the list,
+                    // we don't actually store the value of the register
+                    // but rather the value it would have been after the writeback
+                    // this should only be respected if the writeback flag is set
+                    // and the base is not the first or last register in the list
+                    if *writeback
+                        && dst_base == register
+                        && let Some(first) = registers.first()
+                        && first != register
+                        && let Some(last) = registers.last()
+                        && last != register
+                    {
+                        return end_address;
+                    }
+
                     if *set_psr_flags {
                         cpu.read_register_for_mode(register, ProcessorMode::User)
                     } else {
@@ -553,8 +574,6 @@ impl Handlers {
                         }
                     }
                 };
-
-                let mut address = cpu.read_register(dst_base);
 
                 // Empty Rlist: R15 loaded/stored (ARMv4 only), and Rb=Rb+/-40h (ARMv4-v5).
                 // http://problemkaputt.de/gbatek-arm-opcodes-memory-block-data-transfer-ldm-stm.htm
