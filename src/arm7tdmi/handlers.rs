@@ -593,8 +593,23 @@ impl Handlers {
                         }
                     }
 
-                    let value = cpu_read_register(register);
-                    mmio.write_u32(address, value);
+                    if registers.first() == Some(&Register::R15) {
+                        // TODO: what kinda monstrosity is this. rewrite all of ldm/stm
+                        // real processor supposedly starts always at the lowest address
+                        // and everything is an increment
+                        let temp_addr = match (indexing, operation) {
+                            (Indexing::Pre, Direction::Down) => address,
+                            (Indexing::Pre, Direction::Up) => address - 0x3c,
+                            (Indexing::Post, Direction::Up) => address,
+                            (Indexing::Post, Direction::Down) => address - 0x3c,
+                        };
+
+                        let value = cpu_read_register(register);
+                        mmio.write_u32(temp_addr, value);
+                    } else {
+                        let value = cpu_read_register(register);
+                        mmio.write_u32(address, value);
+                    }
 
                     if *indexing == Indexing::Post {
                         if *operation == Direction::Up {
