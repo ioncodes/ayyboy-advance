@@ -139,7 +139,7 @@ impl Cpu {
                 // WhenGryphonsFly — Today at 1:51 PM
                 // In thumb mode, PC-relative loads treat bit 1 of PC as always 0
                 if self.is_thumb() {
-                    self.registers.r[15] & !1
+                    self.registers.r[15] & !0b10
                 } else {
                     self.registers.r[15]
                 }
@@ -313,7 +313,9 @@ impl Cpu {
 
     // program counter
     pub fn get_pc(&self) -> u32 {
-        self.read_register(&Register::R15)
+        // this needs direct access as read_register
+        // may ignore bit 1 in thumb mode
+        self.registers.r[15]
     }
 
     // stack pointer

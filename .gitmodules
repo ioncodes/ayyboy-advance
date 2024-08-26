@@ -10,3 +10,6 @@
 [submodule "external/gba-psr-test"]
 	path = external/gba-psr-test
 	url = https://github.com/ioncodes/gba-psr-test
+[submodule "external/armwrestler-gba-fixed"]
+	path = external/armwrestler-gba-fixed
+	url = https://github.com/destoer/armwrestler-gba-fixed
