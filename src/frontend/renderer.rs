@@ -6,7 +6,8 @@ use crate::video::{Frame, SCREEN_HEIGHT, SCREEN_WIDTH};
 use crossbeam_channel::{Receiver, Sender};
 use eframe::egui::{vec2, CentralPanel, Color32, ColorImage, Context, Image, TextureHandle, TextureOptions};
 use eframe::{App, CreationContext};
-use egui::Key;
+use egui::{Align2, Key, RichText, Window};
+use egui_extras::{Column, TableBuilder};
 
 pub const SCALE: usize = 4;
 
@@ -15,6 +16,7 @@ pub struct Renderer {
     debugger: Debugger,
     display_rx: Receiver<Frame>,
     backend_tx: Sender<RequestEvent>,
+    running: bool,
 }
 
 impl Renderer {
@@ -43,6 +45,7 @@ impl Renderer {
             debugger,
             display_rx,
             backend_tx,
+            running: false,
         }
     }
 
@@ -66,14 +69,19 @@ impl Renderer {
 
     pub fn handle_input(&mut self, ctx: &Context) {
         ctx.input(|i| {
+            // Toggle debugger window
             if i.key_pressed(Key::F1) {
                 self.debugger.toggle_window();
+                self.running = false;
             }
 
-            if i.key_pressed(Key::Space) {
+            // Run the emulator
+            if i.key_pressed(Key::Space) && !self.running {
                 self.backend_tx.send(RequestEvent::Run).unwrap();
+                self.running = true;
             }
 
+            // Update key state
             let mut key_state: Vec<(KeyInput, bool)> = Vec::new();
             key_state.push((KeyInput::A, i.key_down(Key::A)));
             key_state.push((KeyInput::B, i.key_down(Key::S)));
@@ -106,6 +114,80 @@ impl App for Renderer {
             let image = image.fit_to_exact_size(vec2((SCREEN_WIDTH * SCALE) as f32, (SCREEN_HEIGHT * SCALE) as f32));
             image.paint_at(ui, ui.ctx().screen_rect());
         });
+
+        if !self.running && !self.debugger.open {
+            Window::new("Controls")
+                .anchor(Align2::CENTER_CENTER, vec2(0.0, 0.0))
+                .collapsible(false)
+                .resizable(false)
+                .show(ctx, |ui| {
+                    TableBuilder::new(ui)
+                        .columns(Column::auto(), 2)
+                        .header(0.0, |mut header| {
+                            header.col(|ui| {
+                                ui.label(RichText::new("Key").italics());
+                            });
+                            header.col(|ui| {
+                                ui.label(RichText::new("Action").italics());
+                            });
+                        })
+                        .body(|mut body| {
+                            body.row(0.0, |mut row| {
+                                row.col(|ui| {
+                                    ui.label(RichText::new("F1").strong());
+                                });
+                                row.col(|ui| {
+                                    ui.label("Toggle debugger window");
+                                });
+                            });
+
+                            body.row(0.0, |mut row| {
+                                row.col(|ui| {
+                                    ui.label(RichText::new("Space").strong());
+                                });
+                                row.col(|ui| {
+                                    ui.label("Run the emulator");
+                                });
+                            });
+
+                            body.row(0.0, |mut row| {
+                                row.col(|ui| {
+                                    ui.label(RichText::new("A, S buttons").strong());
+                                });
+                                row.col(|ui| {
+                                    ui.label("A, B buttons");
+                                });
+                            });
+
+                            body.row(0.0, |mut row| {
+                                row.col(|ui| {
+                                    ui.label(RichText::new("Q, W buttons").strong());
+                                });
+                                row.col(|ui| {
+                                    ui.label("L, R buttons");
+                                });
+                            });
+
+                            body.row(0.0, |mut row| {
+                                row.col(|ui| {
+                                    ui.label(RichText::new("Enter, Backspace buttons").strong());
+                                });
+                                row.col(|ui| {
+                                    ui.label("Start, Select buttons");
+                                });
+                            });
+
+                            body.row(0.0, |mut row| {
+                                row.col(|ui| {
+                                    ui.label(RichText::new("Arrow keys").strong());
+                                });
+                                row.col(|ui| {
+                                    ui.label("D-pad");
+                                });
+                            });
+                        });
+                });
+        }
 
         ctx.request_repaint();
     }

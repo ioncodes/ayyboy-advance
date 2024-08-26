@@ -9,7 +9,7 @@ pub struct Joypad {
 impl Joypad {
     pub fn new() -> Joypad {
         Joypad {
-            status: KeyInput::empty(),
+            status: KeyInput::all(),
             irq_control: KeyControl::empty(),
         }
     }
