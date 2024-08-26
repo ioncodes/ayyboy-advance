@@ -29,6 +29,10 @@ impl Mmio {
     pub fn read(&self, addr: u32) -> u8 {
         match addr {
             0x04000000..=0x04000056 => self.ppu.read(addr), // PPU I/O
+            0x04000000..=0x040003FE => {
+                error!("Unmapped I/O read: {:08x}", addr);
+                0
+            }
             0x00000000..=0x04FFFFFF => self.internal_memory[addr as usize],
             0x05000000..=0x07FFFFFF => self.ppu.read(addr),
             0x08000000..=0x09FFFFFF => self.external_memory[(addr - 0x08000000) as usize],
@@ -57,6 +61,7 @@ impl Mmio {
     pub fn write(&mut self, addr: u32, value: u8) {
         match addr {
             0x04000000..=0x04000056 => self.ppu.write(addr, value), // PPU I/O
+            0x04000000..=0x040003FE => error!("Unmapped I/O write: {:08x}", addr),
             0x00000000..=0x04FFFFFF => self.internal_memory[addr as usize] = value,
             0x05000000..=0x07FFFFFF => self.ppu.write(addr, value),
             0x08000000..=0x09FFFFFF => self.external_memory[(addr - 0x08000000) as usize] = value,
