@@ -45,6 +45,16 @@ impl Addressable for Joypad {
                     value,
                 ]));
             }
+            0x04000132 => {
+                self.irq_control =
+                    KeyControl::from_bits_truncate(u16::from_le_bytes([value, self.irq_control.bits() as u8]));
+            }
+            0x04000133 => {
+                self.irq_control = KeyControl::from_bits_truncate(u16::from_le_bytes([
+                    ((self.irq_control.bits() & 0xff00) >> 8) as u8,
+                    value,
+                ]));
+            }
             _ => unreachable!(),
         }
     }
