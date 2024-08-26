@@ -4,6 +4,7 @@
 
 mod arm7tdmi;
 mod frontend;
+mod joypad;
 mod memory;
 mod tests;
 mod video;

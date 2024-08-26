@@ -1,5 +1,6 @@
 use log::error;
 
+use crate::joypad::Joypad;
 use crate::video::ppu::Ppu;
 
 use super::device::Addressable;
@@ -8,6 +9,7 @@ pub struct Mmio {
     pub internal_memory: Box<[u8; 0x04FFFFFF + 1]>,
     pub external_memory: Box<[u8; (0x0FFFFFFF - 0x08000000) + 1]>,
     pub ppu: Ppu,
+    pub joypad: Joypad,
 }
 
 impl Mmio {
@@ -19,6 +21,7 @@ impl Mmio {
             internal_memory: unsafe { internal_memory.assume_init() },
             external_memory: unsafe { external_memory.assume_init() },
             ppu: Ppu::new(),
+            joypad: Joypad::new(),
         }
     }
 
@@ -28,7 +31,8 @@ impl Mmio {
 
     pub fn read(&self, addr: u32) -> u8 {
         match addr {
-            0x04000000..=0x04000056 => self.ppu.read(addr), // PPU I/O
+            0x04000000..=0x04000056 => self.ppu.read(addr),    // PPU I/O
+            0x04000130..=0x04000134 => self.joypad.read(addr), // Joypad I/O
             0x04000000..=0x040003FE => {
                 error!("Unmapped I/O read: {:08x}", addr);
                 0
@@ -61,6 +65,7 @@ impl Mmio {
     pub fn write(&mut self, addr: u32, value: u8) {
         match addr {
             0x04000000..=0x04000056 => self.ppu.write(addr, value), // PPU I/O
+            0x04000130..=0x04000134 => self.joypad.write(addr, value), // Joypad I/O
             0x04000000..=0x040003FE => error!("Unmapped I/O write: {:08x}", addr),
             0x00000000..=0x04FFFFFF => self.internal_memory[addr as usize] = value,
             0x05000000..=0x07FFFFFF => self.ppu.write(addr, value),
