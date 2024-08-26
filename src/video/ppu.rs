@@ -42,7 +42,7 @@ impl Ppu {
 
             self.write_u16(
                 DISPSTAT_ADDR,
-                self.read_u16(DISPSTAT_ADDR) & DispStat::VBLANK_FLAG.bits(),
+                self.read_u16(DISPSTAT_ADDR) & !DispStat::VBLANK_FLAG.bits(),
             );
         }
 
