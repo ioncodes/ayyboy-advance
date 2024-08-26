@@ -4,7 +4,7 @@
 
 mod arm7tdmi;
 mod frontend;
-mod joypad;
+mod input;
 mod memory;
 mod tests;
 mod video;
@@ -16,9 +16,9 @@ use arm7tdmi::decoder::{Instruction, Register};
 use arm7tdmi::mode::ProcessorMode;
 use eframe::NativeOptions;
 use egui::ViewportBuilder;
-use frontend::dbg::event::{RequestEvent, ResponseEvent};
 use frontend::dbg::widgets;
 use frontend::dbg::widgets::disasm::DecodedInstruction;
+use frontend::event::{RequestEvent, ResponseEvent};
 use frontend::renderer::{Renderer, SCALE};
 use lazy_static::lazy_static;
 use memory::mmio::Mmio;
@@ -50,7 +50,7 @@ enum EventResult {
 }
 
 fn process_debug_events(
-    cpu: &Cpu, mmio: &Mmio, dbg_req_rx: &Receiver<RequestEvent>, dbg_resp_tx: &Sender<ResponseEvent>,
+    cpu: &Cpu, mmio: &mut Mmio, dbg_req_rx: &Receiver<RequestEvent>, dbg_resp_tx: &Sender<ResponseEvent>,
 ) -> EventResult {
     dbg_req_rx
         .try_recv() // check for new requests
@@ -116,6 +116,12 @@ fn process_debug_events(
                 ));
                 EventResult::None
             }
+            RequestEvent::UpdateKeyState(state) => {
+                for (key, pressed) in state {
+                    mmio.joypad.set_key_state(key, pressed);
+                }
+                EventResult::None
+            }
         })
         .unwrap_or(EventResult::None)
 }
@@ -173,7 +179,7 @@ fn main() {
         };
 
         loop {
-            match process_debug_events(&cpu, &mmio, &dbg_req_rx, &dbg_resp_tx) {
+            match process_debug_events(&cpu, &mut mmio, &dbg_req_rx, &dbg_resp_tx) {
                 EventResult::Break => tick = false,
                 EventResult::Continue => tick = true,
                 EventResult::Step if !tick => {

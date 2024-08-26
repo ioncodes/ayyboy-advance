@@ -1,5 +1,7 @@
 use super::dbg::debugger::Debugger;
-use super::dbg::event::{RequestEvent, ResponseEvent};
+use super::event::ResponseEvent;
+use crate::frontend::event::RequestEvent;
+use crate::input::registers::KeyInput;
 use crate::video::{Frame, SCREEN_HEIGHT, SCREEN_WIDTH};
 use crossbeam_channel::{Receiver, Sender};
 use eframe::egui::{vec2, CentralPanel, Color32, ColorImage, Context, Image, TextureHandle, TextureOptions};
@@ -12,12 +14,13 @@ pub struct Renderer {
     screen_texture: TextureHandle,
     debugger: Debugger,
     display_rx: Receiver<Frame>,
+    backend_tx: Sender<RequestEvent>,
 }
 
 impl Renderer {
     pub fn new(
-        cc: &CreationContext, display_rx: Receiver<Frame>, debugger_tx: Sender<RequestEvent>,
-        debugger_rx: Receiver<ResponseEvent>,
+        cc: &CreationContext, display_rx: Receiver<Frame>, backend_tx: Sender<RequestEvent>,
+        backend_rx: Receiver<ResponseEvent>,
     ) -> Renderer {
         let screen_texture = cc.egui_ctx.load_texture(
             "screen_texture",
@@ -25,10 +28,10 @@ impl Renderer {
             TextureOptions::NEAREST,
         );
         let debugger = Debugger::new(
-            debugger_tx.clone(),
-            debugger_tx.clone(),
-            debugger_tx.clone(),
-            debugger_rx.clone(),
+            backend_tx.clone(),
+            backend_tx.clone(),
+            backend_tx.clone(),
+            backend_rx.clone(),
         );
 
         let mut fonts = egui::FontDefinitions::default();
@@ -39,6 +42,7 @@ impl Renderer {
             screen_texture,
             debugger,
             display_rx,
+            backend_tx,
         }
     }
 
@@ -61,9 +65,28 @@ impl Renderer {
     }
 
     pub fn handle_input(&mut self, ctx: &Context) {
-        if ctx.input(|i| i.key_pressed(Key::F1)) {
-            self.debugger.toggle_window();
-        }
+        ctx.input(|i| {
+            if i.key_pressed(Key::F1) {
+                self.debugger.toggle_window();
+            }
+
+            if i.key_pressed(Key::Space) {
+                self.backend_tx.send(RequestEvent::Run).unwrap();
+            }
+
+            let mut key_state: Vec<(KeyInput, bool)> = Vec::new();
+            key_state.push((KeyInput::A, i.key_down(Key::A)));
+            key_state.push((KeyInput::B, i.key_down(Key::S)));
+            key_state.push((KeyInput::START, i.key_down(Key::Enter)));
+            key_state.push((KeyInput::SELECT, i.key_down(Key::Backspace)));
+            key_state.push((KeyInput::UP, i.key_down(Key::ArrowUp)));
+            key_state.push((KeyInput::DOWN, i.key_down(Key::ArrowDown)));
+            key_state.push((KeyInput::LEFT, i.key_down(Key::ArrowLeft)));
+            key_state.push((KeyInput::RIGHT, i.key_down(Key::ArrowRight)));
+            key_state.push((KeyInput::L, i.key_down(Key::Q)));
+            key_state.push((KeyInput::R, i.key_down(Key::W)));
+            self.backend_tx.send(RequestEvent::UpdateKeyState(key_state)).unwrap();
+        })
     }
 }
 

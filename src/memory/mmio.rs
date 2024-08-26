@@ -1,6 +1,6 @@
 use log::error;
 
-use crate::joypad::Joypad;
+use crate::input::joypad::Joypad;
 use crate::video::ppu::Ppu;
 
 use super::device::Addressable;

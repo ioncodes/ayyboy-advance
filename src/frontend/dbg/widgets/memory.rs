@@ -1,5 +1,5 @@
-use crate::frontend::dbg::event::RequestEvent;
 use crate::frontend::dbg::tracked_value::TrackedValue;
+use crate::frontend::event::RequestEvent;
 use crossbeam_channel::Sender;
 use egui::{ComboBox, Context, RichText, Window};
 use egui_extras::{Column, TableBuilder};

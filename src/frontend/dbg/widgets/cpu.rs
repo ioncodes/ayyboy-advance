@@ -1,6 +1,6 @@
 use crate::arm7tdmi::registers::Psr;
-use crate::frontend::dbg::event::RequestEvent;
 use crate::frontend::dbg::tracked_value::TrackedValue;
+use crate::frontend::event::RequestEvent;
 use crossbeam_channel::Sender;
 use egui::{Color32, ComboBox, Context, RichText, TextEdit, Window};
 
