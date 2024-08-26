@@ -879,10 +879,10 @@ impl Instruction {
             // Move shifted register
             "000c_cooo_ooss_sddd" => {
                 let opcode = match c {
-                    0b00 if o != 0 => Opcode::Lsl,
-                    0b01 if o != 0 => Opcode::Lsr,
-                    0b10 if o != 0 => Opcode::Asr,
-                    _ => Opcode::Mov, // 0 shift amount is a mov
+                    0b00 => Opcode::Lsl,
+                    0b01 => Opcode::Lsr,
+                    0b10 => Opcode::Asr,
+                    _ => unreachable!(),
                 };
                 let operand1 = Register::from(d)?;
                 let operand2 = Register::from(s)?;
@@ -893,11 +893,7 @@ impl Instruction {
                     set_psr_flags: true,
                     operand1: Some(Operand::Register(operand1, None)),
                     operand2: Some(Operand::Register(operand2, None)),
-                    operand3: if o != 0 {
-                        Some(Operand::Immediate(o, None))
-                    } else {
-                        None
-                    },
+                    operand3: Some(Operand::Immediate(o, None)),
                     ..Instruction::default()
                 })
             }

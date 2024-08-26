@@ -1120,8 +1120,7 @@ impl Handlers {
                 set_psr_flags: set_condition_flags,
                 ..
             } => {
-                let src = cpu.read_register(src);
-                let result = src & !cpu.read_register(dst);
+                let result = cpu.read_register(dst) & !cpu.read_register(src);
                 cpu.write_register(dst, result);
 
                 if *set_condition_flags {
