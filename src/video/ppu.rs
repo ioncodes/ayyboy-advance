@@ -1,10 +1,8 @@
-use log::error;
-
-use crate::memory::device::Addressable;
-use crate::video::DISPSTAT_ADDR;
-
 use super::registers::{DispCnt, DispStat};
 use super::{Frame, DISPCNT_ADDR, SCREEN_HEIGHT, SCREEN_WIDTH};
+use crate::memory::device::Addressable;
+use crate::video::DISPSTAT_ADDR;
+use spdlog::prelude::*;
 
 pub struct Ppu {
     pub h_counter: u16,

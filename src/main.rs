@@ -9,11 +9,12 @@ mod memory;
 mod tests;
 mod video;
 
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
 use arm7tdmi::cpu::Cpu;
 use arm7tdmi::decoder::{Instruction, Register};
 use arm7tdmi::mode::ProcessorMode;
+use crossbeam_channel::{self, Receiver, Sender};
 use eframe::NativeOptions;
 use egui::ViewportBuilder;
 use frontend::dbg::widgets;
@@ -22,8 +23,9 @@ use frontend::event::{RequestEvent, ResponseEvent};
 use frontend::renderer::{Renderer, SCALE};
 use lazy_static::lazy_static;
 use memory::mmio::Mmio;
-
-use crossbeam_channel::{self, Receiver, Sender};
+use spdlog::formatter::{pattern, PatternFormatter};
+use spdlog::sink::FileSink;
+use spdlog::{default_logger, LevelFilter, Logger};
 use video::{Frame, SCREEN_HEIGHT, SCREEN_WIDTH};
 
 // const ARM_TEST: &[u8] = include_bytes!("../external/gba-tests/arm/arm.gba");
@@ -127,7 +129,21 @@ fn process_debug_events(
 }
 
 fn main() {
-    env_logger::builder().format_timestamp(None).init();
+    if let Ok(path) = std::env::var("AYY_TRACE") {
+        let _ = std::fs::remove_file(&path);
+        let file_sink = Arc::new(FileSink::builder().path(path).build().unwrap());
+        let logger = Arc::new(Logger::builder().sink(file_sink).build().unwrap());
+        let formatter = Box::new(PatternFormatter::new(pattern!(
+            "[{level} {module_path}] {payload}{eol}"
+        )));
+
+        for sink in logger.sinks() {
+            sink.set_formatter(formatter.clone());
+        }
+        logger.set_level_filter(LevelFilter::All);
+
+        spdlog::set_default_logger(logger);
+    }
 
     let (display_tx, display_rx): (Sender<Frame>, Receiver<Frame>) = crossbeam_channel::bounded(1);
     let (dbg_req_tx, dbg_req_rx): (Sender<RequestEvent>, Receiver<RequestEvent>) = crossbeam_channel::bounded(25);
@@ -219,4 +235,6 @@ fn main() {
         native_options,
         Box::new(move |cc| Ok(Box::new(Renderer::new(cc, display_rx, dbg_req_tx, dbg_resp_rx)))),
     );
+
+    default_logger().flush();
 }

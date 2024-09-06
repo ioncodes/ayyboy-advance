@@ -1,9 +1,7 @@
-use log::error;
-
+use super::device::Addressable;
 use crate::input::joypad::Joypad;
 use crate::video::ppu::Ppu;
-
-use super::device::Addressable;
+use spdlog::prelude::*;
 
 pub struct Mmio {
     pub internal_memory: Box<[u8; 0x04FFFFFF + 1]>,

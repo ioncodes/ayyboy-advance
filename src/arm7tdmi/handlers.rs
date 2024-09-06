@@ -4,7 +4,7 @@ use super::registers::Psr;
 use crate::arm7tdmi::decoder::{Direction, Indexing, Register, TransferLength};
 use crate::arm7tdmi::mode::ProcessorMode;
 use crate::memory::mmio::Mmio;
-use log::trace;
+use spdlog::prelude::*;
 
 macro_rules! check_condition {
     ($cpu:expr, $instr:expr) => {
@@ -146,19 +146,19 @@ impl Handlers {
                         cpu.update_flag(Psr::C, !carry); // Invert carry for CMP (borrow flag)
                         cpu.update_flag(Psr::V, ((x ^ y) & (x ^ result) & 0x8000_0000) != 0);
                         result
-                    },
+                    }
                     Opcode::Cmn => {
                         let (result, carry) = x.overflowing_add(y);
                         cpu.update_flag(Psr::C, carry); // Carry as is for CMN (unsigned overflow)
                         cpu.update_flag(Psr::V, ((x ^ result) & (y ^ result) & 0x8000_0000) != 0);
                         result
-                    },
+                    }
                     _ => unreachable!(),
                 };
-            
+
                 cpu.update_flag(Psr::N, (result as i32) < 0);
                 cpu.update_flag(Psr::Z, result == 0);
-            
+
                 copy_spsr_to_cpsr_if_necessary(cpu, lhs);
             }
             Instruction {

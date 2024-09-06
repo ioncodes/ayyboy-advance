@@ -1,15 +1,12 @@
-use std::fmt::Display;
-
-use log::{debug, error, trace};
-
-use crate::arm7tdmi::decoder::Opcode;
-use crate::arm7tdmi::handlers::Handlers;
-use crate::memory::mmio::Mmio;
-
 use super::decoder::{Instruction, Register};
 use super::mode::ProcessorMode;
 use super::pipeline::{Pipeline, State};
 use super::registers::{Psr, Registers};
+use crate::arm7tdmi::decoder::Opcode;
+use crate::arm7tdmi::handlers::Handlers;
+use crate::memory::mmio::Mmio;
+use spdlog::prelude::*;
+use std::fmt::Display;
 
 pub struct Cpu {
     pub registers: Registers,

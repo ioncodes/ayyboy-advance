@@ -1,7 +1,6 @@
-use log::error;
-
 use super::decoder::Instruction;
 use crate::memory::mmio::Mmio;
+use spdlog::prelude::*;
 use std::fmt::Display;
 
 pub struct State {
@@ -32,7 +31,7 @@ impl Pipeline {
             let instruction = match Instruction::decode(opcode, is_thumb) {
                 Ok(instr) => Some(instr),
                 Err(e) => {
-                    error!("Failed to decode instruction: {:?}", e);
+                    error!("Failed to decode instruction: {:?} at {:08x}", e, pc);
                     Some(Instruction::nop())
                 }
             };
