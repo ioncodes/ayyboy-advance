@@ -24,8 +24,8 @@ use frontend::renderer::{Renderer, SCALE};
 use lazy_static::lazy_static;
 use memory::mmio::Mmio;
 use spdlog::formatter::{pattern, PatternFormatter};
-use spdlog::sink::FileSink;
-use spdlog::{default_logger, LevelFilter, Logger};
+use spdlog::sink::{FileSink, StdStream, StdStreamSink};
+use spdlog::{default_logger, Level, LevelFilter, Logger};
 use video::{Frame, SCREEN_HEIGHT, SCREEN_WIDTH};
 
 // const ARM_TEST: &[u8] = include_bytes!("../external/gba-tests/arm/arm.gba");
@@ -129,21 +129,28 @@ fn process_debug_events(
 }
 
 fn main() {
-    if let Ok(path) = std::env::var("AYY_TRACE") {
+    let logger = if let Ok(path) = std::env::var("AYY_TRACE")
+        && !path.is_empty()
+    {
         let _ = std::fs::remove_file(&path);
         let file_sink = Arc::new(FileSink::builder().path(path).build().unwrap());
         let logger = Arc::new(Logger::builder().sink(file_sink).build().unwrap());
-        let formatter = Box::new(PatternFormatter::new(pattern!(
-            "[{level} {module_path}] {payload}{eol}"
-        )));
-
-        for sink in logger.sinks() {
-            sink.set_formatter(formatter.clone());
-        }
         logger.set_level_filter(LevelFilter::All);
+        logger
+    } else {
+        let std_sink = Arc::new(StdStreamSink::builder().std_stream(StdStream::Stderr).build().unwrap());
+        let logger = Arc::new(Logger::builder().sink(std_sink).build().unwrap());
+        logger.set_level_filter(LevelFilter::MoreSevereEqual(Level::Error));
+        logger
+    };
 
-        spdlog::set_default_logger(logger);
+    let formatter = Box::new(PatternFormatter::new(pattern!(
+        "[{^{level}} {module_path}] {payload}{eol}"
+    )));
+    for sink in logger.sinks() {
+        sink.set_formatter(formatter.clone());
     }
+    spdlog::set_default_logger(logger);
 
     let (display_tx, display_rx): (Sender<Frame>, Receiver<Frame>) = crossbeam_channel::bounded(1);
     let (dbg_req_tx, dbg_req_rx): (Sender<RequestEvent>, Receiver<RequestEvent>) = crossbeam_channel::bounded(25);
