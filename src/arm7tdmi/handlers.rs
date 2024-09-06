@@ -201,10 +201,10 @@ impl Handlers {
                 opcode: Opcode::Mov,
                 operand1: Some(Operand::Register(dst, None)),
                 operand2: Some(src),
-                set_psr_flags: set_condition_flags,
+                set_psr_flags,
                 ..
             } => {
-                let value = Handlers::resolve_operand(src, cpu, *set_condition_flags);
+                let value = Handlers::resolve_operand(src, cpu, *set_psr_flags);
                 let extra_fetch = if src.is_register(&Register::R15)
                     && let Some(ShiftSource::Register(_)) = Handlers::try_fetch_shifted_operand(src)
                 {
@@ -215,7 +215,7 @@ impl Handlers {
                 let result = value + extra_fetch;
                 cpu.write_register(dst, result);
 
-                if *set_condition_flags {
+                if *set_psr_flags {
                     cpu.update_flag(Psr::N, result & 0x8000_0000 != 0);
                     cpu.update_flag(Psr::Z, result == 0);
                 }
@@ -224,10 +224,10 @@ impl Handlers {
                 opcode: Opcode::Mvn,
                 operand1: Some(Operand::Register(dst, None)),
                 operand2: Some(src),
-                set_psr_flags: set_condition_flags,
+                set_psr_flags,
                 ..
             } => {
-                let value = Handlers::resolve_operand(src, cpu, *set_condition_flags);
+                let value = Handlers::resolve_operand(src, cpu, *set_psr_flags);
                 let extra_fetch = if src.is_register(&Register::R15)
                     && let Some(ShiftSource::Register(_)) = Handlers::try_fetch_shifted_operand(src)
                 {
@@ -238,7 +238,7 @@ impl Handlers {
                 let result = !(value + extra_fetch);
                 cpu.write_register(dst, result);
 
-                if *set_condition_flags {
+                if *set_psr_flags {
                     cpu.update_flag(Psr::N, result & 0x8000_0000 != 0);
                     cpu.update_flag(Psr::Z, result == 0);
                 }
@@ -259,13 +259,13 @@ impl Handlers {
                 transfer_length: Some(length),
                 signed_transfer,
                 offset_direction: Some(operation),
-                set_psr_flags: set_condition_flags,
+                set_psr_flags,
                 indexing: Some(indexing),
                 writeback,
                 ..
             } => {
                 let mut address = cpu.read_register(src);
-                let step = Handlers::resolve_operand(step, cpu, *set_condition_flags);
+                let step = Handlers::resolve_operand(step, cpu, *set_psr_flags);
 
                 if *indexing == Indexing::Pre {
                     if *operation == Direction::Up {
@@ -304,7 +304,7 @@ impl Handlers {
 
                         cpu.write_register(dst, value as u32);
 
-                        if *set_condition_flags {
+                        if *set_psr_flags {
                             cpu.update_flag(Psr::N, value & 0x80 != 0);
                             cpu.update_flag(Psr::Z, value == 0);
                         }
@@ -337,7 +337,7 @@ impl Handlers {
 
                         cpu.write_register(dst, value);
 
-                        if *set_condition_flags {
+                        if *set_psr_flags {
                             cpu.update_flag(Psr::N, value & 0x8000 != 0);
                             cpu.update_flag(Psr::Z, value == 0);
                         }
@@ -346,7 +346,7 @@ impl Handlers {
                         let value = mmio.read_u32(aligned_address).rotate_right(rotation);
                         cpu.write_register(dst, value);
 
-                        if *set_condition_flags {
+                        if *set_psr_flags {
                             cpu.update_flag(Psr::N, value & 0x8000_0000 != 0);
                             cpu.update_flag(Psr::Z, value == 0);
                         }
@@ -374,13 +374,13 @@ impl Handlers {
                 operand3: Some(step),
                 transfer_length: Some(length),
                 offset_direction: Some(operation),
-                set_psr_flags: set_condition_flags,
+                set_psr_flags,
                 indexing: Some(indexing),
                 writeback,
                 ..
             } => {
                 let mut address = cpu.read_register(dst);
-                let step = Handlers::resolve_operand(step, cpu, *set_condition_flags);
+                let step = Handlers::resolve_operand(step, cpu, *set_psr_flags);
 
                 if *indexing == Indexing::Pre {
                     if *operation == Direction::Up {
@@ -411,7 +411,7 @@ impl Handlers {
                     TransferLength::Byte => {
                         let value = cpu_read_reg(src) as u8;
                         mmio.write(address, value);
-                        if *set_condition_flags {
+                        if *set_psr_flags {
                             cpu.update_flag(Psr::N, value & 0x80 != 0);
                             cpu.update_flag(Psr::Z, value == 0);
                         }
@@ -419,7 +419,7 @@ impl Handlers {
                     TransferLength::HalfWord => {
                         let value = cpu_read_reg(src) as u16;
                         mmio.write_u16(address, value);
-                        if *set_condition_flags {
+                        if *set_psr_flags {
                             cpu.update_flag(Psr::N, value & 0x8000 != 0);
                             cpu.update_flag(Psr::Z, value == 0);
                         }
@@ -427,7 +427,7 @@ impl Handlers {
                     TransferLength::Word => {
                         let value = cpu_read_reg(src);
                         mmio.write_u32(address, value);
-                        if *set_condition_flags {
+                        if *set_psr_flags {
                             cpu.update_flag(Psr::N, value & 0x8000_0000 != 0);
                             cpu.update_flag(Psr::Z, value == 0);
                         }
@@ -677,7 +677,7 @@ impl Handlers {
                 operand1: Some(Operand::Register(dst, None)),
                 operand2: Some(x),
                 operand3: Some(y),
-                set_psr_flags: set_condition_flags,
+                set_psr_flags,
                 ..
             } => {
                 let extra_fetch = match (
@@ -688,16 +688,16 @@ impl Handlers {
                     (Some(ShiftSource::Register(_)), _) => 4,
                     _ => 0,
                 };
-                let x = Handlers::resolve_operand(x, cpu, *set_condition_flags)
+                let x = Handlers::resolve_operand(x, cpu, *set_psr_flags)
                     + if x.is_register(&Register::R15) { extra_fetch } else { 0 };
-                let y = Handlers::resolve_operand(y, cpu, *set_condition_flags)
+                let y = Handlers::resolve_operand(y, cpu, *set_psr_flags)
                     + if y.is_register(&Register::R15) { extra_fetch } else { 0 };
 
                 let (result, carry) = x.overflowing_add(y);
                 let (_, overflow) = (x as i32).overflowing_add(y as i32);
                 cpu.write_register(dst, result);
 
-                if *set_condition_flags {
+                if *set_psr_flags {
                     cpu.update_flag(Psr::N, result & 0x8000_0000 != 0);
                     cpu.update_flag(Psr::Z, result == 0);
                     cpu.update_flag(Psr::C, carry);
@@ -711,16 +711,16 @@ impl Handlers {
                 operand1: Some(Operand::Register(dst, None)),
                 operand2: Some(src),
                 operand3: None,
-                set_psr_flags: set_condition_flags,
+                set_psr_flags,
                 ..
             } => {
                 let x = cpu.read_register(dst);
-                let y = Handlers::resolve_operand(src, cpu, *set_condition_flags);
+                let y = Handlers::resolve_operand(src, cpu, *set_psr_flags);
                 let (result, carry) = x.overflowing_add(y);
                 let (_, overflow) = (x as i32).overflowing_add(y as i32);
                 cpu.write_register(dst, result);
 
-                if *set_condition_flags {
+                if *set_psr_flags {
                     cpu.update_flag(Psr::N, result & 0x8000_0000 != 0);
                     cpu.update_flag(Psr::Z, result == 0);
                     cpu.update_flag(Psr::C, carry);
@@ -734,19 +734,19 @@ impl Handlers {
                 operand1: Some(Operand::Register(dst, None)),
                 operand2: Some(x),
                 operand3: Some(y),
-                set_psr_flags: set_condition_flags,
+                set_psr_flags,
                 ..
             } => {
                 let carry = cpu.registers.cpsr.contains(Psr::C) as u32; // Grab carry first, as it may be modified due to shifter
-                let x = Handlers::resolve_operand(x, cpu, *set_condition_flags);
-                let y = Handlers::resolve_operand(y, cpu, *set_condition_flags);
+                let x = Handlers::resolve_operand(x, cpu, *set_psr_flags);
+                let y = Handlers::resolve_operand(y, cpu, *set_psr_flags);
 
                 let (result, carry1) = x.overflowing_add(y);
                 let (result, carry2) = result.overflowing_add(carry);
 
                 cpu.write_register(dst, result);
 
-                if *set_condition_flags {
+                if *set_psr_flags {
                     cpu.update_flag(Psr::N, result & 0x8000_0000 != 0);
                     cpu.update_flag(Psr::Z, result == 0);
                     cpu.update_flag(Psr::C, carry1 || carry2);
@@ -762,7 +762,7 @@ impl Handlers {
                 operand1: Some(Operand::Register(dst, None)),
                 operand2: Some(x),
                 operand3: Some(y),
-                set_psr_flags: set_condition_flags,
+                set_psr_flags,
                 ..
             } => {
                 let extra_fetch = match (
@@ -773,15 +773,15 @@ impl Handlers {
                     (Some(ShiftSource::Register(_)), _) => 4,
                     _ => 0,
                 };
-                let x = Handlers::resolve_operand(x, cpu, *set_condition_flags)
+                let x = Handlers::resolve_operand(x, cpu, *set_psr_flags)
                     + if x.is_register(&Register::R15) { extra_fetch } else { 0 };
-                let y = Handlers::resolve_operand(y, cpu, *set_condition_flags)
+                let y = Handlers::resolve_operand(y, cpu, *set_psr_flags)
                     + if y.is_register(&Register::R15) { extra_fetch } else { 0 };
                 let (result, borrow) = x.overflowing_sub(y);
                 let (_, overflow) = (x as i32).overflowing_sub(y as i32);
                 cpu.write_register(dst, result);
 
-                if *set_condition_flags {
+                if *set_psr_flags {
                     cpu.update_flag(Psr::N, result & 0x8000_0000 != 0);
                     cpu.update_flag(Psr::Z, result == 0);
                     cpu.update_flag(Psr::C, !borrow);
@@ -795,16 +795,16 @@ impl Handlers {
                 operand1: Some(Operand::Register(dst, None)),
                 operand2: Some(src),
                 operand3: None,
-                set_psr_flags: set_condition_flags,
+                set_psr_flags,
                 ..
             } => {
                 let x = cpu.read_register(dst);
-                let y = Handlers::resolve_operand(src, cpu, *set_condition_flags);
+                let y = Handlers::resolve_operand(src, cpu, *set_psr_flags);
                 let (result, borrow) = x.overflowing_sub(y);
                 let (_, overflow) = (x as i32).overflowing_sub(y as i32);
                 cpu.write_register(dst, result);
 
-                if *set_condition_flags {
+                if *set_psr_flags {
                     cpu.update_flag(Psr::N, result & 0x8000_0000 != 0);
                     cpu.update_flag(Psr::Z, result == 0);
                     cpu.update_flag(Psr::C, !borrow);
@@ -818,7 +818,7 @@ impl Handlers {
                 operand1: Some(Operand::Register(dst, None)),
                 operand2: Some(x),
                 operand3: Some(y),
-                set_psr_flags: set_condition_flags,
+                set_psr_flags,
                 ..
             } => {
                 let extra_fetch = match (
@@ -829,9 +829,9 @@ impl Handlers {
                     (Some(ShiftSource::Register(_)), _) => 4,
                     _ => 0,
                 };
-                let x = Handlers::resolve_operand(x, cpu, *set_condition_flags)
+                let x = Handlers::resolve_operand(x, cpu, *set_psr_flags)
                     + if x.is_register(&Register::R15) { extra_fetch } else { 0 };
-                let y = Handlers::resolve_operand(y, cpu, *set_condition_flags)
+                let y = Handlers::resolve_operand(y, cpu, *set_psr_flags)
                     + if y.is_register(&Register::R15) { extra_fetch } else { 0 };
                 let carry = cpu.registers.cpsr.contains(Psr::C) as u32;
 
@@ -840,7 +840,7 @@ impl Handlers {
 
                 cpu.write_register(dst, result);
 
-                if *set_condition_flags {
+                if *set_psr_flags {
                     cpu.update_flag(Psr::N, result & 0x8000_0000 != 0);
                     cpu.update_flag(Psr::Z, result == 0);
                     cpu.update_flag(Psr::C, !borrow1 && !borrow2);
@@ -856,11 +856,11 @@ impl Handlers {
                 operand1: Some(Operand::Register(dst, None)),
                 operand2: Some(src),
                 operand3: None,
-                set_psr_flags: set_condition_flags,
+                set_psr_flags,
                 ..
             } => {
                 let x = cpu.read_register(dst);
-                let y = Handlers::resolve_operand(src, cpu, *set_condition_flags);
+                let y = Handlers::resolve_operand(src, cpu, *set_psr_flags);
                 let carry = cpu.registers.cpsr.contains(Psr::C) as u32;
 
                 let (result, borrow1) = x.overflowing_sub(y);
@@ -868,7 +868,7 @@ impl Handlers {
 
                 cpu.write_register(dst, result);
 
-                if *set_condition_flags {
+                if *set_psr_flags {
                     cpu.update_flag(Psr::N, result & 0x8000_0000 != 0);
                     cpu.update_flag(Psr::Z, result == 0);
                     cpu.update_flag(Psr::C, !borrow1 && !borrow2);
@@ -884,7 +884,7 @@ impl Handlers {
                 operand1: Some(Operand::Register(dst, None)),
                 operand2: Some(x),
                 operand3: Some(y),
-                set_psr_flags: set_condition_flags,
+                set_psr_flags,
                 ..
             } => {
                 let extra_fetch = match (
@@ -895,14 +895,14 @@ impl Handlers {
                     (Some(ShiftSource::Register(_)), _) => 4,
                     _ => 0,
                 };
-                let x = Handlers::resolve_operand(x, cpu, *set_condition_flags)
+                let x = Handlers::resolve_operand(x, cpu, *set_psr_flags)
                     + if x.is_register(&Register::R15) { extra_fetch } else { 0 };
-                let y = Handlers::resolve_operand(y, cpu, *set_condition_flags)
+                let y = Handlers::resolve_operand(y, cpu, *set_psr_flags)
                     + if y.is_register(&Register::R15) { extra_fetch } else { 0 };
                 let result = x & y;
                 cpu.write_register(dst, result);
 
-                if *set_condition_flags {
+                if *set_psr_flags {
                     cpu.update_flag(Psr::N, result & 0x8000_0000 != 0);
                     cpu.update_flag(Psr::Z, result == 0);
 
@@ -914,7 +914,7 @@ impl Handlers {
                 operand1: Some(Operand::Register(dst, None)),
                 operand2: Some(Operand::Register(src, None)),
                 operand3: None,
-                set_psr_flags: set_condition_flags,
+                set_psr_flags,
                 ..
             } => {
                 let x = cpu.read_register(dst);
@@ -922,7 +922,7 @@ impl Handlers {
                 let result = x & y;
                 cpu.write_register(dst, result);
 
-                if *set_condition_flags {
+                if *set_psr_flags {
                     cpu.update_flag(Psr::N, result & 0x8000_0000 != 0);
                     cpu.update_flag(Psr::Z, result == 0);
 
@@ -934,7 +934,7 @@ impl Handlers {
                 operand1: Some(Operand::Register(dst, None)),
                 operand2: Some(x),
                 operand3: Some(y),
-                set_psr_flags: set_condition_flags,
+                set_psr_flags,
                 ..
             } => {
                 let extra_fetch = match (
@@ -945,14 +945,14 @@ impl Handlers {
                     (Some(ShiftSource::Register(_)), _) => 4,
                     _ => 0,
                 };
-                let x = Handlers::resolve_operand(x, cpu, *set_condition_flags)
+                let x = Handlers::resolve_operand(x, cpu, *set_psr_flags)
                     + if x.is_register(&Register::R15) { extra_fetch } else { 0 };
-                let y = Handlers::resolve_operand(y, cpu, *set_condition_flags)
+                let y = Handlers::resolve_operand(y, cpu, *set_psr_flags)
                     + if y.is_register(&Register::R15) { extra_fetch } else { 0 };
                 let result = x | y;
                 cpu.write_register(dst, result);
 
-                if *set_condition_flags {
+                if *set_psr_flags {
                     cpu.update_flag(Psr::N, result & 0x8000_0000 != 0);
                     cpu.update_flag(Psr::Z, result == 0);
 
@@ -964,7 +964,7 @@ impl Handlers {
                 operand1: Some(Operand::Register(dst, None)),
                 operand2: Some(Operand::Register(src, None)),
                 operand3: None,
-                set_psr_flags: set_condition_flags,
+                set_psr_flags,
                 ..
             } => {
                 let x = cpu.read_register(dst);
@@ -972,7 +972,7 @@ impl Handlers {
                 let result = x | y;
                 cpu.write_register(dst, result);
 
-                if *set_condition_flags {
+                if *set_psr_flags {
                     cpu.update_flag(Psr::N, result & 0x8000_0000 != 0);
                     cpu.update_flag(Psr::Z, result == 0);
 
@@ -984,7 +984,7 @@ impl Handlers {
                 operand1: Some(Operand::Register(dst, None)),
                 operand2: Some(x),
                 operand3: Some(y),
-                set_psr_flags: set_condition_flags,
+                set_psr_flags,
                 ..
             } => {
                 let extra_fetch = match (
@@ -995,14 +995,14 @@ impl Handlers {
                     (Some(ShiftSource::Register(_)), _) => 4,
                     _ => 0,
                 };
-                let x = Handlers::resolve_operand(x, cpu, *set_condition_flags)
+                let x = Handlers::resolve_operand(x, cpu, *set_psr_flags)
                     + if x.is_register(&Register::R15) { extra_fetch } else { 0 };
-                let y = Handlers::resolve_operand(y, cpu, *set_condition_flags)
+                let y = Handlers::resolve_operand(y, cpu, *set_psr_flags)
                     + if y.is_register(&Register::R15) { extra_fetch } else { 0 };
                 let result = x ^ y;
                 cpu.write_register(dst, result);
 
-                if *set_condition_flags {
+                if *set_psr_flags {
                     cpu.update_flag(Psr::N, result & 0x8000_0000 != 0);
                     cpu.update_flag(Psr::Z, result == 0);
 
@@ -1014,7 +1014,7 @@ impl Handlers {
                 operand1: Some(Operand::Register(dst, None)),
                 operand2: Some(Operand::Register(src, None)),
                 operand3: None,
-                set_psr_flags: set_condition_flags,
+                set_psr_flags,
                 ..
             } => {
                 let x = cpu.read_register(dst);
@@ -1022,7 +1022,7 @@ impl Handlers {
                 let result = x ^ y;
                 cpu.write_register(dst, result);
 
-                if *set_condition_flags {
+                if *set_psr_flags {
                     cpu.update_flag(Psr::N, result & 0x8000_0000 != 0);
                     cpu.update_flag(Psr::Z, result == 0);
 
@@ -1034,7 +1034,7 @@ impl Handlers {
                 operand1: Some(Operand::Register(dst, None)),
                 operand2: Some(x),
                 operand3: Some(y),
-                set_psr_flags: set_condition_flags,
+                set_psr_flags,
                 ..
             } => {
                 let extra_fetch = match (
@@ -1045,15 +1045,15 @@ impl Handlers {
                     (Some(ShiftSource::Register(_)), _) => 4,
                     _ => 0,
                 };
-                let x = Handlers::resolve_operand(x, cpu, *set_condition_flags)
+                let x = Handlers::resolve_operand(x, cpu, *set_psr_flags)
                     + if x.is_register(&Register::R15) { extra_fetch } else { 0 };
-                let y = Handlers::resolve_operand(y, cpu, *set_condition_flags)
+                let y = Handlers::resolve_operand(y, cpu, *set_psr_flags)
                     + if y.is_register(&Register::R15) { extra_fetch } else { 0 };
                 let (result, borrow) = y.overflowing_sub(x);
                 let (_, overflow) = (y as i32).overflowing_sub(x as i32);
                 cpu.write_register(dst, result);
 
-                if *set_condition_flags {
+                if *set_psr_flags {
                     cpu.update_flag(Psr::N, result & 0x8000_0000 != 0);
                     cpu.update_flag(Psr::Z, result == 0);
                     cpu.update_flag(Psr::C, !borrow);
@@ -1067,7 +1067,7 @@ impl Handlers {
                 operand1: Some(Operand::Register(dst, None)),
                 operand2: Some(x),
                 operand3: Some(y),
-                set_psr_flags: set_condition_flags,
+                set_psr_flags,
                 ..
             } => {
                 let extra_fetch = match (
@@ -1078,9 +1078,9 @@ impl Handlers {
                     (Some(ShiftSource::Register(_)), _) => 4,
                     _ => 0,
                 };
-                let x = Handlers::resolve_operand(x, cpu, *set_condition_flags)
+                let x = Handlers::resolve_operand(x, cpu, *set_psr_flags)
                     + if x.is_register(&Register::R15) { extra_fetch } else { 0 };
-                let y = Handlers::resolve_operand(y, cpu, *set_condition_flags)
+                let y = Handlers::resolve_operand(y, cpu, *set_psr_flags)
                     + if y.is_register(&Register::R15) { extra_fetch } else { 0 };
                 let carry = cpu.registers.cpsr.contains(Psr::C) as u32;
 
@@ -1088,7 +1088,7 @@ impl Handlers {
                 let (result, borrow2) = result.overflowing_sub(1 - carry);
                 cpu.write_register(dst, result);
 
-                if *set_condition_flags {
+                if *set_psr_flags {
                     cpu.update_flag(Psr::N, result & 0x8000_0000 != 0);
                     cpu.update_flag(Psr::Z, result == 0);
                     cpu.update_flag(Psr::C, !borrow1 && !borrow2);
@@ -1104,7 +1104,7 @@ impl Handlers {
                 operand1: Some(Operand::Register(dst, None)),
                 operand2: Some(Operand::Register(src, None)),
                 operand3: None,
-                set_psr_flags: set_condition_flags,
+                set_psr_flags,
                 ..
             } => {
                 let x = cpu.read_register(dst);
@@ -1113,7 +1113,7 @@ impl Handlers {
                 let (_, overflow) = (y as i32).overflowing_sub(x as i32);
                 cpu.write_register(dst, result);
 
-                if *set_condition_flags {
+                if *set_psr_flags {
                     cpu.update_flag(Psr::N, result & 0x8000_0000 != 0);
                     cpu.update_flag(Psr::Z, result == 0);
                     cpu.update_flag(Psr::C, !borrow);
@@ -1126,13 +1126,13 @@ impl Handlers {
                 operand1: Some(Operand::Register(dst, None)),
                 operand2: Some(Operand::Register(src, None)),
                 operand3: None,
-                set_psr_flags: set_condition_flags,
+                set_psr_flags,
                 ..
             } => {
                 let result = cpu.read_register(dst) & !cpu.read_register(src);
                 cpu.write_register(dst, result);
 
-                if *set_condition_flags {
+                if *set_psr_flags {
                     cpu.update_flag(Psr::N, result & 0x8000_0000 != 0);
                     cpu.update_flag(Psr::Z, result == 0);
 
@@ -1144,15 +1144,15 @@ impl Handlers {
                 operand1: Some(Operand::Register(dst, None)),
                 operand2: Some(Operand::Register(src, None)),
                 operand3: Some(pos),
-                set_psr_flags: set_condition_flags,
+                set_psr_flags,
                 ..
             } => {
-                let pos = Handlers::resolve_operand(pos, cpu, *set_condition_flags);
+                let pos = Handlers::resolve_operand(pos, cpu, *set_psr_flags);
                 let src = cpu.read_register(src);
                 let result = src & !pos;
                 cpu.write_register(dst, result);
 
-                if *set_condition_flags {
+                if *set_psr_flags {
                     cpu.update_flag(Psr::N, result & 0x8000_0000 != 0);
                     cpu.update_flag(Psr::Z, result == 0);
 
@@ -1164,14 +1164,14 @@ impl Handlers {
                 operand1: Some(Operand::Register(dst, None)),
                 operand2: Some(Operand::Register(src, None)),
                 operand3: Some(Operand::Immediate(shift, None)),
-                set_psr_flags: set_condition_flags,
+                set_psr_flags,
                 ..
             } => {
                 let value = cpu.read_register(src);
                 let result = value.wrapping_shl(*shift);
                 cpu.write_register(dst, result);
 
-                if *set_condition_flags {
+                if *set_psr_flags {
                     cpu.update_flag(Psr::N, result & 0x8000_0000 != 0);
                     cpu.update_flag(Psr::Z, result == 0);
                     cpu.update_flag(Psr::C, value & (1 << (32 - *shift)) != 0);
@@ -1184,14 +1184,14 @@ impl Handlers {
                 operand1: Some(Operand::Register(dst, None)),
                 operand2: Some(Operand::Register(src, None)),
                 operand3: Some(Operand::Immediate(shift, None)),
-                set_psr_flags: set_condition_flags,
+                set_psr_flags,
                 ..
             } => {
                 let value = cpu.read_register(src);
                 let result = value.wrapping_shr(*shift);
                 cpu.write_register(dst, result);
 
-                if *set_condition_flags {
+                if *set_psr_flags {
                     cpu.update_flag(Psr::N, result & 0x8000_0000 != 0);
                     cpu.update_flag(Psr::Z, result == 0);
                     cpu.update_flag(Psr::C, value & (1 << (*shift - 1)) != 0);
@@ -1204,14 +1204,14 @@ impl Handlers {
                 operand1: Some(Operand::Register(dst, None)),
                 operand2: Some(Operand::Register(src, None)),
                 operand3: Some(Operand::Immediate(shift, None)),
-                set_psr_flags: set_condition_flags,
+                set_psr_flags,
                 ..
             } => {
                 let value = cpu.read_register(src);
                 let result = value.wrapping_shr(*shift);
                 cpu.write_register(dst, result);
 
-                if *set_condition_flags {
+                if *set_psr_flags {
                     cpu.update_flag(Psr::N, result & 0x8000_0000 != 0);
                     cpu.update_flag(Psr::Z, result == 0);
                     cpu.update_flag(Psr::C, value & (1 << (*shift - 1)) != 0);
@@ -1225,7 +1225,7 @@ impl Handlers {
                 operand2: Some(Operand::Register(lhs, None)),
                 operand3: Some(Operand::Register(rhs, None)),
                 operand4: None,
-                set_psr_flags: set_condition_flags,
+                set_psr_flags,
                 ..
             } => {
                 let lhs = cpu.read_register(lhs);
@@ -1233,7 +1233,7 @@ impl Handlers {
                 let result = lhs.wrapping_mul(rhs);
                 cpu.write_register(dst, result);
 
-                if *set_condition_flags {
+                if *set_psr_flags {
                     cpu.update_flag(Psr::N, result & 0x8000_0000 != 0);
                     cpu.update_flag(Psr::Z, result == 0);
 
@@ -1246,7 +1246,7 @@ impl Handlers {
                 operand2: Some(Operand::Register(lhs, None)),
                 operand3: Some(Operand::Register(rhs, None)),
                 operand4: Some(Operand::Register(acc, None)),
-                set_psr_flags: set_condition_flags,
+                set_psr_flags,
                 ..
             } => {
                 let lhs = cpu.read_register(lhs);
@@ -1255,7 +1255,7 @@ impl Handlers {
                 let result = lhs.wrapping_mul(rhs).wrapping_add(acc);
                 cpu.write_register(dst, result);
 
-                if *set_condition_flags {
+                if *set_psr_flags {
                     cpu.update_flag(Psr::N, result & 0x8000_0000 != 0);
                     cpu.update_flag(Psr::Z, result == 0);
                 }
@@ -1266,7 +1266,7 @@ impl Handlers {
                 operand2: Some(Operand::Register(hi, None)),
                 operand3: Some(Operand::Register(lhs, None)),
                 operand4: Some(Operand::Register(rhs, None)),
-                set_psr_flags: set_condition_flags,
+                set_psr_flags,
                 ..
             } => {
                 let lhs = cpu.read_register(lhs);
@@ -1275,7 +1275,7 @@ impl Handlers {
                 cpu.write_register(lo, result as u32);
                 cpu.write_register(hi, (result >> 32) as u32);
 
-                if *set_condition_flags {
+                if *set_psr_flags {
                     cpu.update_flag(Psr::N, result & 0x8000_0000_0000_0000 != 0);
                     cpu.update_flag(Psr::Z, result == 0);
                 }
@@ -1286,7 +1286,7 @@ impl Handlers {
                 operand2: Some(Operand::Register(hi, None)),
                 operand3: Some(Operand::Register(lhs, None)),
                 operand4: Some(Operand::Register(rhs, None)),
-                set_psr_flags: set_condition_flags,
+                set_psr_flags,
                 ..
             } => {
                 let lhs = cpu.read_register(lhs);
@@ -1296,7 +1296,7 @@ impl Handlers {
                 cpu.write_register(lo, result as u32);
                 cpu.write_register(hi, (result >> 32) as u32);
 
-                if *set_condition_flags {
+                if *set_psr_flags {
                     cpu.update_flag(Psr::N, result & 0x8000_0000_0000_0000 != 0);
                     cpu.update_flag(Psr::Z, result == 0);
                 }
@@ -1307,7 +1307,7 @@ impl Handlers {
                 operand2: Some(Operand::Register(hi, None)),
                 operand3: Some(Operand::Register(lhs, None)),
                 operand4: Some(Operand::Register(rhs, None)),
-                set_psr_flags: set_condition_flags,
+                set_psr_flags,
                 ..
             } => {
                 let lhs = cpu.read_register(lhs) as i32;
@@ -1316,7 +1316,7 @@ impl Handlers {
                 cpu.write_register(lo, result as u32);
                 cpu.write_register(hi, (result >> 32) as u32);
 
-                if *set_condition_flags {
+                if *set_psr_flags {
                     cpu.update_flag(Psr::N, (result as u64) & 0x8000_0000_0000_0000 != 0);
                     cpu.update_flag(Psr::Z, result == 0);
                 }
@@ -1327,7 +1327,7 @@ impl Handlers {
                 operand2: Some(Operand::Register(hi, None)),
                 operand3: Some(Operand::Register(lhs, None)),
                 operand4: Some(Operand::Register(rhs, None)),
-                set_psr_flags: set_condition_flags,
+                set_psr_flags,
                 ..
             } => {
                 let lhs = cpu.read_register(lhs) as i32;
@@ -1337,7 +1337,7 @@ impl Handlers {
                 cpu.write_register(lo, result as u32);
                 cpu.write_register(hi, (result >> 32) as u32);
 
-                if *set_condition_flags {
+                if *set_psr_flags {
                     cpu.update_flag(Psr::N, (result as u64) & 0x8000_0000_0000_0000 != 0);
                     cpu.update_flag(Psr::Z, result == 0);
                 }
@@ -1346,12 +1346,12 @@ impl Handlers {
         }
     }
 
-    fn resolve_operand(operand: &Operand, cpu: &mut Cpu, set_condition_flags: bool) -> u32 {
+    fn resolve_operand(operand: &Operand, cpu: &mut Cpu, set_psr_flags: bool) -> u32 {
         match operand {
-            Operand::Immediate(value, Some(shift)) => Handlers::process_shift(*value, shift, cpu, set_condition_flags),
+            Operand::Immediate(value, Some(shift)) => Handlers::process_shift(*value, shift, cpu, set_psr_flags),
             Operand::Immediate(value, None) => *value,
             Operand::Register(register, Some(shift)) => {
-                Handlers::process_shift(cpu.read_register(register), shift, cpu, set_condition_flags)
+                Handlers::process_shift(cpu.read_register(register), shift, cpu, set_psr_flags)
             }
             Operand::Register(register, None) => cpu.read_register(register),
             _ => unreachable!(),
@@ -1365,12 +1365,12 @@ impl Handlers {
         }
     }
 
-    fn process_shift(value: u32, shift: &ShiftType, cpu: &mut Cpu, set_condition_flags: bool) -> u32 {
+    fn process_shift(value: u32, shift: &ShiftType, cpu: &mut Cpu, set_psr_flags: bool) -> u32 {
         match shift {
             ShiftType::LogicalLeft(src) => {
                 let shift = Handlers::unwrap_shift_source(cpu, src);
                 let result = value.checked_shl(shift).unwrap_or(0);
-                if set_condition_flags {
+                if set_psr_flags {
                     match shift {
                         0 => {}
                         1..=31 => {
@@ -1389,7 +1389,7 @@ impl Handlers {
             ShiftType::LogicalRight(src) => {
                 let shift = Handlers::unwrap_shift_source(cpu, src);
                 let result = value.checked_shr(shift).unwrap_or(0);
-                if set_condition_flags {
+                if set_psr_flags {
                     match shift {
                         0 => {}
                         1..=31 => {
@@ -1418,7 +1418,7 @@ impl Handlers {
                     shifted as u32
                 };
 
-                if set_condition_flags {
+                if set_psr_flags {
                     match shift {
                         0 => {}
                         1..=31 => {
@@ -1437,7 +1437,7 @@ impl Handlers {
             ShiftType::RotateRight(src) => {
                 let shift = Handlers::unwrap_shift_source(cpu, src);
                 let result = value.rotate_right(shift);
-                if set_condition_flags {
+                if set_psr_flags {
                     match shift {
                         0 => {}
                         1..=31 => {
@@ -1456,7 +1456,7 @@ impl Handlers {
             ShiftType::RotateRightExtended => {
                 let new_carry = (value & 1) != 0;
                 let result = (value >> 1) | ((cpu.registers.cpsr.contains(Psr::C) as u32) << 31);
-                if set_condition_flags {
+                if set_psr_flags {
                     cpu.update_flag(Psr::C, new_carry);
                 }
                 result
