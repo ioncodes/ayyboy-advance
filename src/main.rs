@@ -1,4 +1,4 @@
-#![feature(new_uninit)]
+#![feature(new_zeroed_alloc)]
 #![feature(if_let_guard)]
 #![feature(let_chains)]
 

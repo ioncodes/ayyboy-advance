@@ -66,7 +66,7 @@ impl Mmio {
         match addr {
             0x04000000..=0x04000056 => self.ppu.write(addr, value), // PPU I/O
             0x04000130..=0x04000134 => self.joypad.write(addr, value), // Joypad I/O
-            0x04000000..=0x040003FE => error!("Unmapped I/O write: {:08x}", addr),
+            0x04000000..=0x040003FE => error!("Unmapped I/O write: {:02x} to {:08x}", value, addr),
             0x00000000..=0x04FFFFFF => self.internal_memory[addr as usize] = value,
             0x05000000..=0x07FFFFFF => self.ppu.write(addr, value),
             0x08000000..=0x09FFFFFF => self.external_memory[(addr - 0x08000000) as usize] = value,
