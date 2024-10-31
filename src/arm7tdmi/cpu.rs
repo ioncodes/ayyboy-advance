@@ -2,6 +2,7 @@ use super::decoder::{Instruction, Register};
 use super::mode::ProcessorMode;
 use super::pipeline::{Pipeline, State};
 use super::registers::{Psr, Registers};
+use super::symbolizer::Symbolizer;
 use crate::arm7tdmi::decoder::Opcode;
 use crate::arm7tdmi::handlers::Handlers;
 use crate::memory::mmio::Mmio;
@@ -11,13 +12,15 @@ use std::fmt::Display;
 pub struct Cpu {
     pub registers: Registers,
     pub pipeline: Pipeline,
+    symbolizer: Symbolizer,
 }
 
 impl Cpu {
-    pub fn new() -> Cpu {
+    pub fn new(buffer: &[u8]) -> Cpu {
         Cpu {
             registers: Registers::default(),
             pipeline: Pipeline::new(),
+            symbolizer: Symbolizer::new(buffer),
         }
     }
 
@@ -40,6 +43,10 @@ impl Cpu {
                 trace!("Opcode: {:08x} | {:032b}", state.opcode, state.opcode);
                 debug!("{:08x}: {}", state.pc, instruction);
             }
+
+            self.symbolizer.find(state.pc).map(|symbol| {
+                debug!("Found matching symbols @ PC: {}", symbol.join(", "));
+            });
 
             #[cfg(feature = "mesen2-trace-dump")]
             {

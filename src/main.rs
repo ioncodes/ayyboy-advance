@@ -30,6 +30,7 @@ use video::{Frame, SCREEN_HEIGHT, SCREEN_WIDTH};
 
 // const ARM_TEST: &[u8] = include_bytes!("../external/gba-tests/arm/arm.gba");
 const ARM_TEST: &[u8] = include_bytes!("../external/armwrestler-gba-fixed/armwrestler-gba-fixed.gba");
+const ARM_TEST_ELF: &[u8] = include_bytes!("../external/armwrestler-gba-fixed/armwrestler-gba-fixed.elf");
 // const ARM_TEST: &[u8] = include_bytes!("../external/gba-div-test/out/rom.gba"); // just a div test
 // const ARM_TEST: &[u8] = include_bytes!("../external/gba-psr-test/out/rom.gba"); // just a cpsr bank test
 // const ARM_TEST: &[u8] = include_bytes!("../external/discord/panda.gba"); // works
@@ -140,7 +141,7 @@ fn main() {
     } else {
         let std_sink = Arc::new(StdStreamSink::builder().std_stream(StdStream::Stderr).build().unwrap());
         let logger = Arc::new(Logger::builder().sink(std_sink).build().unwrap());
-        logger.set_level_filter(LevelFilter::MoreSevereEqual(Level::Error));
+        logger.set_level_filter(LevelFilter::MoreSevereEqual(Level::Info));
         logger
     };
 
@@ -161,7 +162,7 @@ fn main() {
         mmio.load(0x00000000, BIOS); // bios addr
         mmio.load(0x08000000, ARM_TEST); // gamepak addr
 
-        let mut cpu = Cpu::new();
+        let mut cpu = Cpu::new(ARM_TEST_ELF);
         // State for skipping BIOS, https://problemkaputt.de/gbatek.htm#biosramusage
         cpu.set_processor_mode(ProcessorMode::Irq);
         cpu.write_register(&Register::R13, 0x03007fa0);
