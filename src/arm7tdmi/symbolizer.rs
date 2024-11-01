@@ -24,14 +24,10 @@ impl Symbolizer {
             .filter_map(|sym| {
                 elf.strtab
                     .get_at(sym.st_name)
-                    .filter(|name| !name.is_empty())
-                    .map(|name| {
-                        info!("Found symbol: {:08x} {}", sym.st_value, name);
-                        (sym.st_value as u32, name.to_string())
-                    })
+                    .and_then(|name| (!name.is_empty()).then(|| (sym.st_value as u32, name.to_string())))
             })
             .fold(HashMap::new(), |mut map, (addr, name)| {
-                map.entry(addr).or_insert_with(Vec::new).push(name);
+                map.entry(addr).or_default().push(name);
                 map
             });
 

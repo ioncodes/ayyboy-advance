@@ -276,15 +276,15 @@ impl Handlers {
                 }
 
                 // align address, https://problemkaputt.de/gbatek.htm#armcpumemoryalignments
-                let (mut aligned_address, rotation) = if address % 2 != 0 {
-                    let aligned_address = address
-                        & !((match length {
-                            TransferLength::Byte => 0b00,
-                            TransferLength::HalfWord if *signed_transfer => 0b11, // ldrsh misaligned reads the byte at the misaligned address
-                            TransferLength::HalfWord => 0b01,
-                            TransferLength::Word => 0b11,
-                        }) as u32);
-                    let rotation = (address - aligned_address) * 8;
+                let (mut aligned_address, rotation) = if address % 4 != 0 {
+                    let mask = match length {
+                        TransferLength::Byte => 0b00,
+                        TransferLength::HalfWord if *signed_transfer => 0b11, // ldrsh misaligned reads the byte at the misaligned address
+                        TransferLength::HalfWord => 0b01,
+                        TransferLength::Word => 0b11,
+                    } as u32;
+                    let aligned_address = address & !mask;
+                    let rotation = (address & mask) * 8;
                     (aligned_address, rotation)
                 } else {
                     (address, 0)
