@@ -13,3 +13,6 @@
 [submodule "external/armwrestler-gba-fixed"]
 	path = external/armwrestler-gba-fixed
 	url = https://github.com/destoer/armwrestler-gba-fixed
+[submodule "external/FuzzARM"]
+	path = external/FuzzARM
+	url = https://github.com/DenSinH/FuzzARM

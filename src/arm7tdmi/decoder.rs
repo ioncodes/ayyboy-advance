@@ -1062,6 +1062,36 @@ impl Instruction {
                     ..Instruction::default()
                 })
             }
+            // load/store sign-extended byte/halfword
+            "0101_hs1o_oobb_bddd" => {
+                let opcode = match (s, h) {
+                    (0, 0) => Opcode::Str,
+                    _ => Opcode::Ldr,
+                };
+                let destination = Register::from(d)?;
+                let base = Register::from(b)?;
+                let offset = Register::from(o)?;
+
+                Ok(Instruction {
+                    opcode,
+                    condition: Condition::Always,
+                    set_psr_flags: false,
+                    operand1: Some(Operand::Register(destination, None)),
+                    operand2: Some(Operand::Register(base, None)),
+                    operand3: Some(Operand::Register(offset, None)),
+                    transfer_length: match (s, h) {
+                        (0, 0) => Some(TransferLength::HalfWord),
+                        (0, 1) => Some(TransferLength::HalfWord),
+                        (1, 0) => Some(TransferLength::Byte),
+                        (1, 1) => Some(TransferLength::HalfWord),
+                        _ => unreachable!(),
+                    },
+                    offset_direction: Some(Direction::Up),
+                    indexing: Some(Indexing::Pre),
+                    signed_transfer: s == 1,
+                    ..Instruction::default()
+                })
+            }
             // load/store halfword
             "1000_looo_oobb_bddd" => {
                 let opcode = if l == 1 { Opcode::Ldr } else { Opcode::Str };
