@@ -599,22 +599,22 @@ impl Instruction {
                                 ..Instruction::default()
                             });
                         }
-                        // PSR Transfer (MSR) for register contents
-                        "cccc_0001_0d10_1001_1111_0000_0000_ssss" => {
-                            let condition = Condition::from(c)?;
-                            let source = Register::from(s)?;
-                            let destination = if d == 1 { Register::Spsr } else { Register::Cpsr };
+                        // // PSR Transfer (MSR) for register contents
+                        // "cccc_0001_0d10_1001_1111_0000_0000_ssss" => {
+                        //     let condition = Condition::from(c)?;
+                        //     let source = Register::from(s)?;
+                        //     let destination = if d == 1 { Register::Spsr } else { Register::Cpsr };
 
-                            return Ok(Instruction {
-                                opcode: Opcode::Msr,
-                                condition,
-                                set_psr_flags: false,
-                                operand1: Some(Operand::Register(destination, None)),
-                                operand2: Some(Operand::Register(source, None)),
-                                operand3: None,
-                                ..Instruction::default()
-                            });
-                        }
+                        //     return Ok(Instruction {
+                        //         opcode: Opcode::Msr,
+                        //         condition,
+                        //         set_psr_flags: false,
+                        //         operand1: Some(Operand::Register(destination, None)),
+                        //         operand2: Some(Operand::Register(source, None)),
+                        //         operand3: None,
+                        //         ..Instruction::default()
+                        //     });
+                        // }
                         // PSR Transfer (MSR) for register contents or immediate value to PSR flags
                         "cccc_00i1_0d10_f??x_1111_ssss_ssss_ssss" => {
                             // TODO: https://problemkaputt.de/gbatek-arm-opcodes-psr-transfer-mrs-msr.htm
