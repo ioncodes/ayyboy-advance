@@ -1039,7 +1039,7 @@ impl Instruction {
                 })
             }
             // load/store with register offset
-            "0101_lb0o_oobb_bddd" => {
+            "0101_lw0o_oobb_bddd" => {
                 let opcode = if l == 1 { Opcode::Ldr } else { Opcode::Str };
                 let destination = Register::from(d)?;
                 let base = Register::from(b)?;
@@ -1052,7 +1052,7 @@ impl Instruction {
                     operand1: Some(Operand::Register(destination, None)),
                     operand2: Some(Operand::Register(base, None)),
                     operand3: Some(Operand::Register(offset, None)),
-                    transfer_length: if b == 1 {
+                    transfer_length: if w == 1 {
                         Some(TransferLength::Byte)
                     } else {
                         Some(TransferLength::Word)

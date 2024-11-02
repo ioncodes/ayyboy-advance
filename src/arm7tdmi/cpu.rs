@@ -253,7 +253,7 @@ impl Cpu {
             Register::R15 => {
                 // since PC is a GP register, it can be freely written to
                 // we need to flush the pipeline if that's the case
-                self.registers.r[15] = value;
+                self.registers.r[15] = if self.is_thumb() { value & !0b1 } else { value };
                 self.pipeline.flush();
             }
             Register::Cpsr => {

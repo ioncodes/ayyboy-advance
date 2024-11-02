@@ -602,10 +602,14 @@ impl Handlers {
                         }
                     }
 
-                    if registers.first() == Some(&Register::R15) {
+                    if registers.first() != Some(&Register::R15) {
+                        let value = cpu_read_register(register);
+                        mmio.write_u32(address & !0b11, value);
+                    } else {
                         // TODO: what kinda monstrosity is this. rewrite all of ldm/stm
                         // real processor supposedly starts always at the lowest address
                         // and everything is an increment
+
                         let temp_addr = match (indexing, operation) {
                             (Indexing::Pre, Direction::Down) => address,
                             (Indexing::Pre, Direction::Up) => address - 0x3c,
@@ -615,9 +619,6 @@ impl Handlers {
 
                         let value = cpu_read_register(register);
                         mmio.write_u32(temp_addr & !0b11, value);
-                    } else {
-                        let value = cpu_read_register(register);
-                        mmio.write_u32(address & !0b11, value);
                     }
 
                     if *indexing == Indexing::Post {
@@ -1231,6 +1232,27 @@ impl Handlers {
                 let lhs = cpu.read_register(lhs);
                 let rhs = cpu.read_register(rhs);
                 let result = lhs.wrapping_mul(rhs);
+                cpu.write_register(dst, result);
+
+                if *set_psr_flags {
+                    cpu.update_flag(Psr::N, result & 0x8000_0000 != 0);
+                    cpu.update_flag(Psr::Z, result == 0);
+
+                    copy_spsr_to_cpsr_if_necessary(cpu, dst);
+                }
+            }
+            Instruction {
+                opcode: Opcode::Mul,
+                operand1: Some(Operand::Register(dst, None)),
+                operand2: Some(Operand::Register(src, None)),
+                operand3: None,
+                operand4: None,
+                set_psr_flags,
+                ..
+            } => {
+                let x = cpu.read_register(dst);
+                let y = cpu.read_register(src);
+                let result = x.wrapping_mul(y);
                 cpu.write_register(dst, result);
 
                 if *set_psr_flags {
