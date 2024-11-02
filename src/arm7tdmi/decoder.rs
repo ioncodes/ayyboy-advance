@@ -171,9 +171,9 @@ impl ShiftType {
                 _ => Ok(ShiftType::ArithmeticRight(value)),
             },
             0b11 => match value {
-                ShiftSource::Register(_) => Ok(ShiftType::RotateRight(value)),
                 ShiftSource::Immediate(0) => Ok(ShiftType::RotateRightExtended),
                 ShiftSource::Immediate(i) => Ok(ShiftType::RotateRight(ShiftSource::Immediate(i))),
+                ShiftSource::Register(_) => Ok(ShiftType::RotateRight(value)),
             },
             _ => Err(format!("Unknown shift type: {}", shift_type)),
         }

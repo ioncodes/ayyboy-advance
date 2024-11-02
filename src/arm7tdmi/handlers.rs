@@ -507,7 +507,7 @@ impl Handlers {
                     registers
                 };
 
-                for register in registers.iter().rev() {
+                for register in registers.iter() {
                     if *indexing == Indexing::Pre {
                         if *operation == Direction::Up {
                             address += increment_amount;
