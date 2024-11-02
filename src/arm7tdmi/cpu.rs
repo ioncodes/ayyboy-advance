@@ -37,7 +37,7 @@ impl Cpu {
         if let Some((instruction, state)) = self.pipeline.pop() {
             trace!("Instruction: {:?}", instruction);
             if self.is_thumb() {
-                trace!("Opcode: {:04x} | {:016b}", state.opcode, state.opcode);
+                trace!("Opcode: {:04x} | {:016b}", state.opcode as u16, state.opcode as u16);
                 debug!("{:08x}: {}", state.pc, instruction);
             } else {
                 trace!("Opcode: {:08x} | {:032b}", state.opcode, state.opcode);
@@ -113,6 +113,7 @@ impl Cpu {
                 | Opcode::Asr
                 | Opcode::Lsl
                 | Opcode::Lsr
+                | Opcode::Ror
                 | Opcode::Mul
                 | Opcode::Mla
                 | Opcode::Umull
@@ -120,7 +121,6 @@ impl Cpu {
                 | Opcode::Smull
                 | Opcode::Smlal => Handlers::alu(&instruction, self, mmio),
                 Opcode::Swi => Handlers::software_interrupt(&instruction, self, mmio),
-                _ => todo!(),
             }
 
             trace!("\n{}", self);

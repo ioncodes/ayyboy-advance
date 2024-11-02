@@ -1164,18 +1164,22 @@ impl Handlers {
                 opcode: Opcode::Lsl,
                 operand1: Some(Operand::Register(dst, None)),
                 operand2: Some(Operand::Register(src, None)),
-                operand3: Some(Operand::Immediate(shift, None)),
+                operand3,
                 set_psr_flags,
                 ..
             } => {
                 let value = cpu.read_register(src);
-                let result = value.wrapping_shl(*shift);
+                let shift = match operand3 {
+                    Some(Operand::Immediate(shift, _)) => *shift,
+                    _ => cpu.read_register(src),
+                };
+                let result = value.wrapping_shl(shift);
                 cpu.write_register(dst, result);
 
                 if *set_psr_flags {
                     cpu.update_flag(Psr::N, result & 0x8000_0000 != 0);
                     cpu.update_flag(Psr::Z, result == 0);
-                    cpu.update_flag(Psr::C, value & (1 << (32 - *shift)) != 0);
+                    cpu.update_flag(Psr::C, value & (1 << (32 - shift)) != 0);
 
                     copy_spsr_to_cpsr_if_necessary(cpu, dst);
                 }
@@ -1184,18 +1188,22 @@ impl Handlers {
                 opcode: Opcode::Lsr,
                 operand1: Some(Operand::Register(dst, None)),
                 operand2: Some(Operand::Register(src, None)),
-                operand3: Some(Operand::Immediate(shift, None)),
+                operand3,
                 set_psr_flags,
                 ..
             } => {
                 let value = cpu.read_register(src);
-                let result = value.wrapping_shr(*shift);
+                let shift = match operand3 {
+                    Some(Operand::Immediate(shift, _)) => *shift,
+                    _ => cpu.read_register(src),
+                };
+                let result = value.wrapping_shr(shift);
                 cpu.write_register(dst, result);
 
                 if *set_psr_flags {
                     cpu.update_flag(Psr::N, result & 0x8000_0000 != 0);
                     cpu.update_flag(Psr::Z, result == 0);
-                    cpu.update_flag(Psr::C, value & (1 << (*shift - 1)) != 0);
+                    cpu.update_flag(Psr::C, value & (1 << (shift - 1)) != 0);
 
                     copy_spsr_to_cpsr_if_necessary(cpu, dst);
                 }
@@ -1204,18 +1212,42 @@ impl Handlers {
                 opcode: Opcode::Asr,
                 operand1: Some(Operand::Register(dst, None)),
                 operand2: Some(Operand::Register(src, None)),
-                operand3: Some(Operand::Immediate(shift, None)),
+                operand3,
                 set_psr_flags,
                 ..
             } => {
                 let value = cpu.read_register(src);
-                let result = value.wrapping_shr(*shift);
+                let shift = match operand3 {
+                    Some(Operand::Immediate(shift, _)) => *shift,
+                    _ => cpu.read_register(src),
+                };
+                let result = value.wrapping_shr(shift);
                 cpu.write_register(dst, result);
 
                 if *set_psr_flags {
                     cpu.update_flag(Psr::N, result & 0x8000_0000 != 0);
                     cpu.update_flag(Psr::Z, result == 0);
-                    cpu.update_flag(Psr::C, value & (1 << (*shift - 1)) != 0);
+                    cpu.update_flag(Psr::C, value & (1 << (shift - 1)) != 0);
+
+                    copy_spsr_to_cpsr_if_necessary(cpu, dst);
+                }
+            }
+            Instruction {
+                opcode: Opcode::Ror,
+                operand1: Some(Operand::Register(dst, None)),
+                operand2: Some(Operand::Register(src, None)),
+                operand3: None,
+                set_psr_flags,
+                ..
+            } => {
+                let value = cpu.read_register(dst);
+                let rotate = cpu.read_register(src);
+                let result = value.rotate_right(rotate);
+                cpu.write_register(dst, result);
+
+                if *set_psr_flags {
+                    cpu.update_flag(Psr::N, result & 0x8000_0000 != 0);
+                    cpu.update_flag(Psr::Z, result == 0);
 
                     copy_spsr_to_cpsr_if_necessary(cpu, dst);
                 }

@@ -131,12 +131,21 @@ fn process_debug_events(
 
 fn enable_logger() {
     let enable_trace = std::env::args().any(|arg| arg == "--trace");
+    let enable_debug = std::env::args().any(|arg| arg == "--debug");
+
     let logger = if enable_trace {
         let path = "trace.log";
         let _ = std::fs::remove_file(&path);
         let file_sink = Arc::new(FileSink::builder().path(path).build().unwrap());
         let logger = Arc::new(Logger::builder().sink(file_sink).build().unwrap());
         logger.set_level_filter(LevelFilter::All);
+        logger
+    } else if enable_debug {
+        let path = "debug.log";
+        let _ = std::fs::remove_file(&path);
+        let file_sink = Arc::new(FileSink::builder().path(path).build().unwrap());
+        let logger = Arc::new(Logger::builder().sink(file_sink).build().unwrap());
+        logger.set_level_filter(LevelFilter::Equal(Level::Debug));
         logger
     } else {
         let std_sink = Arc::new(StdStreamSink::builder().std_stream(StdStream::Stderr).build().unwrap());
