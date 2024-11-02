@@ -129,10 +129,10 @@ fn process_debug_events(
         .unwrap_or(EventResult::None)
 }
 
-fn main() {
-    let logger = if let Ok(path) = std::env::var("AYY_TRACE")
-        && !path.is_empty()
-    {
+fn enable_logger() {
+    let enable_trace = std::env::args().any(|arg| arg == "--trace");
+    let logger = if enable_trace {
+        let path = "trace.log";
         let _ = std::fs::remove_file(&path);
         let file_sink = Arc::new(FileSink::builder().path(path).build().unwrap());
         let logger = Arc::new(Logger::builder().sink(file_sink).build().unwrap());
@@ -148,15 +148,15 @@ fn main() {
     let formatter = Box::new(PatternFormatter::new(pattern!(
         "[{^{level}} {module_path}] {payload}{eol}"
     )));
+
     for sink in logger.sinks() {
         sink.set_formatter(formatter.clone());
     }
+
     spdlog::set_default_logger(logger);
+}
 
-    let (display_tx, display_rx): (Sender<Frame>, Receiver<Frame>) = crossbeam_channel::bounded(1);
-    let (dbg_req_tx, dbg_req_rx): (Sender<RequestEvent>, Receiver<RequestEvent>) = crossbeam_channel::bounded(25);
-    let (dbg_resp_tx, dbg_resp_rx): (Sender<ResponseEvent>, Receiver<ResponseEvent>) = crossbeam_channel::bounded(25);
-
+fn start_emulator(display_tx: Sender<Frame>, dbg_req_rx: Receiver<RequestEvent>, dbg_resp_tx: Sender<ResponseEvent>) {
     std::thread::spawn(move || {
         let mut mmio = Mmio::new();
         mmio.load(0x00000000, BIOS); // bios addr
@@ -228,6 +228,16 @@ fn main() {
             }
         }
     });
+}
+
+fn main() {
+    enable_logger();
+
+    let (display_tx, display_rx): (Sender<Frame>, Receiver<Frame>) = crossbeam_channel::bounded(1);
+    let (dbg_req_tx, dbg_req_rx): (Sender<RequestEvent>, Receiver<RequestEvent>) = crossbeam_channel::bounded(25);
+    let (dbg_resp_tx, dbg_resp_rx): (Sender<ResponseEvent>, Receiver<ResponseEvent>) = crossbeam_channel::bounded(25);
+
+    start_emulator(display_tx, dbg_req_rx, dbg_resp_tx);
 
     let native_options = NativeOptions {
         viewport: ViewportBuilder::default()

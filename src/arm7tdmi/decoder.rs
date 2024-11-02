@@ -149,10 +149,27 @@ impl ShiftType {
         // shifter, rotate right extended (RRX). This instruction rotates
         // thx Atem!
 
+        // The form of the shift field which might be expected to correspond
+        // to LSR #0 is used to encode LSR #32, which has a
+        // zero result with bit 31 of Rm as the carry output.
+
+        // The form of the shift field which might be expected to give
+        // ASR #0 is used to encode ASR #32. Bit 31 of Rm is again
+        // used as the carry output, and each bit of operand 2 is also
+        // equal to bit 31 of Rm.
+
         match shift_type {
             0b00 => Ok(ShiftType::LogicalLeft(value)),
-            0b01 => Ok(ShiftType::LogicalRight(value)),
-            0b10 => Ok(ShiftType::ArithmeticRight(value)),
+            0b01 => match value {
+                ShiftSource::Immediate(0) => Ok(ShiftType::LogicalRight(ShiftSource::Immediate(32))),
+                ShiftSource::Immediate(i) => Ok(ShiftType::LogicalRight(ShiftSource::Immediate(i))),
+                _ => Ok(ShiftType::LogicalRight(value)),
+            },
+            0b10 => match value {
+                ShiftSource::Immediate(0) => Ok(ShiftType::ArithmeticRight(ShiftSource::Immediate(32))),
+                ShiftSource::Immediate(i) => Ok(ShiftType::ArithmeticRight(ShiftSource::Immediate(i))),
+                _ => Ok(ShiftType::ArithmeticRight(value)),
+            },
             0b11 => match value {
                 ShiftSource::Register(_) => Ok(ShiftType::RotateRight(value)),
                 ShiftSource::Immediate(0) => Ok(ShiftType::RotateRightExtended),
@@ -662,26 +679,6 @@ impl Instruction {
                             Some(ShiftType::from(t, ShiftSource::Register(Register::from(r)?))?),
                         ),
                         "ssss_stt0_dddd" => {
-                            // The form of the shift field which might be expected to correspond
-                            // to LSR #0 is used to encode LSR #32, which has a
-                            // zero result with bit 31 of Rm as the carry output.
-
-                            // The form of the shift field which might be expected to give
-                            // ASR #0 is used to encode ASR #32. Bit 31 of Rm is again
-                            // used as the carry output, and each bit of operand 2 is also
-                            // equal to bit 31 of Rm.
-
-                            let s = match t {
-                                0b01 if s == 0 => 32,
-                                0b10 if s == 0 => 32,
-                                _ => s,
-                            };
-
-                            // The form of the shift field which might be expected to give
-                            // ROR #0 is used to encode a special function of the barrel
-                            // shifter, rotate right extended (RRX). This instruction rotates
-                            // thx Atem!
-
                             Operand::Register(Register::from(d)?, Some(ShiftType::from(t, ShiftSource::Immediate(s))?))
                         }
                         _ => unreachable!(),
