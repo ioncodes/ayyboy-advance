@@ -919,7 +919,7 @@ impl Instruction {
                 })
             }
             // load/store with immediate offset
-            "011b_looo_oobb_bddd" => {
+            "011w_looo_oobb_bddd" => {
                 let opcode = if l == 1 { Opcode::Ldr } else { Opcode::Str };
                 let operand1 = Register::from(d)?;
                 let operand2 = Register::from(b)?;
@@ -932,7 +932,7 @@ impl Instruction {
                     operand1: Some(Operand::Register(operand1, None)),
                     operand2: Some(Operand::Register(operand2, None)),
                     operand3: Some(operand3),
-                    transfer_length: Some(if b == 1 {
+                    transfer_length: Some(if w == 1 {
                         TransferLength::Byte
                     } else {
                         TransferLength::Word
