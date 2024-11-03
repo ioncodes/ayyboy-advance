@@ -38,7 +38,7 @@ impl Condition {
             0b1100 => Ok(Condition::GreaterThan),
             0b1101 => Ok(Condition::LessThanOrEqual),
             0b1110 => Ok(Condition::Always),
-            _ => Err(format!("Unknown condition code: {}", value)),
+            _ => Err(format!("Unknown condition code: {:b}", value)),
         }
     }
 }
@@ -1200,6 +1200,14 @@ impl Instruction {
                 indexing: Some(Indexing::Pre),
                 offset_direction: Some(Direction::Up),
                 writeback: true,
+                ..Instruction::default()
+            }),
+            // software interrupt
+            "1101_1111_iiii_iiii" => Ok(Instruction {
+                opcode: Opcode::Swi,
+                condition: Condition::Always,
+                set_psr_flags: false,
+                operand1: Some(Operand::Immediate(i, None)),
                 ..Instruction::default()
             }),
             // Conditional Branch

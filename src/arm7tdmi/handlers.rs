@@ -81,6 +81,9 @@ impl Handlers {
 
                 // set the link register to the address of the instruction after the SWI
                 cpu.write_register(&Register::R14, pc - 4);
+
+                // switch to ARM state
+                cpu.registers.cpsr.set(Psr::T, false);
             }
             _ => todo!("{:?}", instr),
         }
