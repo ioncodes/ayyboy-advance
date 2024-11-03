@@ -710,6 +710,23 @@ impl Handlers {
             Instruction {
                 opcode: Opcode::Add,
                 operand1: Some(Operand::Register(dst, None)),
+                operand2: Some(Operand::Offset(offset)),
+                operand3: None,
+                set_psr_flags,
+                ..
+            } => {
+                let x = cpu.read_register(dst);
+                let result = x.wrapping_add_signed(*offset);
+                cpu.write_register(dst, result);
+
+                if *set_psr_flags {
+                    cpu.update_flag(Psr::N, result & 0x8000_0000 != 0);
+                    cpu.update_flag(Psr::Z, result == 0);
+                }
+            }
+            Instruction {
+                opcode: Opcode::Add,
+                operand1: Some(Operand::Register(dst, None)),
                 operand2: Some(src),
                 operand3: None,
                 set_psr_flags,
@@ -946,10 +963,12 @@ impl Handlers {
                     (Some(ShiftSource::Register(_)), _) => 4,
                     _ => 0,
                 };
+
                 let x = Handlers::resolve_operand(x, cpu, *set_psr_flags)
                     + if x.is_register(&Register::R15) { extra_fetch } else { 0 };
                 let y = Handlers::resolve_operand(y, cpu, *set_psr_flags)
                     + if y.is_register(&Register::R15) { extra_fetch } else { 0 };
+
                 let result = x | y;
                 cpu.write_register(dst, result);
 
@@ -1071,6 +1090,10 @@ impl Handlers {
                 set_psr_flags,
                 ..
             } => {
+                // Grab carry first, as it may be modified due to shifter
+                let carry = cpu.registers.cpsr.contains(Psr::C) as u32;
+
+                // Extra fetch quirk stuff
                 let extra_fetch = match (
                     Handlers::try_fetch_shifted_operand(x),
                     Handlers::try_fetch_shifted_operand(y),
@@ -1079,11 +1102,11 @@ impl Handlers {
                     (Some(ShiftSource::Register(_)), _) => 4,
                     _ => 0,
                 };
+
                 let x = Handlers::resolve_operand(x, cpu, *set_psr_flags)
                     + if x.is_register(&Register::R15) { extra_fetch } else { 0 };
                 let y = Handlers::resolve_operand(y, cpu, *set_psr_flags)
                     + if y.is_register(&Register::R15) { extra_fetch } else { 0 };
-                let carry = cpu.registers.cpsr.contains(Psr::C) as u32;
 
                 let (result, borrow1) = y.overflowing_sub(x);
                 let (result, borrow2) = result.overflowing_sub(1 - carry);
@@ -1094,8 +1117,7 @@ impl Handlers {
                     cpu.update_flag(Psr::Z, result == 0);
                     cpu.update_flag(Psr::C, !borrow1 && !borrow2);
 
-                    let overflow = ((x ^ y) & (x ^ result) & 0x8000_0000) != 0;
-                    cpu.update_flag(Psr::V, overflow);
+                    cpu.update_flag(Psr::V, false); // TODO:?
 
                     copy_spsr_to_cpsr_if_necessary(cpu, dst);
                 }

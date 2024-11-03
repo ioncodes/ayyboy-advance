@@ -3,6 +3,7 @@
 #![feature(let_chains)]
 
 mod arm7tdmi;
+mod audio;
 mod frontend;
 mod input;
 mod memory;
@@ -176,15 +177,15 @@ fn start_emulator(display_tx: Sender<Frame>, dbg_req_rx: Receiver<RequestEvent>,
         // let mut cpu = Cpu::new(ARM_TEST_ELF);
         let mut cpu = Cpu::new(&[]);
         // State for skipping BIOS, https://problemkaputt.de/gbatek.htm#biosramusage
-        cpu.set_processor_mode(ProcessorMode::Irq);
-        cpu.write_register(&Register::R13, 0x03007fa0);
-        cpu.set_processor_mode(ProcessorMode::Supervisor);
-        cpu.write_register(&Register::R13, 0x03007fe0);
-        cpu.set_processor_mode(ProcessorMode::User);
-        cpu.write_register(&Register::R13, 0x03007f00);
-        cpu.set_processor_mode(ProcessorMode::System);
-        cpu.write_register(&Register::R13, 0x03007f00);
-        cpu.write_register(&Register::R15, 0x08000000);
+        // cpu.set_processor_mode(ProcessorMode::Irq);
+        // cpu.write_register(&Register::R13, 0x03007fa0);
+        // cpu.set_processor_mode(ProcessorMode::Supervisor);
+        // cpu.write_register(&Register::R13, 0x03007fe0);
+        // cpu.set_processor_mode(ProcessorMode::User);
+        // cpu.write_register(&Register::R13, 0x03007f00);
+        // cpu.set_processor_mode(ProcessorMode::System);
+        // cpu.write_register(&Register::R13, 0x03007f00);
+        // cpu.write_register(&Register::R15, 0x08000000);
 
         let mut frame_rendered = false;
         let mut tick = false;

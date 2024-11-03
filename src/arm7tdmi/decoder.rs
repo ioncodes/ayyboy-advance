@@ -1113,6 +1113,25 @@ impl Instruction {
                     ..Instruction::default()
                 })
             }
+            // SP-relative load/store
+            "1001_lddd_iiii_iiii" => {
+                let opcode = if l == 1 { Opcode::Ldr } else { Opcode::Str };
+                let destination = Register::from(d)?;
+                let offset = i << 2;
+
+                Ok(Instruction {
+                    opcode,
+                    condition: Condition::Always,
+                    set_psr_flags: false,
+                    operand1: Some(Operand::Register(destination, None)),
+                    operand2: Some(Operand::Register(Register::R13, None)),
+                    operand3: Some(Operand::Immediate(offset, None)),
+                    offset_direction: Some(Direction::Up),
+                    indexing: Some(Indexing::Pre),
+                    transfer_length: Some(TransferLength::Word),
+                    ..Instruction::default()
+                })
+            }
             // Load address
             "1010_sddd_cccc_cccc" => {
                 let source = match s {
@@ -1128,6 +1147,18 @@ impl Instruction {
                     operand1: Some(Operand::Register(destination, None)),
                     operand2: Some(Operand::Register(source, None)),
                     operand3: Some(Operand::Immediate(offset, None)),
+                    ..Instruction::default()
+                })
+            }
+            // add offset to Stack Pointer
+            "1011_0000_sooo_oooo" => {
+                let offset = o << 2;
+                let destination = Register::R13;
+
+                Ok(Instruction {
+                    opcode: Opcode::Add,
+                    operand1: Some(Operand::Register(destination, None)),
+                    operand2: Some(Operand::Offset(offset as i32)),
                     ..Instruction::default()
                 })
             }

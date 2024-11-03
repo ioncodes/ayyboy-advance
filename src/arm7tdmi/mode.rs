@@ -1,5 +1,7 @@
 use std::fmt::Display;
 
+use spdlog::error;
+
 #[derive(Debug, Clone, Copy, PartialEq, Hash, Eq)]
 pub enum ProcessorMode {
     User = 0b10000,
@@ -9,6 +11,7 @@ pub enum ProcessorMode {
     Abort = 0b10111,
     System = 0b11111,
     Undefined = 0b11011,
+    Invalid = 0b00000,
 }
 
 impl ProcessorMode {
@@ -21,7 +24,10 @@ impl ProcessorMode {
             0b10111 => ProcessorMode::Abort,
             0b11011 => ProcessorMode::Undefined,
             0b11111 => ProcessorMode::System,
-            _ => panic!("Invalid processor mode: {:08b}", value),
+            _ => {
+                error!("Invalid processor mode: {:08b}", value);
+                ProcessorMode::Invalid
+            }
         }
     }
 }
@@ -36,6 +42,7 @@ impl Display for ProcessorMode {
             ProcessorMode::Abort => write!(f, "Abort"),
             ProcessorMode::System => write!(f, "System"),
             ProcessorMode::Undefined => write!(f, "Undefined"),
+            ProcessorMode::Invalid => write!(f, "Invalid"),
         }
     }
 }
