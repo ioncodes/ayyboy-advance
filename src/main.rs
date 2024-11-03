@@ -28,7 +28,8 @@ use std::sync::{Arc, Mutex};
 use video::{Frame, SCREEN_HEIGHT, SCREEN_WIDTH};
 
 // const ARM_TEST: &[u8] = include_bytes!("../external/gba-tests/arm/arm.gba");
-const ARM_TEST: &[u8] = include_bytes!("../external/armwrestler-gba-fixed/armwrestler-gba-fixed.gba");
+// const ARM_TEST: &[u8] = include_bytes!("../external/armwrestler-gba-fixed/armwrestler-gba-fixed.gba");
+const ARM_TEST: &[u8] = include_bytes!("../external/commercial/pmdr.gba");
 // const ARM_TEST_ELF: &[u8] = include_bytes!("../external/armwrestler-gba-fixed/armwrestler-gba-fixed.elf");
 // const ARM_TEST: &[u8] = include_bytes!("../external/tonc/swi_demo.gba");
 // const ARM_TEST: &[u8] = include_bytes!("../external/FuzzARM/ARM_DataProcessing.gba");

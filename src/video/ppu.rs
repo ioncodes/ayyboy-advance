@@ -55,6 +55,8 @@ impl Ppu {
 
     pub fn get_frame(&self) -> Frame {
         let lcd_control = self.read_as::<DispCnt>(DISPCNT_ADDR);
+        trace!("Grabbing internal frame buffer for PPU mode: {}", lcd_control.bg_mode());
+
         match lcd_control.bg_mode() {
             3 => self.render_background_mode3(lcd_control.frame_address()),
             4 => self.render_background_mode4(lcd_control.frame_address()),
@@ -112,6 +114,10 @@ impl Ppu {
 impl Addressable for Ppu {
     fn read(&self, addr: u32) -> u8 {
         match addr {
+            // VCOUNT register
+            0x04000006 => (self.scanline & 0xff) as u8,
+            0x04000007 => ((self.scanline & 0xff00) >> 8) as u8,
+            // rest of the registers
             0x04000000..=0x04000056 => self.io[(addr - 0x04000000) as usize],
             0x05000000..=0x07FFFFFF => self.vram[(addr - 0x05000000) as usize],
             _ => unreachable!(),
