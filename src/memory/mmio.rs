@@ -40,6 +40,7 @@ impl Mmio {
             0x08000000..=0x09FFFFFF => self.external_memory[(addr - 0x08000000) as usize],
             0x0A000000..=0x0BFFFFFF => self.external_memory[(addr - 0x0A000000) as usize], // Mirror of 0x08000000..=0x09FFFFFF
             0x0C000000..=0x0DFFFFFF => self.external_memory[(addr - 0x0C000000) as usize], // Mirror of 0x08000000..=0x09FFFFFF
+            0x0E000000..=0x0FFFFFFF => self.external_memory[(addr - 0x0E000000) as usize], // Mostly Gamepak SRAM
             _ => {
                 error!("Reading from unmapped memory address: {:08x}", addr);
                 0
@@ -61,6 +62,8 @@ impl Mmio {
     }
 
     pub fn write(&mut self, addr: u32, value: u8) {
+        trace!("Writing {:02x} to {:08x}", value, addr);
+
         match addr {
             0x04000000..=0x04000056 => self.ppu.write(addr, value), // PPU I/O
             0x04000130..=0x04000133 => self.joypad.write(addr, value), // Joypad I/O
@@ -70,6 +73,7 @@ impl Mmio {
             0x08000000..=0x09FFFFFF => self.external_memory[(addr - 0x08000000) as usize] = value,
             0x0A000000..=0x0BFFFFFF => self.external_memory[(addr - 0x0A000000) as usize] = value, // Mirror of 0x08000000..=0x09FFFFFF
             0x0C000000..=0x0DFFFFFF => self.external_memory[(addr - 0x0C000000) as usize] = value, // Mirror of 0x08000000..=0x09FFFFFF
+            0x0E000000..=0x0FFFFFFF => self.external_memory[(addr - 0x0E000000) as usize] = value, // Mostly Gamepak SRAM
             _ => {
                 error!("Writing to unmapped memory address: {:08x}", addr);
             }

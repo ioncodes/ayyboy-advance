@@ -57,13 +57,28 @@ impl Ppu {
         let lcd_control = self.read_as::<DispCnt>(DISPCNT_ADDR);
         trace!("Grabbing internal frame buffer for PPU mode: {}", lcd_control.bg_mode());
 
+        let parse_bg_layer_view = |layer: DispCnt| {
+            if lcd_control.contains(layer) {
+                "on"
+            } else {
+                "off"
+            }
+        };
+
         match lcd_control.bg_mode() {
-            3 => self.render_background_mode3(lcd_control.frame_address()),
-            4 => self.render_background_mode4(lcd_control.frame_address()),
-            mode => {
-                error!("Unsupported PPU mode: {}", mode);
+            0..=2 => {
+                trace!(
+                    "Background layers: BG0({}), BG1({}), BG2({}), BG3({})",
+                    parse_bg_layer_view(DispCnt::BG0_ON),
+                    parse_bg_layer_view(DispCnt::BG1_ON),
+                    parse_bg_layer_view(DispCnt::BG2_ON),
+                    parse_bg_layer_view(DispCnt::BG3_ON)
+                );
                 [[(0, 0, 0); SCREEN_WIDTH]; SCREEN_HEIGHT]
             }
+            3 => self.render_background_mode3(lcd_control.frame_address()),
+            4 => self.render_background_mode4(lcd_control.frame_address()),
+            _ => unreachable!(), // todo: there might be 5?
         }
     }
 
@@ -127,7 +142,10 @@ impl Addressable for Ppu {
     fn write(&mut self, addr: u32, value: u8) {
         match addr {
             0x04000000..=0x04000056 => self.io[(addr - 0x04000000) as usize] = value,
-            0x05000000..=0x07FFFFFF => self.vram[(addr - 0x05000000) as usize] = value,
+            0x05000000..=0x07FFFFFF => {
+                trace!("Writing to VRAM address: {:08x} with value: {:02x}", addr, value);
+                self.vram[(addr - 0x05000000) as usize] = value
+            }
             _ => unreachable!(),
         }
     }
