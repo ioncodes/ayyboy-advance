@@ -48,48 +48,6 @@ impl Cpu {
                 debug!("Found matching symbols @ PC: {}", symbol.join(", "));
             });
 
-            #[cfg(feature = "mesen2-trace-dump")]
-            {
-                println!("{:08X}  {:<45}  R0:{:08X} R1:{:08X} R2:{:08X} R3:{:08X} R4:{:08X} R5:{:08X} R6:{:08X} R7:{:08X} R8:{:08X} R9:{:08X} R10:{:08X} R11:{:08X} R12:{:08X} R13:{:08X} R14:{:08X} R15:{:08x} CPSR:{} Mode:{}",
-                    state.pc,
-                    format!("{}", instruction),
-                    self.read_register(&Register::R0),
-                    self.read_register(&Register::R1),
-                    self.read_register(&Register::R2),
-                    self.read_register(&Register::R3),
-                    self.read_register(&Register::R4),
-                    self.read_register(&Register::R5),
-                    self.read_register(&Register::R6),
-                    self.read_register(&Register::R7),
-                    self.read_register(&Register::R8),
-                    self.read_register(&Register::R9),
-                    self.read_register(&Register::R10),
-                    self.read_register(&Register::R11),
-                    self.read_register(&Register::R12),
-                    self.read_register(&Register::R13),
-                    self.read_register(&Register::R14),
-                    self.read_register(&Register::R15),
-                    format!("{}{}{}{}{}{}{}", 
-                        if self.registers.cpsr.contains(Psr::N) { "N" } else { "n" },
-                        if self.registers.cpsr.contains(Psr::Z) { "Z" } else { "z" },
-                        if self.registers.cpsr.contains(Psr::C) { "C" } else { "c" },
-                        if self.registers.cpsr.contains(Psr::V) { "V" } else { "v" },
-                        if self.registers.cpsr.contains(Psr::T) { "T" } else { "t" },
-                        if self.registers.cpsr.contains(Psr::F) { "F" } else { "f" },
-                        if self.registers.cpsr.contains(Psr::I) { "I" } else { "i" }
-                    ),
-                    match self.get_processor_mode() {
-                        ProcessorMode::User => "USR",
-                        ProcessorMode::Fiq => "FIQ",
-                        ProcessorMode::Irq => "IRQ",
-                        ProcessorMode::Supervisor => "SVC",
-                        ProcessorMode::Abort => "ABT",
-                        ProcessorMode::Undefined => "UND",
-                        ProcessorMode::System => "SYS",
-                    }
-                );
-            }
-
             match instruction.opcode {
                 Opcode::B | Opcode::Bl | Opcode::Bx => Handlers::branch(&instruction, self, mmio),
                 Opcode::Push | Opcode::Pop => Handlers::push_pop(&instruction, self, mmio),

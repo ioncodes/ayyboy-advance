@@ -80,7 +80,8 @@ impl Handlers {
                 cpu.set_processor_mode(ProcessorMode::Supervisor);
 
                 // set the link register to the address of the instruction after the SWI
-                cpu.write_register(&Register::R14, pc - 4);
+                let addr_next_instr = pc - if cpu.is_thumb() { 2 } else { 4 };
+                cpu.write_register(&Register::R14, addr_next_instr);
 
                 // switch to ARM state
                 cpu.registers.cpsr.set(Psr::T, false);
