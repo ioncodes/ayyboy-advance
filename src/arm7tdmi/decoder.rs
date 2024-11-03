@@ -600,6 +600,7 @@ impl Instruction {
                             });
                         }
                         // // PSR Transfer (MSR) for register contents
+                        // TODO: can we remove this safely?
                         // "cccc_0001_0d10_1001_1111_0000_0000_ssss" => {
                         //     let condition = Condition::from(c)?;
                         //     let source = Register::from(s)?;
@@ -617,7 +618,7 @@ impl Instruction {
                         // }
                         // PSR Transfer (MSR) for register contents or immediate value to PSR flags
                         "cccc_00i1_0d10_f??x_1111_ssss_ssss_ssss" => {
-                            // TODO: https://problemkaputt.de/gbatek-arm-opcodes-psr-transfer-mrs-msr.htm
+                            // https://problemkaputt.de/gbatek-arm-opcodes-psr-transfer-mrs-msr.htm
                             let condition = Condition::from(c)?;
                             let destination = match (d, f, x) {
                                 (1, 1, 0) => Register::SpsrFlag,
@@ -1167,6 +1168,7 @@ impl Instruction {
                 operand3: None,
                 indexing: Some(Indexing::Pre),
                 offset_direction: Some(Direction::Up),
+                writeback: true,
                 ..Instruction::default()
             }),
             // Conditional Branch

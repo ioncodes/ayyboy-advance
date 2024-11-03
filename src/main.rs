@@ -30,7 +30,7 @@ use video::{Frame, SCREEN_HEIGHT, SCREEN_WIDTH};
 // const ARM_TEST: &[u8] = include_bytes!("../external/gba-tests/arm/arm.gba");
 const ARM_TEST: &[u8] = include_bytes!("../external/armwrestler-gba-fixed/armwrestler-gba-fixed.gba");
 // const ARM_TEST_ELF: &[u8] = include_bytes!("../external/armwrestler-gba-fixed/armwrestler-gba-fixed.elf");
-// const ARM_TEST: &[u8] = include_bytes!("../external/tonc/first.gba");
+// const ARM_TEST: &[u8] = include_bytes!("../external/tonc/swi_demo.gba");
 // const ARM_TEST: &[u8] = include_bytes!("../external/FuzzARM/ARM_DataProcessing.gba");
 // const ARM_TEST: &[u8] = include_bytes!("../external/gba-div-test/out/rom.gba"); // just a div test
 // const ARM_TEST: &[u8] = include_bytes!("../external/gba-psr-test/out/rom.gba"); // just a cpsr bank test
@@ -175,15 +175,15 @@ fn start_emulator(display_tx: Sender<Frame>, dbg_req_rx: Receiver<RequestEvent>,
         // let mut cpu = Cpu::new(ARM_TEST_ELF);
         let mut cpu = Cpu::new(&[]);
         // State for skipping BIOS, https://problemkaputt.de/gbatek.htm#biosramusage
-        // cpu.set_processor_mode(ProcessorMode::Irq);
-        // cpu.write_register(&Register::R13, 0x03007fa0);
-        // cpu.set_processor_mode(ProcessorMode::Supervisor);
-        // cpu.write_register(&Register::R13, 0x03007fe0);
-        // cpu.set_processor_mode(ProcessorMode::User);
-        // cpu.write_register(&Register::R13, 0x03007f00);
-        // cpu.set_processor_mode(ProcessorMode::System);
-        // cpu.write_register(&Register::R13, 0x03007f00);
-        // cpu.write_register(&Register::R15, 0x08000000);
+        cpu.set_processor_mode(ProcessorMode::Irq);
+        cpu.write_register(&Register::R13, 0x03007fa0);
+        cpu.set_processor_mode(ProcessorMode::Supervisor);
+        cpu.write_register(&Register::R13, 0x03007fe0);
+        cpu.set_processor_mode(ProcessorMode::User);
+        cpu.write_register(&Register::R13, 0x03007f00);
+        cpu.set_processor_mode(ProcessorMode::System);
+        cpu.write_register(&Register::R13, 0x03007f00);
+        cpu.write_register(&Register::R15, 0x08000000);
 
         let mut frame_rendered = false;
         let mut tick = false;

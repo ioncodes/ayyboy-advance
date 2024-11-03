@@ -311,7 +311,8 @@ impl Cpu {
                 current.set(Psr::I, spsr.contains(Psr::I));
                 current.set(Psr::F, spsr.contains(Psr::F));
                 current.set(Psr::T, spsr.contains(Psr::T));
-                current = Psr::from_bits_truncate((current.bits() & !Psr::M.bits()) | (spsr.bits() & Psr::M.bits()));
+                // TODO: only control
+                //current = Psr::from_bits_truncate((current.bits() & !Psr::M.bits()) | (spsr.bits() & Psr::M.bits()));
                 self.write_to_current_spsr(current);
             }
             Register::SpsrFlagControl => {
@@ -330,7 +331,8 @@ impl Cpu {
                 current.set(Psr::T, spsr.contains(Psr::T));
 
                 // mode switch
-                current = Psr::from_bits_truncate((current.bits() & !Psr::M.bits()) | (spsr.bits() & Psr::M.bits()));
+                // TODO: only flag and control
+                //current = Psr::from_bits_truncate((current.bits() & !Psr::M.bits()) | (spsr.bits() & Psr::M.bits()));
                 self.write_to_current_spsr(current);
             }
             Register::PsrNone => {
