@@ -1202,7 +1202,12 @@ impl Handlers {
                 let result = match instr.opcode {
                     Opcode::Lsl => value.wrapping_shl(shift),
                     Opcode::Lsr => value.wrapping_shr(shift),
-                    Opcode::Asr => value.wrapping_shr(shift),
+                    Opcode::Asr => Self::process_shift(
+                        value,
+                        &ShiftType::ArithmeticRight(ShiftSource::Immediate(value)),
+                        cpu,
+                        *set_psr_flags,
+                    ),
                     _ => unreachable!(),
                 };
                 cpu.write_register(dst, result);
@@ -1215,10 +1220,7 @@ impl Handlers {
                         Opcode::Lsl => {
                             cpu.update_flag(Psr::C, value & (1 << (32 - shift)) != 0);
                         }
-                        Opcode::Lsr => {
-                            cpu.update_flag(Psr::C, value & (1 << (shift - 1)) != 0);
-                        }
-                        Opcode::Asr => {
+                        Opcode::Lsr | Opcode::Asr => {
                             cpu.update_flag(Psr::C, value & (1 << (shift - 1)) != 0);
                         }
                         _ => unreachable!(),
