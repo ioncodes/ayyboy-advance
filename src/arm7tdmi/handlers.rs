@@ -1194,17 +1194,30 @@ impl Handlers {
                 set_psr_flags,
                 ..
             } => {
-                let value = cpu.read_register(src);
+                let mut value = cpu.read_register(src);
                 let shift = match operand3 {
                     Some(Operand::Immediate(shift, _)) => *shift,
-                    _ => cpu.read_register(src),
+                    _ => {
+                        value = cpu.read_register(dst); // wtf am i doing man (it works)
+                        cpu.read_register(src)
+                    }
                 };
                 let result = match instr.opcode {
-                    Opcode::Lsl => value.wrapping_shl(shift),
-                    Opcode::Lsr => value.wrapping_shr(shift),
+                    Opcode::Lsl => Self::process_shift(
+                        value,
+                        &ShiftType::LogicalLeft(ShiftSource::Immediate(shift)),
+                        cpu,
+                        *set_psr_flags,
+                    ),
+                    Opcode::Lsr => Self::process_shift(
+                        value,
+                        &ShiftType::LogicalRight(ShiftSource::Immediate(shift)),
+                        cpu,
+                        *set_psr_flags,
+                    ),
                     Opcode::Asr => Self::process_shift(
                         value,
-                        &ShiftType::ArithmeticRight(ShiftSource::Immediate(value)),
+                        &ShiftType::ArithmeticRight(ShiftSource::Immediate(shift)),
                         cpu,
                         *set_psr_flags,
                     ),
@@ -1420,96 +1433,118 @@ impl Handlers {
         match shift {
             ShiftType::LogicalLeft(src) => {
                 let shift = Handlers::unwrap_shift_source(cpu, src);
-                let result = value.checked_shl(shift).unwrap_or(0);
+
+                // Special case for LSL #0 - no shift, carry unchanged
+                if shift == 0 {
+                    return value;
+                }
+
+                // Shift by more than 32 produces 0
+                let result = if shift >= 32 { 0 } else { value << shift };
+
                 if set_psr_flags {
-                    match shift {
-                        0 => {}
-                        1..=31 => {
-                            // not handling shift == 0 because it would create a mask of 0
-                            // and the result would be 0
-                            let mask = 1 << (32 - shift);
-                            let carry_out = value & mask != 0;
-                            cpu.update_flag(Psr::C, carry_out)
-                        }
-                        32 => cpu.update_flag(Psr::C, value & 1 != 0),
-                        _ => cpu.update_flag(Psr::C, false),
+                    if shift == 32 {
+                        // For shift of 32, carry is bit 0
+                        cpu.update_flag(Psr::C, value & 1 != 0);
+                    } else if shift > 32 {
+                        // For shift > 32, carry is 0
+                        cpu.update_flag(Psr::C, false);
+                    } else if shift > 0 {
+                        // Normal case: carry is the last bit shifted out
+                        let mask = 1 << (32 - shift);
+                        cpu.update_flag(Psr::C, value & mask != 0);
                     }
                 }
+
                 result
             }
             ShiftType::LogicalRight(src) => {
                 let shift = Handlers::unwrap_shift_source(cpu, src);
-                let result = value.checked_shr(shift).unwrap_or(0);
+
+                // LSR #0 is interpreted as LSR #32
+                let (result, carry) = if shift == 0 || shift == 32 {
+                    // Special case: LSR #0/LSR #32 -> all zeros, carry = bit 31
+                    (0, (value & 0x80000000) != 0)
+                } else if shift > 32 {
+                    // Shift > 32 = all zeros, carry = 0
+                    (0, false)
+                } else {
+                    // Normal case
+                    (value >> shift, (value & (1 << (shift - 1))) != 0)
+                };
+
                 if set_psr_flags {
-                    match shift {
-                        0 => {}
-                        1..=31 => {
-                            // not handling shift == 0 because it would create a mask of 0
-                            // and the result would be 0
-                            let mask = 1 << (shift - 1);
-                            let carry_out = value & mask != 0;
-                            cpu.update_flag(Psr::C, carry_out)
-                        }
-                        32 => cpu.update_flag(Psr::C, value & (1 << 31) != 0),
-                        _ => cpu.update_flag(Psr::C, false),
-                    }
+                    cpu.update_flag(Psr::C, carry);
                 }
+
                 result
             }
             ShiftType::ArithmeticRight(src) => {
                 let shift = Handlers::unwrap_shift_source(cpu, src);
-                let result = if shift >= 32 {
-                    if value & (1 << 31) != 0 {
-                        0xffffffff
-                    } else {
-                        0x00000000
+                let is_negative = (value & 0x80000000) != 0;
+
+                // ASR #0 is interpreted as ASR #32
+                if shift == 0 || shift >= 32 {
+                    // Fill with sign bit for shifts of 0 or >= 32
+                    let result = if is_negative { 0xffffffff } else { 0 };
+
+                    if set_psr_flags {
+                        // Carry out is bit 31 (sign bit)
+                        cpu.update_flag(Psr::C, is_negative);
                     }
+
+                    return result;
+                }
+
+                // Normal arithmetic shift right (1-31)
+                let result = if is_negative {
+                    // Need to sign-extend by filling upper bits with 1s
+                    (value >> shift) | (0xffffffff << (32 - shift))
                 } else {
-                    let shifted = (value as i32) >> shift;
-                    shifted as u32
+                    value >> shift
                 };
 
                 if set_psr_flags {
-                    match shift {
-                        0 => {}
-                        1..=31 => {
-                            // not handling shift == 0 because it would create a mask of 0
-                            // and the result would be 0
-                            let mask = 1 << (shift - 1);
-                            let carry_out = value & mask != 0;
-                            cpu.update_flag(Psr::C, carry_out)
-                        }
-                        32 => cpu.update_flag(Psr::C, value & (1 << 31) != 0),
-                        _ => cpu.update_flag(Psr::C, false),
-                    }
+                    // Carry is the last bit shifted out
+                    cpu.update_flag(Psr::C, (value & (1 << (shift - 1))) != 0);
                 }
+
                 result
             }
             ShiftType::RotateRight(src) => {
                 let shift = Handlers::unwrap_shift_source(cpu, src);
-                let result = value.rotate_right(shift);
-                if set_psr_flags {
-                    match shift {
-                        0 => {}
-                        1..=31 => {
-                            // not handling shift == 0 because it would create a mask of 0
-                            // and the result would be 0
-                            let mask = 1 << (shift - 1);
-                            let carry_out = value & mask != 0;
-                            cpu.update_flag(Psr::C, carry_out)
-                        }
-                        32 => cpu.update_flag(Psr::C, value & (1 << 31) != 0),
-                        _ => cpu.update_flag(Psr::C, false),
+
+                // ROR #0 is interpreted as RRX
+                if shift == 0 {
+                    let new_carry = (value & 1) != 0;
+                    let result = (value >> 1) | ((cpu.registers.cpsr.contains(Psr::C) as u32) << 31);
+
+                    if set_psr_flags {
+                        cpu.update_flag(Psr::C, new_carry);
                     }
+
+                    return result;
                 }
+
+                // For rotates, shift > 32 is taken modulo 32
+                let effective_shift = shift & 0x1F;
+                let result = value.rotate_right(effective_shift);
+
+                if set_psr_flags && effective_shift > 0 {
+                    // Carry out is the last bit rotated (bit 0 if shift==32)
+                    cpu.update_flag(Psr::C, (value & (1 << (effective_shift - 1))) != 0);
+                }
+
                 result
             }
             ShiftType::RotateRightExtended => {
                 let new_carry = (value & 1) != 0;
                 let result = (value >> 1) | ((cpu.registers.cpsr.contains(Psr::C) as u32) << 31);
+
                 if set_psr_flags {
                     cpu.update_flag(Psr::C, new_carry);
                 }
+
                 result
             }
         }
