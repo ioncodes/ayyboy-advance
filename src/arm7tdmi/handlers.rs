@@ -479,7 +479,17 @@ impl Handlers {
                 }
                 .rotate_right(rotation);
 
-                mmio.write_u32(aligned_addr, cpu.read_register(src));
+                match length {
+                    TransferLength::Byte => {
+                        let value = cpu.read_register(src) as u8;
+                        mmio.write(aligned_addr, value);
+                    }
+                    TransferLength::Word => {
+                        let value = cpu.read_register(src);
+                        mmio.write_u32(aligned_addr, value);
+                    }
+                    _ => unreachable!(),
+                }
                 cpu.write_register(dst, original_value);
             }
             Instruction {
