@@ -1011,7 +1011,9 @@ impl Instruction {
                     _ => unreachable!(),
                 };
 
-                let set_psr_flags = opcode != Opcode::Bx && opcode != Opcode::Cmn && opcode != Opcode::Mov;
+                // Note: In this group only CMP (Op = 01) sets the CPSR
+                // condition codes.
+                let set_psr_flags = opcode == Opcode::Cmp;
 
                 Ok(Instruction {
                     opcode,

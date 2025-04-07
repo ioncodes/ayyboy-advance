@@ -7,12 +7,14 @@ use crate::arm7tdmi::decoder::Opcode;
 use crate::arm7tdmi::handlers::Handlers;
 use crate::memory::mmio::Mmio;
 use spdlog::prelude::*;
+use std::collections::HashMap;
 use std::fmt::Display;
 
 pub struct Cpu {
     pub registers: Registers,
     pub pipeline: Pipeline,
     symbolizer: Symbolizer,
+    callbacks: HashMap<u32, Box<dyn Fn(&Cpu, &Mmio, &Instruction)>>,
 }
 
 impl Cpu {
@@ -21,6 +23,7 @@ impl Cpu {
             registers: Registers::default(),
             pipeline: Pipeline::new(),
             symbolizer: Symbolizer::new(buffer),
+            callbacks: HashMap::new(),
         }
     }
 
@@ -35,7 +38,17 @@ impl Cpu {
         }
 
         if let Some((instruction, state)) = self.pipeline.pop() {
+            self.symbolizer.find(state.pc).map(|symbol| {
+                debug!("Found matching symbols @ PC: {}", symbol.join(", "));
+            });
+
+            self.callbacks.get(&state.pc).map(|callback| {
+                debug!("Found callback @ PC: {:08x}", state.pc);
+                callback(self, mmio, &instruction);
+            });
+
             trace!("Instruction: {:?}", instruction);
+
             if self.is_thumb() {
                 trace!("Opcode: {:04x} | {:016b}", state.opcode as u16, state.opcode as u16);
                 debug!("{:08x}: {}", state.pc, instruction);
@@ -43,10 +56,6 @@ impl Cpu {
                 trace!("Opcode: {:08x} | {:032b}", state.opcode, state.opcode);
                 debug!("{:08x}: {}", state.pc, instruction);
             }
-
-            self.symbolizer.find(state.pc).map(|symbol| {
-                debug!("Found matching symbols @ PC: {}", symbol.join(", "));
-            });
 
             match instruction.opcode {
                 Opcode::B | Opcode::Bl | Opcode::Bx => Handlers::branch(&instruction, self, mmio),
@@ -87,6 +96,10 @@ impl Cpu {
         }
 
         None
+    }
+
+    pub fn install_callback(&mut self, addr: u32, callback: Box<dyn Fn(&Cpu, &Mmio, &Instruction)>) {
+        self.callbacks.insert(addr, callback);
     }
 
     pub fn read_register(&self, register: &Register) -> u32 {
