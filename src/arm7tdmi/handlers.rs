@@ -1194,13 +1194,13 @@ impl Handlers {
                 set_psr_flags,
                 ..
             } => {
-                let mut value = cpu.read_register(src);
-                let shift = match operand3 {
-                    Some(Operand::Immediate(shift, _)) => *shift,
-                    _ => {
-                        value = cpu.read_register(dst); // wtf am i doing man (it works)
-                        cpu.read_register(src)
+                let (value, shift) = match operand3 {
+                    Some(Operand::Immediate(shift, _)) => (cpu.read_register(src), *shift),
+                    None => {
+                        // if operand3 doesn't exist, it's dst := dst << src
+                        (cpu.read_register(dst), cpu.read_register(src))
                     }
+                    _ => unreachable!(),
                 };
                 let result = match instr.opcode {
                     Opcode::Lsl => Self::process_shift(
