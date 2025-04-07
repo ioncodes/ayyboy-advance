@@ -15,6 +15,16 @@ macro_rules! check_condition {
     };
 }
 
+macro_rules! no_shift_if_zero_reg {
+    ($src:expr, $cpu:expr, $value:expr) => {
+        if let ShiftSource::Register(reg) = $src {
+            if $cpu.read_register(reg) == 0 {
+                return $value;
+            }
+        }
+    };
+}
+
 pub struct Handlers {}
 
 #[allow(unused_variables)]
@@ -1447,6 +1457,8 @@ impl Handlers {
     fn process_shift(value: u32, shift: &ShiftType, cpu: &mut Cpu, set_psr_flags: bool) -> u32 {
         match shift {
             ShiftType::LogicalLeft(src) => {
+                no_shift_if_zero_reg!(src, cpu, value);
+
                 let shift = Handlers::unwrap_shift_source(cpu, src);
 
                 // Special case for LSL #0 - no shift, carry unchanged
@@ -1474,6 +1486,8 @@ impl Handlers {
                 result
             }
             ShiftType::LogicalRight(src) => {
+                no_shift_if_zero_reg!(src, cpu, value);
+
                 let shift = Handlers::unwrap_shift_source(cpu, src);
 
                 // LSR #0 is interpreted as LSR #32
@@ -1495,6 +1509,8 @@ impl Handlers {
                 result
             }
             ShiftType::ArithmeticRight(src) => {
+                no_shift_if_zero_reg!(src, cpu, value);
+
                 let shift = Handlers::unwrap_shift_source(cpu, src);
                 let is_negative = (value & 0x80000000) != 0;
 
@@ -1527,6 +1543,8 @@ impl Handlers {
                 result
             }
             ShiftType::RotateRight(src) => {
+                no_shift_if_zero_reg!(src, cpu, value);
+
                 let shift = Handlers::unwrap_shift_source(cpu, src);
 
                 // For rotates, shift > 32 is taken modulo 32
