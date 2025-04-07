@@ -1134,16 +1134,16 @@ impl Handlers {
                 set_psr_flags,
                 ..
             } => {
-                let x = cpu.read_register(dst);
-                let y = cpu.read_register(src);
-                let (result, borrow) = y.overflowing_sub(x);
-                let (_, overflow) = (y as i32).overflowing_sub(x as i32);
+                let value = cpu.read_register(src);
+                let (result, borrow) = 0u32.overflowing_sub(value);
+                let (_, overflow) = (0i32).overflowing_sub(value as i32);
                 cpu.write_register(dst, result);
 
                 if *set_psr_flags {
                     cpu.update_flag(Psr::N, result & 0x8000_0000 != 0);
                     cpu.update_flag(Psr::Z, result == 0);
                     cpu.update_flag(Psr::C, !borrow);
+                    cpu.update_flag(Psr::V, overflow);
 
                     copy_spsr_to_cpsr_if_necessary(cpu, dst);
                 }
@@ -1252,7 +1252,12 @@ impl Handlers {
             } => {
                 let value = cpu.read_register(dst);
                 let rotate = cpu.read_register(src);
-                let result = value.rotate_right(rotate);
+                let result = Self::process_shift(
+                    value,
+                    &ShiftType::RotateRight(ShiftSource::Immediate(rotate)),
+                    cpu,
+                    *set_psr_flags,
+                );
                 cpu.write_register(dst, result);
 
                 if *set_psr_flags {
@@ -1514,25 +1519,19 @@ impl Handlers {
             ShiftType::RotateRight(src) => {
                 let shift = Handlers::unwrap_shift_source(cpu, src);
 
-                // ROR #0 is interpreted as RRX
-                if shift == 0 {
-                    let new_carry = (value & 1) != 0;
-                    let result = (value >> 1) | ((cpu.registers.cpsr.contains(Psr::C) as u32) << 31);
-
-                    if set_psr_flags {
-                        cpu.update_flag(Psr::C, new_carry);
-                    }
-
-                    return result;
-                }
-
                 // For rotates, shift > 32 is taken modulo 32
-                let effective_shift = shift & 0x1F;
+                let effective_shift = shift & 0x1f;
                 let result = value.rotate_right(effective_shift);
 
-                if set_psr_flags && effective_shift > 0 {
-                    // Carry out is the last bit rotated (bit 0 if shift==32)
-                    cpu.update_flag(Psr::C, (value & (1 << (effective_shift - 1))) != 0);
+                if set_psr_flags {
+                    if effective_shift == 0 {
+                        // For ROR #0 (which is interpreted as ROR #32),
+                        // carry out is bit 31 (the last bit rotated)
+                        cpu.update_flag(Psr::C, (value & 0x80000000) != 0);
+                    } else {
+                        // For ROR #N (1-31), carry is the last bit rotated out
+                        cpu.update_flag(Psr::C, (value & (1 << (effective_shift - 1))) != 0);
+                    }
                 }
 
                 result
