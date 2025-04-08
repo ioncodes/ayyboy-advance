@@ -65,7 +65,7 @@ impl Display for Condition {
     }
 }
 
-#[derive(PartialEq, Debug, Copy, Clone)]
+#[derive(Eq, PartialEq, Debug, Copy, Clone)]
 pub enum Register {
     R0,
     R1,
@@ -327,7 +327,7 @@ impl Display for TransferLength {
     }
 }
 
-#[derive(PartialEq, Debug, Clone)]
+#[derive(PartialEq, Debug, Clone, Copy)]
 pub enum Direction {
     Up,
     Down,
@@ -342,7 +342,7 @@ impl Display for Direction {
     }
 }
 
-#[derive(PartialEq, Debug, Clone)]
+#[derive(PartialEq, Debug, Clone, Copy)]
 pub enum Indexing {
     Pre,
     Post,

@@ -367,8 +367,6 @@ impl Handlers {
                     }
                 }
 
-                // if dst == src, then the loaded value would overwrite the register after writeback
-
                 if *indexing == Indexing::Post && *dst != *src {
                     if *operation == Direction::Up {
                         aligned_address = aligned_address.wrapping_add(step);
@@ -520,49 +518,41 @@ impl Handlers {
                     }
                 };
 
-                let mut address = cpu.read_register(src_base);
-
-                // Empty Rlist: R15 loaded/stored (ARMv4 only), and Rb=Rb+/-40h (ARMv4-v5).
-                // http://problemkaputt.de/gbatek-arm-opcodes-memory-block-data-transfer-ldm-stm.htm
-                let increment_amount = if registers.is_empty() { 0x40 } else { 4 };
+                let original_base = cpu.read_register(src_base);
                 let registers = if registers.is_empty() {
-                    &vec![Register::R15]
+                    // Empty Rlist: R15 loaded/stored (ARMv4 only), and Rb=Rb+/-40h (ARMv4-v5).
+                    // http://problemkaputt.de/gbatek-arm-opcodes-memory-block-data-transfer-ldm-stm.htm
+                    vec![Register::R15]
                 } else {
-                    registers
+                    registers.clone()
                 };
 
-                for register in registers.iter() {
+                let mut address = original_base;
+                let total_registers = registers.len();
+                let total_transfer_size = (total_registers * 4) as u32;
+
+                if *operation == Direction::Down {
                     if *indexing == Indexing::Pre {
-                        if *operation == Direction::Up {
-                            address += increment_amount;
-                        } else {
-                            address -= increment_amount;
-                        }
+                        address = address.wrapping_sub(total_transfer_size);
+                    } else {
+                        address = address.wrapping_sub(total_transfer_size - 4);
                     }
-
-                    let value = mmio.read_u32(address & !0b11);
-                    cpu_write_register(cpu, register, value);
-
-                    if *indexing == Indexing::Post {
-                        if *operation == Direction::Up {
-                            address += increment_amount;
-                        } else {
-                            address -= increment_amount;
-                        }
-                    }
+                } else if *indexing == Indexing::Pre {
+                    address = address.wrapping_add(4);
                 }
 
-                // Writeback with Rb included in Rlist: Store OLD base if Rb is FIRST entry
-                // in Rlist, otherwise store NEW base (STM/ARMv4), always store OLD base
-                // (STM/ARMv5), no writeback (LDM/ARMv4), writeback if Rb is "the ONLY register,
-                // or NOT the LAST register" in Rlist (LDM/ARMv5).
-                if *writeback
-                    && let Some(reg) = registers.first()
-                    && reg != src_base
-                    && let Some(reg) = registers.last()
-                    && reg != src_base
-                {
-                    cpu.write_register(src_base, address);
+                for register in registers.iter() {
+                    let value = mmio.read_u32(address & !0b11);
+                    cpu_write_register(cpu, register, value);
+                    address = address.wrapping_add(4);
+                }
+
+                if *writeback && !registers.contains(src_base) {
+                    let final_address = match (*operation, *indexing) {
+                        (Direction::Up, _) => original_base.wrapping_add(total_transfer_size),
+                        (Direction::Down, _) => original_base.wrapping_sub(total_transfer_size),
+                    };
+                    cpu.write_register(src_base, final_address);
                 }
             }
             Instruction {
@@ -575,87 +565,57 @@ impl Handlers {
                 set_psr_flags,
                 ..
             } => {
-                let mut address = cpu.read_register(dst_base);
-                let end_address = registers.iter().fold(address, |addr, _| match *operation {
-                    Direction::Up => addr + 4,
-                    Direction::Down => addr - 4,
-                });
+                let original_base = cpu.read_register(dst_base);
+                let registers = if registers.is_empty() {
+                    // Empty Rlist: R15 loaded/stored (ARMv4 only), and Rb=Rb+/-40h (ARMv4-v5).
+                    // http://problemkaputt.de/gbatek-arm-opcodes-memory-block-data-transfer-ldm-stm.htm
+                    vec![Register::R15]
+                } else {
+                    registers.clone()
+                };
 
-                let cpu_read_register = |register: &Register| {
-                    // if the dest base register is in the list,
-                    // we don't actually store the value of the register
-                    // but rather the value it would have been after the writeback
-                    // this should only be respected if the writeback flag is set
-                    // and the base is not the first or last register in the list
-                    if *writeback
-                        && dst_base == register
-                        && let Some(first) = registers.first()
-                        && first != register
-                        && let Some(last) = registers.last()
-                        && last != register
-                    {
-                        return end_address;
+                let mut address = original_base;
+                let total_registers = registers.len();
+                let total_transfer_size = (total_registers * 4) as u32;
+
+                if *operation == Direction::Down {
+                    if *indexing == Indexing::Pre {
+                        address = address.wrapping_sub(total_transfer_size);
+                    } else {
+                        address = address.wrapping_sub(total_transfer_size - 4);
                     }
+                } else if *indexing == Indexing::Pre {
+                    address = address.wrapping_add(4);
+                }
 
-                    if *set_psr_flags {
+                let final_address = match (*operation, *indexing) {
+                    (Direction::Up, _) => original_base.wrapping_add(total_transfer_size),
+                    (Direction::Down, _) => original_base.wrapping_sub(total_transfer_size),
+                };
+
+                let base_index = registers.iter().position(|&r| r == *dst_base);
+
+                for (i, register) in registers.iter().enumerate() {
+                    let value = if *register == *dst_base {
+                        if base_index == Some(0) || !writeback {
+                            original_base
+                        } else {
+                            final_address
+                        }
+                    } else if *register == Register::R15 {
+                        cpu.read_register(register) + 4
+                    } else if *set_psr_flags {
                         cpu.read_register_for_mode(register, ProcessorMode::User)
                     } else {
-                        if *register == Register::R15 {
-                            cpu.read_register(register) + 4
-                        } else {
-                            cpu.read_register(register)
-                        }
-                    }
-                };
+                        cpu.read_register(register)
+                    };
 
-                // Empty Rlist: R15 loaded/stored (ARMv4 only), and Rb=Rb+/-40h (ARMv4-v5).
-                // http://problemkaputt.de/gbatek-arm-opcodes-memory-block-data-transfer-ldm-stm.htm
-                let increment_amount = if registers.is_empty() { 0x40 } else { 4 };
-                let registers = if registers.is_empty() {
-                    &vec![Register::R15]
-                } else {
-                    registers
-                };
-
-                for register in registers {
-                    if *indexing == Indexing::Pre {
-                        if *operation == Direction::Up {
-                            address += increment_amount;
-                        } else {
-                            address -= increment_amount;
-                        }
-                    }
-
-                    if registers.first() != Some(&Register::R15) {
-                        let value = cpu_read_register(register);
-                        mmio.write_u32(address & !0b11, value);
-                    } else {
-                        // TODO: what kinda monstrosity is this. rewrite all of ldm/stm
-                        // real processor supposedly starts always at the lowest address
-                        // and everything is an increment
-
-                        let temp_addr = match (indexing, operation) {
-                            (Indexing::Pre, Direction::Down) => address,
-                            (Indexing::Pre, Direction::Up) => address - 0x3c,
-                            (Indexing::Post, Direction::Up) => address,
-                            (Indexing::Post, Direction::Down) => address - 0x3c,
-                        };
-
-                        let value = cpu_read_register(register);
-                        mmio.write_u32(temp_addr & !0b11, value);
-                    }
-
-                    if *indexing == Indexing::Post {
-                        if *operation == Direction::Up {
-                            address += increment_amount;
-                        } else {
-                            address -= increment_amount;
-                        }
-                    }
+                    mmio.write_u32(address & !0b11, value);
+                    address = address.wrapping_add(4);
                 }
 
                 if *writeback {
-                    cpu.write_register(dst_base, address);
+                    cpu.write_register(dst_base, final_address);
                 }
             }
             _ => todo!("{:?}", instr),
@@ -1141,7 +1101,7 @@ impl Handlers {
                     cpu.update_flag(Psr::Z, result == 0);
                     cpu.update_flag(Psr::C, !borrow1 && !borrow2);
 
-                    cpu.update_flag(Psr::V, false); // TODO:?
+                    cpu.update_flag(Psr::V, false);
 
                     copy_spsr_to_cpsr_if_necessary(cpu, dst);
                 }
