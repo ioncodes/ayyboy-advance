@@ -907,12 +907,10 @@ impl Instruction {
                 let operand1 = Register::from(r)?;
                 let operand2 = Operand::Immediate(i, None);
 
-                let set_psr_flags = opcode != Opcode::Mov && opcode != Opcode::Cmp;
-
                 Ok(Instruction {
                     opcode,
                     condition: Condition::Always,
-                    set_psr_flags,
+                    set_psr_flags: true,
                     operand1: Some(Operand::Register(operand1, None)),
                     operand2: Some(operand2),
                     operand3: None,
