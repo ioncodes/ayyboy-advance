@@ -29,9 +29,9 @@ use std::sync::{Arc, Mutex};
 use video::{Frame, SCREEN_HEIGHT, SCREEN_WIDTH};
 
 // const ARM_TEST: &[u8] = include_bytes!("../external/gba-tests/arm/arm.gba");
-const ARM_TEST: &[u8] = include_bytes!("../external/gba-tests/thumb/thumb.gba");
-// const ARM_TEST: &[u8] = include_bytes!("../external/armwrestler-gba-fixed/armwrestler-gba-fixed.gba");
-// const ARM_TEST_ELF: &[u8] = include_bytes!("../external/armwrestler-gba-fixed/armwrestler-gba-fixed.elf");
+// const ARM_TEST: &[u8] = include_bytes!("../external/gba-tests/thumb/thumb.gba");
+const ARM_TEST: &[u8] = include_bytes!("../external/armwrestler-gba-fixed/armwrestler-gba-fixed.gba");
+const ARM_TEST_ELF: &[u8] = include_bytes!("../external/armwrestler-gba-fixed/armwrestler-gba-fixed.elf");
 // const ARM_TEST: &[u8] = include_bytes!("../external/commercial/pmdr.gba");
 // const ARM_TEST: &[u8] = include_bytes!("../external/tonc/swi_demo.gba");
 // const ARM_TEST: &[u8] = include_bytes!("../external/FuzzARM/ARM_DataProcessing.gba");
@@ -175,47 +175,47 @@ fn start_emulator(display_tx: Sender<Frame>, dbg_req_rx: Receiver<RequestEvent>,
         mmio.load(0x00000000, BIOS); // bios addr
         mmio.load(0x08000000, ARM_TEST); // gamepak addr
 
-        // let mut cpu = Cpu::new(ARM_TEST_ELF);
-        // cpu.install_callback(
-        //     0x8000634, // DrawResult
-        //     Box::new(|cpu: &Cpu, mmio: &Mmio, _: &Instruction| {
-        //         let opcode_addr = cpu.read_register(&Register::R0);
-        //         let test_result = cpu.read_register(&Register::R1);
-        //         let opcode_text = (0..)
-        //             .map_while(|i| {
-        //                 let byte = mmio.read(opcode_addr + i);
-        //                 (byte != 0).then_some(byte as char)
-        //             })
-        //             .collect::<String>();
+        let mut cpu = Cpu::new(ARM_TEST_ELF);
+        cpu.install_callback(
+            0x8000634, // DrawResult
+            Box::new(|cpu: &Cpu, mmio: &Mmio, _: &Instruction| {
+                let opcode_addr = cpu.read_register(&Register::R0);
+                let test_result = cpu.read_register(&Register::R1);
+                let opcode_text = (0..)
+                    .map_while(|i| {
+                        let byte = mmio.read(opcode_addr + i);
+                        (byte != 0).then_some(byte as char)
+                    })
+                    .collect::<String>();
 
-        //         debug!(
-        //             "Found call to DrawResult for {}: {}",
-        //             opcode_text,
-        //             if test_result == 0 { "ok" } else { "bad" }
-        //         );
-        //     }),
-        // );
-        // cpu.install_callback(
-        //     0x8003fe4, // _drawresult
-        //     Box::new(|cpu: &Cpu, mmio: &Mmio, _: &Instruction| {
-        //         let opcode_addr = cpu.read_register(&Register::R0);
-        //         let test_result = cpu.read_register(&Register::R6);
-        //         let opcode_text = (0..)
-        //             .map_while(|i| {
-        //                 let byte = mmio.read(opcode_addr + i);
-        //                 (byte != 0).then_some(byte as char)
-        //             })
-        //             .collect::<String>();
+                debug!(
+                    "Found call to DrawResult for {}: {}",
+                    opcode_text,
+                    if test_result == 0 { "ok" } else { "bad" }
+                );
+            }),
+        );
+        cpu.install_callback(
+            0x8003fe4, // _drawresult
+            Box::new(|cpu: &Cpu, mmio: &Mmio, _: &Instruction| {
+                let opcode_addr = cpu.read_register(&Register::R0);
+                let test_result = cpu.read_register(&Register::R6);
+                let opcode_text = (0..)
+                    .map_while(|i| {
+                        let byte = mmio.read(opcode_addr + i);
+                        (byte != 0).then_some(byte as char)
+                    })
+                    .collect::<String>();
 
-        //         debug!(
-        //             "Found call to _drawresult for {}: {}",
-        //             opcode_text,
-        //             if test_result == 0 { "ok" } else { "bad" }
-        //         );
-        //     }),
-        // );
+                debug!(
+                    "Found call to _drawresult for {}: {}",
+                    opcode_text,
+                    if test_result == 0 { "ok" } else { "bad" }
+                );
+            }),
+        );
 
-        let mut cpu = Cpu::new(&[]);
+        //let mut cpu = Cpu::new(&[]);
         // State for skipping BIOS, https://problemkaputt.de/gbatek.htm#biosramusage
         cpu.set_processor_mode(ProcessorMode::Irq);
         cpu.write_register(&Register::R13, 0x03007fa0);

@@ -19,7 +19,7 @@ macro_rules! no_shift_if_zero_reg {
     ($src:expr, $cpu:expr, $value:expr) => {
         if let ShiftSource::Register(reg) = $src {
             if $cpu.read_register(reg) == 0 {
-                return $value;
+                return ($value, false);
             }
         }
     };
@@ -1210,34 +1210,27 @@ impl Handlers {
                 opcode: Opcode::Lsl | Opcode::Lsr | Opcode::Asr,
                 operand1: Some(Operand::Register(dst, None)),
                 operand2: Some(Operand::Register(src, None)),
-                operand3,
+                operand3: Some(Operand::Immediate(shift, _)),
                 set_psr_flags,
                 ..
             } => {
-                let (value, shift) = match operand3 {
-                    Some(Operand::Immediate(shift, _)) => (cpu.read_register(src), *shift),
-                    None => {
-                        // if operand3 doesn't exist, it's dst := dst << src
-                        (cpu.read_register(dst), cpu.read_register(src))
-                    }
-                    _ => unreachable!(),
-                };
-                let result = match instr.opcode {
+                let value = cpu.read_register(src);
+                let (result, shift_performed) = match instr.opcode {
                     Opcode::Lsl => Self::process_shift(
                         value,
-                        &ShiftType::LogicalLeft(ShiftSource::Immediate(shift)),
+                        &ShiftType::LogicalLeft(ShiftSource::Immediate(*shift)),
                         cpu,
                         *set_psr_flags,
                     ),
                     Opcode::Lsr => Self::process_shift(
                         value,
-                        &ShiftType::LogicalRight(ShiftSource::Immediate(shift)),
+                        &ShiftType::LogicalRight(ShiftSource::Immediate(*shift)),
                         cpu,
                         *set_psr_flags,
                     ),
                     Opcode::Asr => Self::process_shift(
                         value,
-                        &ShiftType::ArithmeticRight(ShiftSource::Immediate(shift)),
+                        &ShiftType::ArithmeticRight(ShiftSource::Immediate(*shift)),
                         cpu,
                         *set_psr_flags,
                     ),
@@ -1245,7 +1238,7 @@ impl Handlers {
                 };
                 cpu.write_register(dst, result);
 
-                if *set_psr_flags {
+                if *set_psr_flags && shift_performed {
                     cpu.update_flag(Psr::N, result & 0x8000_0000 != 0);
                     cpu.update_flag(Psr::Z, result == 0);
 
@@ -1263,7 +1256,7 @@ impl Handlers {
                 }
             }
             Instruction {
-                opcode: Opcode::Ror,
+                opcode: Opcode::Lsl | Opcode::Lsr | Opcode::Asr | Opcode::Ror,
                 operand1: Some(Operand::Register(dst, None)),
                 operand2: Some(Operand::Register(src, None)),
                 operand3: None,
@@ -1271,18 +1264,51 @@ impl Handlers {
                 ..
             } => {
                 let value = cpu.read_register(dst);
-                let rotate = cpu.read_register(src);
-                let result = Self::process_shift(
-                    value,
-                    &ShiftType::RotateRight(ShiftSource::Immediate(rotate)),
-                    cpu,
-                    *set_psr_flags,
-                );
+                let (result, shift_performed) = match instr.opcode {
+                    Opcode::Lsl => Self::process_shift(
+                        value,
+                        &ShiftType::LogicalLeft(ShiftSource::Register(*src)),
+                        cpu,
+                        *set_psr_flags,
+                    ),
+                    Opcode::Lsr => Self::process_shift(
+                        value,
+                        &ShiftType::LogicalRight(ShiftSource::Register(*src)),
+                        cpu,
+                        *set_psr_flags,
+                    ),
+                    Opcode::Asr => Self::process_shift(
+                        value,
+                        &ShiftType::ArithmeticRight(ShiftSource::Register(*src)),
+                        cpu,
+                        *set_psr_flags,
+                    ),
+                    Opcode::Ror => Self::process_shift(
+                        value,
+                        &ShiftType::RotateRight(ShiftSource::Register(*src)),
+                        cpu,
+                        *set_psr_flags,
+                    ),
+                    _ => unreachable!(),
+                };
                 cpu.write_register(dst, result);
 
-                if *set_psr_flags {
+                if *set_psr_flags && shift_performed {
                     cpu.update_flag(Psr::N, result & 0x8000_0000 != 0);
                     cpu.update_flag(Psr::Z, result == 0);
+
+                    let shift = cpu.read_register(src) & 0x1f;
+
+                    match instr.opcode {
+                        Opcode::Lsl => {
+                            cpu.update_flag(Psr::C, value & (1 << (32 - shift)) != 0);
+                        }
+                        Opcode::Lsr | Opcode::Asr => {
+                            cpu.update_flag(Psr::C, value & (1 << (shift - 1)) != 0);
+                        }
+                        Opcode::Ror => {}
+                        _ => unreachable!(),
+                    }
 
                     copy_spsr_to_cpsr_if_necessary(cpu, dst);
                 }
@@ -1437,10 +1463,10 @@ impl Handlers {
 
     fn resolve_operand(operand: &Operand, cpu: &mut Cpu, set_psr_flags: bool) -> u32 {
         match operand {
-            Operand::Immediate(value, Some(shift)) => Handlers::process_shift(*value, shift, cpu, set_psr_flags),
+            Operand::Immediate(value, Some(shift)) => Handlers::process_shift(*value, shift, cpu, set_psr_flags).0,
             Operand::Immediate(value, None) => *value,
             Operand::Register(register, Some(shift)) => {
-                Handlers::process_shift(cpu.read_register(register), shift, cpu, set_psr_flags)
+                Handlers::process_shift(cpu.read_register(register), shift, cpu, set_psr_flags).0
             }
             Operand::Register(register, None) => cpu.read_register(register),
             _ => unreachable!(),
@@ -1454,16 +1480,14 @@ impl Handlers {
         }
     }
 
-    fn process_shift(value: u32, shift: &ShiftType, cpu: &mut Cpu, set_psr_flags: bool) -> u32 {
+    fn process_shift(value: u32, shift: &ShiftType, cpu: &mut Cpu, set_psr_flags: bool) -> (u32, bool) {
         match shift {
             ShiftType::LogicalLeft(src) => {
                 no_shift_if_zero_reg!(src, cpu, value);
 
                 let shift = Handlers::unwrap_shift_source(cpu, src);
-
-                // Special case for LSL #0 - no shift, carry unchanged
                 if shift == 0 {
-                    return value;
+                    return (value, false);
                 }
 
                 // Shift by more than 32 produces 0
@@ -1483,7 +1507,7 @@ impl Handlers {
                     }
                 }
 
-                result
+                (result, true)
             }
             ShiftType::LogicalRight(src) => {
                 no_shift_if_zero_reg!(src, cpu, value);
@@ -1506,7 +1530,7 @@ impl Handlers {
                     cpu.update_flag(Psr::C, carry);
                 }
 
-                result
+                (result, true)
             }
             ShiftType::ArithmeticRight(src) => {
                 no_shift_if_zero_reg!(src, cpu, value);
@@ -1524,7 +1548,7 @@ impl Handlers {
                         cpu.update_flag(Psr::C, is_negative);
                     }
 
-                    return result;
+                    return (result, true);
                 }
 
                 // Normal arithmetic shift right (1-31)
@@ -1540,7 +1564,7 @@ impl Handlers {
                     cpu.update_flag(Psr::C, (value & (1 << (shift - 1))) != 0);
                 }
 
-                result
+                (result, true)
             }
             ShiftType::RotateRight(src) => {
                 no_shift_if_zero_reg!(src, cpu, value);
@@ -1562,7 +1586,7 @@ impl Handlers {
                     }
                 }
 
-                result
+                (result, true)
             }
             ShiftType::RotateRightExtended => {
                 let new_carry = (value & 1) != 0;
@@ -1572,7 +1596,7 @@ impl Handlers {
                     cpu.update_flag(Psr::C, new_carry);
                 }
 
-                result
+                (result, true)
             }
         }
     }
