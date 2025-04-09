@@ -1211,27 +1211,27 @@ impl Instruction {
                 ..Instruction::default()
             }),
             // Conditional Branch
-            "1101_cccc_iiii_iiii" => Ok(Instruction {
-                opcode: Opcode::B,
-                condition: Condition::from(c)?,
-                set_psr_flags: false,
-                operand1: Some(Operand::Offset(((i as i8) << 1) as i32)),
-                ..Instruction::default()
-            }),
+            "1101_cccc_iiii_iiii" => {
+                let offset = i as u8;
+                let signed_offset = ((i as i8) as i16) << 1;
+
+                Ok(Instruction {
+                    opcode: Opcode::B,
+                    condition: Condition::from(c)?,
+                    set_psr_flags: false,
+                    operand1: Some(Operand::Offset(signed_offset as i32)),
+                    ..Instruction::default()
+                })
+            }
             // Unconditional Branch
             "1110_0iii_iiii_iiii" => {
-                let offset = i as u16;
-                let offset = if offset & 0x0400 != 0 {
-                    offset | 0xf800 // If sign bit is set, extend the sign
-                } else {
-                    offset
-                };
+                let signed_offset = (((i as i16) << 5) >> 5) << 1;
 
                 Ok(Instruction {
                     opcode: Opcode::B,
                     condition: Condition::Always,
                     set_psr_flags: false,
-                    operand1: Some(Operand::Offset(((offset as i16) << 1) as i32)),
+                    operand1: Some(Operand::Offset(signed_offset as i32)),
                     ..Instruction::default()
                 })
             }
@@ -1528,13 +1528,15 @@ impl Display for Instruction {
 impl Display for Operand {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
-            Operand::Immediate(value, option) if option.is_none() => write!(f, "#0x{:02x}", value),
+            Operand::Immediate(value, option) if option.is_none() => write!(f, "0x{:02x}", value),
             Operand::Immediate(value, Some(option)) => {
-                write!(f, "#0x{:02x}, {}", value, option)
+                write!(f, "0x{:02x}, {}", value, option)
             }
             Operand::Register(register, option) if option.is_none() => write!(f, "{}", register),
             Operand::Register(register, Some(option)) => write!(f, "{}, {}", register, option),
-            Operand::Offset(value) => write!(f, "#0x{:02x}", value),
+            Operand::Offset(value) if *value > 0 => write!(f, "+{}", value),
+            Operand::Offset(value) if *value < 0 => write!(f, "-{}", -1 * value),
+            Operand::Offset(value) => write!(f, "0x{:02x}", value),
             Operand::RegisterList(registers) => {
                 let output = registers
                     .iter()

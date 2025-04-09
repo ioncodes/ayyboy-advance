@@ -69,6 +69,7 @@ impl Mmio {
         trace!("Writing {:02x} to {:08x}", value, addr);
 
         match addr {
+            0x00000000..=0x00003FFF => error!("Writing to BIOS: {:02x} to {:08x}", value, addr),
             0x04000000..=0x04000056 => self.ppu.write(addr, value), // PPU I/O
             0x04000080..=0x0400008E => self.apu.write(addr, value), // APU I/O
             0x04000130..=0x04000133 => self.joypad.write(addr, value), // Joypad I/O
