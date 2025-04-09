@@ -14,6 +14,7 @@ mod video;
 use arm7tdmi::cpu::Cpu;
 use arm7tdmi::decoder::{Instruction, Register};
 use arm7tdmi::mode::ProcessorMode;
+use clap::Parser;
 use crossbeam_channel::{self, Receiver, Sender};
 use eframe::NativeOptions;
 use egui::ViewportBuilder;
@@ -46,6 +47,21 @@ const ARM_TEST: &[u8] = include_bytes!("../external/tonc/swi_demo.gba");
 // const ARM_TEST: &[u8] = include_bytes!("../external/discord/gang-ldmstm.gba");
 // const ARM_TEST: &[u8] = include_bytes!("../external/discord/armfuck.gba");
 const BIOS: &[u8] = include_bytes!("../external/gba_bios.bin");
+
+#[derive(Parser, Debug)]
+struct Args {
+    /// Enable trace-level logging (highest verbosity, incl. cpu dump and mmio events)
+    #[arg(long)]
+    trace: bool,
+
+    /// Enable debug-level logging (mostly just cpu instructions)
+    #[arg(long)]
+    debug: bool,
+
+    /// Path to a custom script file
+    #[arg(long)]
+    script: Option<String>,
+}
 
 lazy_static! {
     // breakspoints
@@ -136,18 +152,15 @@ fn process_debug_events(
         .unwrap_or(EventResult::None)
 }
 
-fn enable_logger() {
-    let enable_trace = std::env::args().any(|arg| arg == "--trace");
-    let enable_debug = std::env::args().any(|arg| arg == "--debug");
-
-    let logger = if enable_trace {
+fn enable_logger(args: &Args) {
+    let logger = if args.trace {
         let path = "trace.log";
         let _ = std::fs::remove_file(&path);
         let file_sink = Arc::new(FileSink::builder().path(path).build().unwrap());
         let logger = Arc::new(Logger::builder().sink(file_sink).build().unwrap());
         logger.set_level_filter(LevelFilter::All);
         logger
-    } else if enable_debug {
+    } else if args.debug {
         let path = "debug.log";
         let _ = std::fs::remove_file(&path);
         let file_sink = Arc::new(FileSink::builder().path(path).build().unwrap());
@@ -172,7 +185,10 @@ fn enable_logger() {
     spdlog::set_default_logger(logger);
 }
 
-fn start_emulator(display_tx: Sender<Frame>, dbg_req_rx: Receiver<RequestEvent>, dbg_resp_tx: Sender<ResponseEvent>) {
+fn start_emulator(
+    display_tx: Sender<Frame>, dbg_req_rx: Receiver<RequestEvent>, dbg_resp_tx: Sender<ResponseEvent>,
+    script_path: Option<String>,
+) {
     std::thread::spawn(move || {
         let mut mmio = Mmio::new();
         mmio.load(0x00000000, BIOS); // bios addr
@@ -181,11 +197,16 @@ fn start_emulator(display_tx: Sender<Frame>, dbg_req_rx: Receiver<RequestEvent>,
         let mut cpu = Cpu::new(&[]);
         let mut script_engine = ScriptEngine::new();
 
-        // Load the test script
-        let script_path = Path::new("scripts/example.rhai");
-        if script_engine.load_script(script_path) {
-            info!("Successfully loaded test script");
-        }
+        // Load the Rhai script if provided
+        match script_path {
+            Some(path) => {
+                let path = Path::new(&path);
+                if script_engine.load_script(path) {
+                    info!("Successfully loaded script: {}", path.display());
+                }
+            }
+            None => {}
+        };
 
         // State for skipping BIOS, https://problemkaputt.de/gbatek.htm#biosramusage
         cpu.set_processor_mode(ProcessorMode::Irq);
@@ -266,13 +287,16 @@ fn start_emulator(display_tx: Sender<Frame>, dbg_req_rx: Receiver<RequestEvent>,
 }
 
 fn main() {
-    enable_logger();
+    // Parse command line arguments
+    let args = Args::parse();
+
+    enable_logger(&args);
 
     let (display_tx, display_rx): (Sender<Frame>, Receiver<Frame>) = crossbeam_channel::bounded(1);
     let (dbg_req_tx, dbg_req_rx): (Sender<RequestEvent>, Receiver<RequestEvent>) = crossbeam_channel::bounded(25);
     let (dbg_resp_tx, dbg_resp_rx): (Sender<ResponseEvent>, Receiver<ResponseEvent>) = crossbeam_channel::bounded(25);
 
-    start_emulator(display_tx, dbg_req_rx, dbg_resp_tx);
+    start_emulator(display_tx, dbg_req_rx, dbg_resp_tx, args.script);
 
     let native_options = NativeOptions {
         viewport: ViewportBuilder::default()
