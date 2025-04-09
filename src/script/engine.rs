@@ -20,9 +20,7 @@ impl ScriptEngine {
         let mut engine = Engine::new();
 
         // Helper functions
-        engine.register_fn("println", |s: &str| {
-            info!("[Script] {}", s);
-        });
+        engine.register_fn("println", |s: &str| info!("[Script] {}", s));
         engine.register_fn("hex8", |value: i64| -> String { format!("{:02x}", value as u8) });
         engine.register_fn("hex16", |value: i64| -> String { format!("{:04x}", value as u16) });
         engine.register_fn("hex32", |value: i64| -> String { format!("{:08x}", value as u32) });
@@ -98,7 +96,7 @@ impl ScriptEngine {
             Ok(result) => {
                 if self.parse_breakpoints(result) {
                     info!(
-                        "Loaded {} breakpoints from script {}",
+                        "Loaded {} breakpoint(s) from script {}",
                         self.breakpoint_handlers.len(),
                         script_path.display()
                     );

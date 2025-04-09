@@ -209,7 +209,7 @@ fn start_emulator(display_tx: Sender<Frame>, dbg_req_rx: Receiver<RequestEvent>,
          -> Option<Instruction> {
             let mut executed_instr: Option<Instruction> = None;
 
-            // Check if we hit a script-defined breakpoint
+            // Breakpoint hit?
             let pc = cpu.get_pc();
             if script_engine.handle_breakpoint(pc, cpu, mmio) {
                 debug!("Executed script at breakpoint 0x{:08x}", pc);
