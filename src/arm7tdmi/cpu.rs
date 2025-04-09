@@ -98,10 +98,6 @@ impl Cpu {
         None
     }
 
-    pub fn install_callback(&mut self, addr: u32, callback: Box<dyn Fn(&Cpu, &Mmio, &Instruction)>) {
-        self.callbacks.insert(addr, callback);
-    }
-
     pub fn read_register(&self, register: &Register) -> u32 {
         self.read_register_for_mode(register, self.get_processor_mode())
     }

@@ -7,6 +7,7 @@ mod audio;
 mod frontend;
 mod input;
 mod memory;
+mod script;
 mod tests;
 mod video;
 
@@ -22,9 +23,11 @@ use frontend::event::{RequestEvent, ResponseEvent};
 use frontend::renderer::{Renderer, SCALE};
 use lazy_static::lazy_static;
 use memory::mmio::Mmio;
+use script::engine::ScriptEngine;
 use spdlog::formatter::{pattern, PatternFormatter};
 use spdlog::sink::{FileSink, StdStream, StdStreamSink};
-use spdlog::{debug, default_logger, Level, LevelFilter, Logger};
+use spdlog::{debug, default_logger, info, Level, LevelFilter, Logger};
+use std::path::Path;
 use std::sync::{Arc, Mutex};
 use video::{Frame, SCREEN_HEIGHT, SCREEN_WIDTH};
 
@@ -175,58 +178,14 @@ fn start_emulator(display_tx: Sender<Frame>, dbg_req_rx: Receiver<RequestEvent>,
         mmio.load(0x00000000, BIOS); // bios addr
         mmio.load(0x08000000, ARM_TEST); // gamepak addr
 
-        // let mut cpu = Cpu::new(ARM_TEST_ELF);
-        // cpu.install_callback(
-        //     0x8000634, // DrawResult
-        //     Box::new(|cpu: &Cpu, mmio: &Mmio, _: &Instruction| {
-        //         let opcode_addr = cpu.read_register(&Register::R0);
-        //         let test_result = cpu.read_register(&Register::R1);
-        //         let opcode_text = (0..)
-        //             .map_while(|i| {
-        //                 let byte = mmio.read(opcode_addr + i);
-        //                 (byte != 0).then_some(byte as char)
-        //             })
-        //             .collect::<String>();
-
-        //         debug!(
-        //             "Found call to DrawResult for {}: {}",
-        //             opcode_text,
-        //             if test_result == 0 { "ok" } else { "bad" }
-        //         );
-        //     }),
-        // );
-        // cpu.install_callback(
-        //     0x8003fe4, // _drawresult
-        //     Box::new(|cpu: &Cpu, mmio: &Mmio, _: &Instruction| {
-        //         let opcode_addr = cpu.read_register(&Register::R0);
-        //         let test_result = cpu.read_register(&Register::R6);
-        //         let opcode_text = (0..)
-        //             .map_while(|i| {
-        //                 let byte = mmio.read(opcode_addr + i);
-        //                 (byte != 0).then_some(byte as char)
-        //             })
-        //             .collect::<String>();
-
-        //         debug!(
-        //             "Found call to _drawresult for {}: {}",
-        //             opcode_text,
-        //             if test_result == 0 { "ok" } else { "bad" }
-        //         );
-        //     }),
-        // );
-
         let mut cpu = Cpu::new(&[]);
+        let mut script_engine = ScriptEngine::new();
 
-        cpu.install_callback(
-            0x80026f6,
-            Box::new(|cpu: &Cpu, mmio: &Mmio, _: &Instruction| {
-                debug!("Stack @ {:08x}:", cpu.read_register(&Register::R13));
-                for i in -16..16 {
-                    let addr = cpu.read_register(&Register::R13).wrapping_add_signed(i * 4);
-                    debug!("{:08x}: {:08x}", addr, mmio.read_u32(addr));
-                }
-            }),
-        );
+        // Load the test script
+        let script_path = Path::new("scripts/example.rhai");
+        if script_engine.load_script(script_path) {
+            info!("Successfully loaded test script");
+        }
 
         // State for skipping BIOS, https://problemkaputt.de/gbatek.htm#biosramusage
         cpu.set_processor_mode(ProcessorMode::Irq);
@@ -243,8 +202,19 @@ fn start_emulator(display_tx: Sender<Frame>, dbg_req_rx: Receiver<RequestEvent>,
         let mut tick = false;
         let mut step = false;
 
-        let do_tick = |cpu: &mut Cpu, mmio: &mut Mmio, tick_ref: &mut bool| -> Option<Instruction> {
+        let do_tick = |cpu: &mut Cpu,
+                       mmio: &mut Mmio,
+                       tick_ref: &mut bool,
+                       script_engine: &mut ScriptEngine|
+         -> Option<Instruction> {
             let mut executed_instr: Option<Instruction> = None;
+
+            // Check if we hit a script-defined breakpoint
+            let pc = cpu.get_pc();
+            if script_engine.handle_breakpoint(pc, cpu, mmio) {
+                debug!("Executed script at breakpoint 0x{:08x}", pc);
+            }
+
             if let Some((instr, state)) = cpu.tick(mmio) {
                 if BREAKPOINTS
                     .lock()
@@ -261,8 +231,8 @@ fn start_emulator(display_tx: Sender<Frame>, dbg_req_rx: Receiver<RequestEvent>,
             executed_instr
         };
 
-        let do_step = |cpu: &mut Cpu, mmio: &mut Mmio, tick: &mut bool| loop {
-            if let Some(_) = do_tick(cpu, mmio, tick) {
+        let do_step = |cpu: &mut Cpu, mmio: &mut Mmio, tick: &mut bool, script_engine: &mut ScriptEngine| loop {
+            if let Some(_) = do_tick(cpu, mmio, tick, script_engine) {
                 break;
             }
         };
@@ -278,7 +248,7 @@ fn start_emulator(display_tx: Sender<Frame>, dbg_req_rx: Receiver<RequestEvent>,
             }
 
             if tick || step {
-                do_step(&mut cpu, &mut mmio, &mut tick);
+                do_step(&mut cpu, &mut mmio, &mut tick, &mut script_engine);
             }
 
             if step {

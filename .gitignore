@@ -5,3 +5,4 @@ external/gba_bios.bin
 .vscode/
 .idea/
 external/commercial/
+Cargo.lock
