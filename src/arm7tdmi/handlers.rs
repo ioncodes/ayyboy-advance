@@ -25,6 +25,22 @@ macro_rules! no_shift_if_zero_reg {
     };
 }
 
+macro_rules! copy_spsr_to_cpsr_if_necessary {
+    ($cpu:expr, $rd:expr) => {
+        // When Rd is R15 and the S flag is set the result of the operation
+        // is placed in R15 and the SPSR corresponding to the
+        // current mode is moved to the CPSR. This allows state
+        // changes which atomically restore both PC and CPSR. This
+        // form of instruction should not be used in User mode.
+
+        if *$rd == Register::R15 {
+            let spsr = $cpu.read_register(&Register::Spsr);
+            $cpu.write_register(&Register::Cpsr, spsr);
+            $cpu.pipeline.flush();
+        }
+    };
+}
+
 pub struct Handlers {}
 
 #[allow(unused_variables)]
@@ -132,19 +148,6 @@ impl Handlers {
     pub fn test(instr: &Instruction, cpu: &mut Cpu, mmio: &mut Mmio) {
         check_condition!(cpu, instr);
 
-        let copy_spsr_to_cpsr_if_necessary = |cpu: &mut Cpu, rd: &Register| {
-            // When Rd is R15 and the S flag is set the result of the operation
-            // is placed in R15 and the SPSR corresponding to the
-            // current mode is moved to the CPSR. This allows state
-            // changes which atomically restore both PC and CPSR. This
-            // form of instruction should not be used in User mode.
-
-            if *rd == Register::R15 {
-                let spsr = cpu.read_register(&Register::Spsr);
-                cpu.write_register(&Register::Cpsr, spsr);
-            }
-        };
-
         match instr {
             Instruction {
                 opcode: Opcode::Cmp | Opcode::Cmn,
@@ -173,7 +176,7 @@ impl Handlers {
                 cpu.update_flag(Psr::N, (result as i32) < 0);
                 cpu.update_flag(Psr::Z, result == 0);
 
-                copy_spsr_to_cpsr_if_necessary(cpu, lhs);
+                copy_spsr_to_cpsr_if_necessary!(cpu, lhs);
             }
             Instruction {
                 opcode: Opcode::Teq,
@@ -187,7 +190,7 @@ impl Handlers {
                 cpu.update_flag(Psr::N, result & 0x8000_0000 != 0);
                 cpu.update_flag(Psr::Z, result == 0);
 
-                copy_spsr_to_cpsr_if_necessary(cpu, lhs);
+                copy_spsr_to_cpsr_if_necessary!(cpu, lhs);
             }
             Instruction {
                 opcode: Opcode::Tst,
@@ -201,7 +204,7 @@ impl Handlers {
                 cpu.update_flag(Psr::N, result & 0x8000_0000 != 0);
                 cpu.update_flag(Psr::Z, result == 0);
 
-                copy_spsr_to_cpsr_if_necessary(cpu, lhs);
+                copy_spsr_to_cpsr_if_necessary!(cpu, lhs);
             }
             _ => todo!("{:?}", instr),
         }
@@ -232,6 +235,8 @@ impl Handlers {
                 if *set_psr_flags {
                     cpu.update_flag(Psr::N, result & 0x8000_0000 != 0);
                     cpu.update_flag(Psr::Z, result == 0);
+
+                    copy_spsr_to_cpsr_if_necessary!(cpu, dst);
                 }
             }
             Instruction {
@@ -642,20 +647,6 @@ impl Handlers {
     pub fn alu(instr: &Instruction, cpu: &mut Cpu, mmio: &mut Mmio) {
         check_condition!(cpu, instr);
 
-        let copy_spsr_to_cpsr_if_necessary = |cpu: &mut Cpu, rd: &Register| {
-            // When Rd is R15 and the S flag is set the result of the operation
-            // is placed in R15 and the SPSR corresponding to the
-            // current mode is moved to the CPSR. This allows state
-            // changes which atomically restore both PC and CPSR. This
-            // form of instruction should not be used in User mode.
-
-            if *rd == Register::R15 {
-                let spsr = cpu.read_register(&Register::Spsr);
-                cpu.write_register(&Register::Cpsr, spsr);
-                cpu.pipeline.flush();
-            }
-        };
-
         match instr {
             Instruction {
                 opcode: Opcode::Add,
@@ -688,7 +679,7 @@ impl Handlers {
                     cpu.update_flag(Psr::C, carry);
                     cpu.update_flag(Psr::V, overflow);
 
-                    copy_spsr_to_cpsr_if_necessary(cpu, dst);
+                    copy_spsr_to_cpsr_if_necessary!(cpu, dst);
                 }
             }
             Instruction {
@@ -728,7 +719,7 @@ impl Handlers {
                     cpu.update_flag(Psr::C, carry);
                     cpu.update_flag(Psr::V, overflow);
 
-                    copy_spsr_to_cpsr_if_necessary(cpu, dst);
+                    copy_spsr_to_cpsr_if_necessary!(cpu, dst);
                 }
             }
             Instruction {
@@ -756,7 +747,7 @@ impl Handlers {
                     let overflow = ((x ^ result) & (y ^ result) & 0x8000_0000) != 0;
                     cpu.update_flag(Psr::V, overflow);
 
-                    copy_spsr_to_cpsr_if_necessary(cpu, dst);
+                    copy_spsr_to_cpsr_if_necessary!(cpu, dst);
                 }
             }
             Instruction {
@@ -789,7 +780,7 @@ impl Handlers {
                     cpu.update_flag(Psr::C, !borrow);
                     cpu.update_flag(Psr::V, overflow);
 
-                    copy_spsr_to_cpsr_if_necessary(cpu, dst);
+                    copy_spsr_to_cpsr_if_necessary!(cpu, dst);
                 }
             }
             Instruction {
@@ -812,7 +803,7 @@ impl Handlers {
                     cpu.update_flag(Psr::C, !borrow);
                     cpu.update_flag(Psr::V, overflow);
 
-                    copy_spsr_to_cpsr_if_necessary(cpu, dst);
+                    copy_spsr_to_cpsr_if_necessary!(cpu, dst);
                 }
             }
             Instruction {
@@ -850,7 +841,7 @@ impl Handlers {
                     let overflow = ((x ^ y) & (x ^ result) & 0x8000_0000) != 0;
                     cpu.update_flag(Psr::V, overflow);
 
-                    copy_spsr_to_cpsr_if_necessary(cpu, dst);
+                    copy_spsr_to_cpsr_if_necessary!(cpu, dst);
                 }
             }
             Instruction {
@@ -878,7 +869,7 @@ impl Handlers {
                     let overflow = ((x ^ y) & (x ^ result) & 0x8000_0000) != 0;
                     cpu.update_flag(Psr::V, overflow);
 
-                    copy_spsr_to_cpsr_if_necessary(cpu, dst);
+                    copy_spsr_to_cpsr_if_necessary!(cpu, dst);
                 }
             }
             Instruction {
@@ -908,7 +899,7 @@ impl Handlers {
                     cpu.update_flag(Psr::N, result & 0x8000_0000 != 0);
                     cpu.update_flag(Psr::Z, result == 0);
 
-                    copy_spsr_to_cpsr_if_necessary(cpu, dst);
+                    copy_spsr_to_cpsr_if_necessary!(cpu, dst);
                 }
             }
             Instruction {
@@ -928,7 +919,7 @@ impl Handlers {
                     cpu.update_flag(Psr::N, result & 0x8000_0000 != 0);
                     cpu.update_flag(Psr::Z, result == 0);
 
-                    copy_spsr_to_cpsr_if_necessary(cpu, dst);
+                    copy_spsr_to_cpsr_if_necessary!(cpu, dst);
                 }
             }
             Instruction {
@@ -960,7 +951,7 @@ impl Handlers {
                     cpu.update_flag(Psr::N, result & 0x8000_0000 != 0);
                     cpu.update_flag(Psr::Z, result == 0);
 
-                    copy_spsr_to_cpsr_if_necessary(cpu, dst);
+                    copy_spsr_to_cpsr_if_necessary!(cpu, dst);
                 }
             }
             Instruction {
@@ -980,7 +971,7 @@ impl Handlers {
                     cpu.update_flag(Psr::N, result & 0x8000_0000 != 0);
                     cpu.update_flag(Psr::Z, result == 0);
 
-                    copy_spsr_to_cpsr_if_necessary(cpu, dst);
+                    copy_spsr_to_cpsr_if_necessary!(cpu, dst);
                 }
             }
             Instruction {
@@ -1010,7 +1001,7 @@ impl Handlers {
                     cpu.update_flag(Psr::N, result & 0x8000_0000 != 0);
                     cpu.update_flag(Psr::Z, result == 0);
 
-                    copy_spsr_to_cpsr_if_necessary(cpu, dst);
+                    copy_spsr_to_cpsr_if_necessary!(cpu, dst);
                 }
             }
             Instruction {
@@ -1030,7 +1021,7 @@ impl Handlers {
                     cpu.update_flag(Psr::N, result & 0x8000_0000 != 0);
                     cpu.update_flag(Psr::Z, result == 0);
 
-                    copy_spsr_to_cpsr_if_necessary(cpu, dst);
+                    copy_spsr_to_cpsr_if_necessary!(cpu, dst);
                 }
             }
             Instruction {
@@ -1063,7 +1054,7 @@ impl Handlers {
                     cpu.update_flag(Psr::C, !borrow);
                     cpu.update_flag(Psr::V, overflow);
 
-                    copy_spsr_to_cpsr_if_necessary(cpu, dst);
+                    copy_spsr_to_cpsr_if_necessary!(cpu, dst);
                 }
             }
             Instruction {
@@ -1103,7 +1094,7 @@ impl Handlers {
 
                     cpu.update_flag(Psr::V, false);
 
-                    copy_spsr_to_cpsr_if_necessary(cpu, dst);
+                    copy_spsr_to_cpsr_if_necessary!(cpu, dst);
                 }
             }
             Instruction {
@@ -1125,7 +1116,7 @@ impl Handlers {
                     cpu.update_flag(Psr::C, !borrow);
                     cpu.update_flag(Psr::V, overflow);
 
-                    copy_spsr_to_cpsr_if_necessary(cpu, dst);
+                    copy_spsr_to_cpsr_if_necessary!(cpu, dst);
                 }
             }
             Instruction {
@@ -1143,7 +1134,7 @@ impl Handlers {
                     cpu.update_flag(Psr::N, result & 0x8000_0000 != 0);
                     cpu.update_flag(Psr::Z, result == 0);
 
-                    copy_spsr_to_cpsr_if_necessary(cpu, dst);
+                    copy_spsr_to_cpsr_if_necessary!(cpu, dst);
                 }
             }
             Instruction {
@@ -1163,7 +1154,7 @@ impl Handlers {
                     cpu.update_flag(Psr::N, result & 0x8000_0000 != 0);
                     cpu.update_flag(Psr::Z, result == 0);
 
-                    copy_spsr_to_cpsr_if_necessary(cpu, dst);
+                    copy_spsr_to_cpsr_if_necessary!(cpu, dst);
                 }
             }
             Instruction {
@@ -1212,7 +1203,7 @@ impl Handlers {
                         _ => unreachable!(),
                     }
 
-                    copy_spsr_to_cpsr_if_necessary(cpu, dst);
+                    copy_spsr_to_cpsr_if_necessary!(cpu, dst);
                 }
             }
             Instruction {
@@ -1270,7 +1261,7 @@ impl Handlers {
                         _ => unreachable!(),
                     }
 
-                    copy_spsr_to_cpsr_if_necessary(cpu, dst);
+                    copy_spsr_to_cpsr_if_necessary!(cpu, dst);
                 }
             }
             Instruction {
@@ -1291,7 +1282,7 @@ impl Handlers {
                     cpu.update_flag(Psr::N, result & 0x8000_0000 != 0);
                     cpu.update_flag(Psr::Z, result == 0);
 
-                    copy_spsr_to_cpsr_if_necessary(cpu, dst);
+                    copy_spsr_to_cpsr_if_necessary!(cpu, dst);
                 }
             }
             Instruction {
@@ -1312,7 +1303,7 @@ impl Handlers {
                     cpu.update_flag(Psr::N, result & 0x8000_0000 != 0);
                     cpu.update_flag(Psr::Z, result == 0);
 
-                    copy_spsr_to_cpsr_if_necessary(cpu, dst);
+                    copy_spsr_to_cpsr_if_necessary!(cpu, dst);
                 }
             }
             Instruction {
