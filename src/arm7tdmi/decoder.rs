@@ -1098,7 +1098,7 @@ impl Instruction {
                 let opcode = if l == 1 { Opcode::Ldr } else { Opcode::Str };
                 let destination = Register::from(d)?;
                 let base = Register::from(b)?;
-                let offset = Operand::Immediate(o << 2, None);
+                let offset = Operand::Immediate(o << 1, None);
 
                 Ok(Instruction {
                     opcode,
