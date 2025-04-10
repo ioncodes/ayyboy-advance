@@ -99,13 +99,13 @@ impl Handlers {
                 let pc = cpu.get_pc();
                 cpu.registers.r[15] = 0x08;
 
-                // copy the current cpsr to spsr[new_mode]
+                // cache the current program status register
                 let cpsr = cpu.read_register(&Register::Cpsr);
 
                 // set the current mode to supervisor
                 cpu.set_processor_mode(ProcessorMode::Supervisor);
 
-                // set the mode bits in the spsr to supervisor mode
+                // copy the current cpsr to spsr[new_mode]
                 cpu.write_register(&Register::Spsr, cpsr);
 
                 // set the link register to the address of the instruction after the SWI
