@@ -6,15 +6,14 @@ use super::symbolizer::Symbolizer;
 use crate::arm7tdmi::decoder::Opcode;
 use crate::arm7tdmi::handlers::Handlers;
 use crate::memory::mmio::Mmio;
+use crate::script::engine::ScriptEngine;
 use spdlog::prelude::*;
-use std::collections::HashMap;
 use std::fmt::Display;
 
 pub struct Cpu {
     pub registers: Registers,
     pub pipeline: Pipeline,
     symbolizer: Symbolizer,
-    callbacks: HashMap<u32, Box<dyn Fn(&Cpu, &Mmio, &Instruction)>>,
 }
 
 impl Cpu {
@@ -23,11 +22,10 @@ impl Cpu {
             registers: Registers::default(),
             pipeline: Pipeline::new(),
             symbolizer: Symbolizer::new(buffer),
-            callbacks: HashMap::new(),
         }
     }
 
-    pub fn tick(&mut self, mmio: &mut Mmio) -> Option<(Instruction, State)> {
+    pub fn tick(&mut self, mmio: &mut Mmio, script_engine: Option<&mut ScriptEngine>) -> Option<(Instruction, State)> {
         self.pipeline.advance(self.get_pc(), self.is_thumb(), mmio);
         trace!("Pipeline: {}", self.pipeline);
 
@@ -42,11 +40,6 @@ impl Cpu {
                 debug!("Found matching symbols @ PC: {}", symbol.join(", "));
             });
 
-            self.callbacks.get(&state.pc).map(|callback| {
-                debug!("Found callback @ PC: {:08x}", state.pc);
-                callback(self, mmio, &instruction);
-            });
-
             trace!("Instruction: {:?}", instruction);
 
             if self.is_thumb() {
@@ -55,6 +48,12 @@ impl Cpu {
             } else {
                 trace!("Opcode: {:08x} | {:032b}", state.opcode, state.opcode);
                 debug!("{:08x}: {}", state.pc, instruction);
+            }
+
+            if let Some(script_engine) = script_engine {
+                if script_engine.handle_breakpoint(state.pc, self, mmio) {
+                    debug!("Executed script at breakpoint 0x{:08x}", state.pc);
+                }
             }
 
             match instruction.opcode {

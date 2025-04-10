@@ -16,6 +16,7 @@ fn dump_stack() {
 
 fn setup() {
     let breakpoints = #{
+        "0x08008644": "dump_stack",
         "0x0800865c": "dump_stack",
         "0x08008588": "dump_stack",
     };

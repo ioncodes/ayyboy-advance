@@ -130,8 +130,14 @@ impl Handlers {
                 operand1: Some(Operand::RegisterList(registers)),
                 ..
             } => {
+                let current_sp = cpu.read_register(&Register::R13);
                 for register in registers.iter().rev() {
-                    cpu.push_stack(mmio, cpu.read_register(register));
+                    if *register == Register::R13 {
+                        // If the stack pointer is pushed, we need to push the original stack pointer
+                        cpu.push_stack(mmio, current_sp);
+                    } else {
+                        cpu.push_stack(mmio, cpu.read_register(register));
+                    }
                 }
             }
             Instruction {

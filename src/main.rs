@@ -27,7 +27,7 @@ use memory::mmio::Mmio;
 use script::engine::ScriptEngine;
 use spdlog::formatter::{pattern, PatternFormatter};
 use spdlog::sink::{FileSink, StdStream, StdStreamSink};
-use spdlog::{debug, default_logger, info, Level, LevelFilter, Logger};
+use spdlog::{default_logger, info, Level, LevelFilter, Logger};
 use std::path::Path;
 use std::sync::{Arc, Mutex};
 use video::{Frame, SCREEN_HEIGHT, SCREEN_WIDTH};
@@ -230,13 +230,7 @@ fn start_emulator(
          -> Option<Instruction> {
             let mut executed_instr: Option<Instruction> = None;
 
-            // Breakpoint hit?
-            let pc = cpu.get_pc();
-            if script_engine.handle_breakpoint(pc, cpu, mmio) {
-                debug!("Executed script at breakpoint 0x{:08x}", pc);
-            }
-
-            if let Some((instr, state)) = cpu.tick(mmio) {
+            if let Some((instr, state)) = cpu.tick(mmio, Some(script_engine)) {
                 if BREAKPOINTS
                     .lock()
                     .unwrap()
