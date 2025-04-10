@@ -1152,13 +1152,12 @@ impl Instruction {
             }
             // add offset to Stack Pointer
             "1011_0000_sooo_oooo" => {
-                let offset = o << 2;
-                let destination = Register::R13;
+                let offset = if s == 1 { -((o << 2) as i32) } else { (o << 2) as i32 };
 
                 Ok(Instruction {
                     opcode: Opcode::Add,
-                    operand1: Some(Operand::Register(destination, None)),
-                    operand2: Some(Operand::Offset(offset as i32)),
+                    operand1: Some(Operand::Register(Register::R13, None)),
+                    operand2: Some(Operand::Offset(offset)),
                     ..Instruction::default()
                 })
             }
