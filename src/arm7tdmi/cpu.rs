@@ -37,22 +37,31 @@ impl Cpu {
 
         if let Some((instruction, state)) = self.pipeline.pop() {
             self.symbolizer.find(state.pc).map(|symbol| {
-                debug!("Found matching symbols @ PC: {}", symbol.join(", "));
+                trace!("Found matching symbols @ PC: {}", symbol.join(", "));
             });
 
             trace!("Instruction: {:?}", instruction);
 
             if self.is_thumb() {
                 trace!("Opcode: {:04x} | {:016b}", state.opcode as u16, state.opcode as u16);
-                debug!("{:08x}: {}", state.pc, instruction);
             } else {
                 trace!("Opcode: {:08x} | {:032b}", state.opcode, state.opcode);
-                debug!("{:08x}: {}", state.pc, instruction);
             }
+
+            #[cfg(not(feature = "verbose_debug"))]
+            debug!("{:08x}: {}", state.pc, instruction);
+
+            #[cfg(feature = "verbose_debug")]
+            debug!(
+                "{:08x}: {: <30} [{}]",
+                state.pc,
+                format!("{}", instruction),
+                self.compact_registers()
+            );
 
             if let Some(script_engine) = script_engine {
                 if script_engine.handle_breakpoint(state.pc, self, mmio) {
-                    debug!("Executed script at breakpoint 0x{:08x}", state.pc);
+                    trace!("Executed script at breakpoint 0x{:08x}", state.pc);
                 }
             }
 
@@ -95,6 +104,30 @@ impl Cpu {
         }
 
         None
+    }
+
+    #[cfg(feature = "verbose_debug")]
+    fn compact_registers(&self) -> String {
+        format!(
+            "r0={:08x} r1={:08x} r2={:08x} r3={:08x} r4={:08x} r5={:08x} r6={:08x} r7={:08x} r8={:08x} r9={:08x} r10={:08x} r11={:08x} r12={:08x} sp={:08x} lr={:08x} pc={:08x} cpsr={}",
+            self.read_register(&Register::R0),
+            self.read_register(&Register::R1),
+            self.read_register(&Register::R2),
+            self.read_register(&Register::R3),
+            self.read_register(&Register::R4),
+            self.read_register(&Register::R5),
+            self.read_register(&Register::R6),
+            self.read_register(&Register::R7),
+            self.read_register(&Register::R8),
+            self.read_register(&Register::R9),
+            self.read_register(&Register::R10),
+            self.read_register(&Register::R11),
+            self.read_register(&Register::R12),
+            self.read_register(&Register::R13),
+            self.read_register(&Register::R14),
+            self.read_register(&Register::R15),
+            self.registers.cpsr
+        )
     }
 
     pub fn read_register(&self, register: &Register) -> u32 {
@@ -346,7 +379,7 @@ impl Cpu {
         let current_mode = self.get_processor_mode();
         self.registers.cpsr =
             Psr::from_bits_truncate((self.registers.cpsr.bits() & !Psr::M.bits()) | ((mode as u32) & Psr::M.bits()));
-        debug!("Switched from {} to {}", current_mode, mode);
+        trace!("Switched from {} to {}", current_mode, mode);
     }
 
     pub fn write_to_current_spsr(&mut self, value: Psr) {
