@@ -922,7 +922,16 @@ impl Instruction {
                 let opcode = if l == 1 { Opcode::Ldr } else { Opcode::Str };
                 let operand1 = Register::from(d)?;
                 let operand2 = Register::from(b)?;
-                let operand3 = Operand::Immediate(o << 2, None);
+
+                // For word accesses (B = 0), the value specified by
+                // #Imm is a full 7-bit address, but must be word-aligned (ie
+                // with bits 1:0 set to 0), since the assembler places #Imm >>
+                // 2 in the Offset5 field.
+                let operand3 = if w == 0 {
+                    Operand::Immediate(o << 2, None)
+                } else {
+                    Operand::Immediate(o, None)
+                };
 
                 Ok(Instruction {
                     opcode,
