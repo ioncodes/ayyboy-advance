@@ -760,6 +760,33 @@ impl Handlers {
                 }
             }
             Instruction {
+                opcode: Opcode::Adc,
+                operand1: Some(Operand::Register(dst, None)),
+                operand2: Some(src),
+                operand3: None,
+                set_psr_flags,
+                ..
+            } => {
+                let carry = cpu.registers.cpsr.contains(Psr::C) as u32; // Grab carry first, as it may be modified due to shifter
+                let x = cpu.read_register(dst);
+                let y = Handlers::resolve_operand(src, cpu, *set_psr_flags);
+                let (result, carry1) = x.overflowing_add(y);
+                let (result, carry2) = result.overflowing_add(carry);
+
+                cpu.write_register(dst, result);
+
+                if *set_psr_flags {
+                    cpu.update_flag(Psr::N, result & 0x8000_0000 != 0);
+                    cpu.update_flag(Psr::Z, result == 0);
+                    cpu.update_flag(Psr::C, carry1 || carry2);
+
+                    let overflow = ((x ^ result) & (y ^ result) & 0x8000_0000) != 0;
+                    cpu.update_flag(Psr::V, overflow);
+
+                    copy_spsr_to_cpsr_if_necessary!(cpu, dst);
+                }
+            }
+            Instruction {
                 opcode: Opcode::Sub,
                 operand1: Some(Operand::Register(dst, None)),
                 operand2: Some(x),
