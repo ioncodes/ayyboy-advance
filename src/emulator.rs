@@ -10,6 +10,8 @@ use crate::video::Frame;
 use crossbeam_channel::{Receiver, Sender};
 use lazy_static::lazy_static;
 use spdlog::info;
+use std::fs::File;
+use std::io::Read;
 use std::path::Path;
 use std::sync::Mutex;
 
@@ -29,15 +31,32 @@ pub struct Emulator {
 impl Emulator {
     pub fn new(
         display_tx: Sender<Frame>, dbg_req_rx: Receiver<RequestEvent>, dbg_resp_tx: Sender<ResponseEvent>,
-        script_path: Option<String>,
+        script_path: Option<String>, rom_path: String,
     ) -> Self {
         let mut mmio = Mmio::new();
         mmio.load(0x00000000, include_bytes!("../external/gba_bios.bin"));
-        mmio.load(0x08000000, include_bytes!("../external/tonc/swi_demo.gba"));
 
-        let mut cpu = Cpu::new(&[]);
+        // Load ROM from file
+        let mut rom_data = Vec::new();
+        let mut rom_file = File::open(&rom_path).expect("Failed to open ROM file");
+        rom_file.read_to_end(&mut rom_data).expect("Failed to read ROM file");
+        mmio.load(0x08000000, &rom_data);
+
+        // Check for corresponding ELF file (for symbolizer)
+        let elf_path = rom_path.replace(".gba", ".elf");
+        let elf_data = if Path::new(&elf_path).exists() {
+            let mut elf_file = File::open(&elf_path).expect("Failed to open ELF file");
+            let mut data = Vec::new();
+            elf_file.read_to_end(&mut data).expect("Failed to read ELF file");
+            data
+        } else {
+            Vec::new()
+        };
+
+        let mut cpu = Cpu::new(&elf_data);
         let mut script_engine = ScriptEngine::new();
 
+        // Load script if provided
         if let Some(path) = script_path {
             let path = Path::new(&path);
             if script_engine.load_script(path) {
@@ -45,7 +64,7 @@ impl Emulator {
             }
         }
 
-        // Initialize CPU state
+        // Initialize CPU state (post BIOS)
         cpu.set_processor_mode(ProcessorMode::Irq);
         cpu.write_register(&Register::R13, 0x03007fa0);
         cpu.set_processor_mode(ProcessorMode::Supervisor);
@@ -182,8 +201,8 @@ impl Emulator {
         }
     }
 
-    fn do_tick(&mut self, tick: &mut bool) -> Option<crate::arm7tdmi::decoder::Instruction> {
-        let mut executed_instr: Option<crate::arm7tdmi::decoder::Instruction> = None;
+    fn do_tick(&mut self, tick: &mut bool) -> Option<Instruction> {
+        let mut executed_instr: Option<Instruction> = None;
 
         if let Some((instr, state)) = self.cpu.tick(&mut self.mmio, Some(&mut self.script_engine)) {
             if BREAKPOINTS

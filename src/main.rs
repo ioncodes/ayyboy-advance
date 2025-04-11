@@ -33,6 +33,10 @@ struct Args {
     /// Path to a custom script file
     #[arg(long)]
     script: Option<String>,
+
+    /// Path to the ROM file
+    #[arg(long)]
+    rom: String,
 }
 
 fn main() {
@@ -44,7 +48,7 @@ fn main() {
     let (dbg_req_tx, dbg_req_rx) = bounded(25);
     let (dbg_resp_tx, dbg_resp_rx) = bounded(25);
 
-    let mut emulator = Emulator::new(display_tx, dbg_req_rx, dbg_resp_tx, args.script);
+    let mut emulator = Emulator::new(display_tx, dbg_req_rx, dbg_resp_tx, args.script, args.rom);
 
     std::thread::spawn(move || {
         emulator.run();

@@ -11,7 +11,11 @@ impl Symbolizer {
         let elf = match Object::parse(&buffer) {
             Ok(Object::Elf(elf)) => elf,
             _ => {
-                error!("Input ELF is not a valid ELF file");
+                // If the buffer is empty, we'll assume no ELF was found
+                if buffer.len() > 0 {
+                    error!("Input ELF is not a valid ELF file");
+                }
+
                 return Symbolizer {
                     symbols: HashMap::new(),
                 };
