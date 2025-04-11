@@ -31,6 +31,8 @@ impl Mmio {
     }
 
     pub fn read(&self, addr: u32) -> u8 {
+        trace!("Reading from {:08x}", addr);
+
         match addr {
             0x04000000..=0x04000056 => self.ppu.read(addr),    // PPU I/O
             0x04000080..=0x0400008E => self.apu.read(addr),    // APU I/O

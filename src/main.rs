@@ -217,6 +217,7 @@ fn start_emulator(
         cpu.write_register(&Register::R13, 0x03007f00);
         cpu.set_processor_mode(ProcessorMode::System);
         cpu.write_register(&Register::R13, 0x03007f00);
+        cpu.write_register(&Register::R14, 0x08000000);
         cpu.write_register(&Register::R15, 0x08000000);
 
         let mut frame_rendered = false;

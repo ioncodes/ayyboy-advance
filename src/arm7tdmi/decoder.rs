@@ -1196,7 +1196,7 @@ impl Instruction {
                 operand1: Some(Operand::Register(Register::from(b)?, None)),
                 operand2: Some(Operand::RegisterList(Instruction::extract_register_list(r)?)),
                 operand3: None,
-                indexing: Some(Indexing::Pre),
+                indexing: Some(Indexing::Post),
                 offset_direction: Some(Direction::Up),
                 writeback: true,
                 ..Instruction::default()
