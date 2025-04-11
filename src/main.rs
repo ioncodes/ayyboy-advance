@@ -4,49 +4,21 @@
 
 mod arm7tdmi;
 mod audio;
+mod emulator;
 mod frontend;
 mod input;
+mod logging;
 mod memory;
 mod script;
 mod tests;
 mod video;
 
-use arm7tdmi::cpu::Cpu;
-use arm7tdmi::decoder::{Instruction, Register};
-use arm7tdmi::mode::ProcessorMode;
+use crate::emulator::Emulator;
+use crate::frontend::renderer::SCALE;
 use clap::Parser;
-use crossbeam_channel::{self, Receiver, Sender};
+use crossbeam_channel::{bounded, Receiver, Sender};
 use eframe::NativeOptions;
-use egui::ViewportBuilder;
-use frontend::dbg::widgets;
-use frontend::dbg::widgets::disasm::DecodedInstruction;
-use frontend::event::{RequestEvent, ResponseEvent};
-use frontend::renderer::{Renderer, SCALE};
-use lazy_static::lazy_static;
-use memory::mmio::Mmio;
-use script::engine::ScriptEngine;
-use spdlog::formatter::{pattern, PatternFormatter};
-use spdlog::sink::{FileSink, StdStream, StdStreamSink};
-use spdlog::{default_logger, info, Level, LevelFilter, Logger};
-use std::path::Path;
-use std::sync::{Arc, Mutex};
 use video::{Frame, SCREEN_HEIGHT, SCREEN_WIDTH};
-
-// const ARM_TEST: &[u8] = include_bytes!("../external/gba-tests/arm/arm.gba");
-// const ARM_TEST: &[u8] = include_bytes!("../external/gba-tests/thumb/thumb.gba");
-// const ARM_TEST: &[u8] = include_bytes!("../external/armwrestler-gba-fixed/armwrestler-gba-fixed.gba");
-// const ARM_TEST_ELF: &[u8] = include_bytes!("../external/armwrestler-gba-fixed/armwrestler-gba-fixed.elf");
-// const ARM_TEST: &[u8] = include_bytes!("../external/commercial/pmdr.gba");
-const ARM_TEST: &[u8] = include_bytes!("../external/tonc/swi_demo.gba");
-// const ARM_TEST: &[u8] = include_bytes!("../external/FuzzARM/ARM_DataProcessing.gba");
-// const ARM_TEST: &[u8] = include_bytes!("../external/gba-div-test/out/rom.gba"); // just a div test
-// const ARM_TEST: &[u8] = include_bytes!("../external/gba-psr-test/out/rom.gba"); // just a cpsr bank test
-// const ARM_TEST: &[u8] = include_bytes!("../external/discord/panda.gba"); // works
-// const ARM_TEST: &[u8] = include_bytes!("../external/discord/methharold.gba"); // works
-// const ARM_TEST: &[u8] = include_bytes!("../external/discord/gang.gba"); // works
-// const ARM_TEST: &[u8] = include_bytes!("../external/discord/gang-ldmstm.gba");
-// const ARM_TEST: &[u8] = include_bytes!("../external/discord/armfuck.gba");
-const BIOS: &[u8] = include_bytes!("../external/gba_bios.bin");
 
 #[derive(Parser, Debug)]
 struct Args {
@@ -63,238 +35,23 @@ struct Args {
     script: Option<String>,
 }
 
-lazy_static! {
-    // breakspoints
-    static ref BREAKPOINTS: Mutex<Vec<u32>> = Mutex::new(Vec::new());
-}
-
-enum EventResult {
-    Break,
-    Continue,
-    Step,
-    None,
-}
-
-fn process_debug_events(
-    cpu: &Cpu, mmio: &mut Mmio, dbg_req_rx: &Receiver<RequestEvent>, dbg_resp_tx: &Sender<ResponseEvent>,
-) -> EventResult {
-    dbg_req_rx
-        .try_recv() // check for new requests
-        .map(|event| match event {
-            RequestEvent::UpdateCpu => {
-                let _ = dbg_resp_tx.send(ResponseEvent::Cpu(widgets::cpu::Cpu {
-                    registers: cpu.registers.r,
-                    cpsr: cpu.registers.cpsr,
-                }));
-                EventResult::None
-            }
-            RequestEvent::UpdateMemory => {
-                let mut memory = unsafe {
-                    let memory = Box::<[u8; 0x0FFFFFFF + 1]>::new_zeroed();
-                    memory.assume_init()
-                };
-                memory[..=0x04FFFFFF].copy_from_slice(&mmio.internal_memory[..]);
-                memory[0x05000000..=0x07FFFFFF].copy_from_slice(&mmio.ppu.vram[..]);
-                memory[0x08000000..=0x0FFFFFFF].copy_from_slice(&mmio.external_memory[..]);
-                let _ = dbg_resp_tx.send(ResponseEvent::Memory(memory));
-                EventResult::None
-            }
-            RequestEvent::Break => EventResult::Break,
-            RequestEvent::Run => EventResult::Continue,
-            RequestEvent::Step => EventResult::Step,
-            RequestEvent::AddBreakpoint(addr) => {
-                BREAKPOINTS.lock().unwrap().push(addr);
-                EventResult::None
-            }
-            RequestEvent::RemoveBreakpoint(addr) => {
-                let mut breakpoints = BREAKPOINTS.lock().unwrap();
-                if let Some(index) = breakpoints.iter().position(|&x| x == addr) {
-                    breakpoints.remove(index);
-                }
-                EventResult::None
-            }
-            RequestEvent::UpdateDisassembly(base, count) => {
-                // decoded instruction would never be available here
-                let base = base.unwrap_or(if let Some((_, state)) = cpu.pipeline.peek_fetch() {
-                    state.pc
-                } else {
-                    cpu.read_register(&Register::R15)
-                });
-                let mut disasm: Vec<DecodedInstruction> = Vec::new();
-                for addr in 0..count {
-                    let addr = base + (addr * if cpu.is_thumb() { 2 } else { 4 });
-                    let opcode = mmio.read_u32(addr);
-                    match Instruction::decode(opcode, cpu.is_thumb()) {
-                        Ok(instr) => disasm.push(DecodedInstruction {
-                            addr,
-                            instr: format!("{}", instr),
-                        }),
-                        Err(_) => disasm.push(DecodedInstruction {
-                            addr,
-                            instr: "???".to_string(),
-                        }),
-                    }
-                }
-                let _ = dbg_resp_tx.send(ResponseEvent::Disassembly(
-                    base,
-                    cpu.read_register(&Register::R15),
-                    disasm,
-                ));
-                EventResult::None
-            }
-            RequestEvent::UpdateKeyState(state) => {
-                for (key, pressed) in state {
-                    mmio.joypad.set_key_state(key, pressed);
-                }
-                EventResult::None
-            }
-        })
-        .unwrap_or(EventResult::None)
-}
-
-fn enable_logger(args: &Args) {
-    let logger = if args.trace {
-        let path = "trace.log";
-        let _ = std::fs::remove_file(&path);
-        let file_sink = Arc::new(FileSink::builder().path(path).build().unwrap());
-        let logger = Arc::new(Logger::builder().sink(file_sink).build().unwrap());
-        logger.set_level_filter(LevelFilter::All);
-        logger
-    } else if args.debug {
-        let path = "debug.log";
-        let _ = std::fs::remove_file(&path);
-        let file_sink = Arc::new(FileSink::builder().path(path).build().unwrap());
-        let logger = Arc::new(Logger::builder().sink(file_sink).build().unwrap());
-        logger.set_level_filter(LevelFilter::Equal(Level::Debug));
-        logger
-    } else {
-        let std_sink = Arc::new(StdStreamSink::builder().std_stream(StdStream::Stderr).build().unwrap());
-        let logger = Arc::new(Logger::builder().sink(std_sink).build().unwrap());
-        logger.set_level_filter(LevelFilter::MoreSevereEqual(Level::Info));
-        logger
-    };
-
-    let formatter = Box::new(PatternFormatter::new(pattern!(
-        "[{^{level}} {module_path}] {payload}{eol}"
-    )));
-
-    for sink in logger.sinks() {
-        sink.set_formatter(formatter.clone());
-    }
-
-    spdlog::set_default_logger(logger);
-}
-
-fn start_emulator(
-    display_tx: Sender<Frame>, dbg_req_rx: Receiver<RequestEvent>, dbg_resp_tx: Sender<ResponseEvent>,
-    script_path: Option<String>,
-) {
-    std::thread::spawn(move || {
-        let mut mmio = Mmio::new();
-        mmio.load(0x00000000, BIOS); // bios addr
-        mmio.load(0x08000000, ARM_TEST); // gamepak addr
-
-        let mut cpu = Cpu::new(&[]);
-        let mut script_engine = ScriptEngine::new();
-
-        // Load the Rhai script if provided
-        match script_path {
-            Some(path) => {
-                let path = Path::new(&path);
-                if script_engine.load_script(path) {
-                    info!("Successfully loaded script: {}", path.display());
-                }
-            }
-            None => {}
-        };
-
-        // State for skipping BIOS, https://problemkaputt.de/gbatek.htm#biosramusage
-        cpu.set_processor_mode(ProcessorMode::Irq);
-        cpu.write_register(&Register::R13, 0x03007fa0);
-        cpu.set_processor_mode(ProcessorMode::Supervisor);
-        cpu.write_register(&Register::R13, 0x03007fe0);
-        cpu.set_processor_mode(ProcessorMode::User);
-        cpu.write_register(&Register::R13, 0x03007f00);
-        cpu.set_processor_mode(ProcessorMode::System);
-        cpu.write_register(&Register::R13, 0x03007f00);
-        cpu.write_register(&Register::R14, 0x08000000);
-        cpu.write_register(&Register::R15, 0x08000000);
-
-        let mut frame_rendered = false;
-        let mut tick = false;
-        let mut step = false;
-
-        let do_tick = |cpu: &mut Cpu,
-                       mmio: &mut Mmio,
-                       tick_ref: &mut bool,
-                       script_engine: &mut ScriptEngine|
-         -> Option<Instruction> {
-            let mut executed_instr: Option<Instruction> = None;
-
-            if let Some((instr, state)) = cpu.tick(mmio, Some(script_engine)) {
-                if BREAKPOINTS
-                    .lock()
-                    .unwrap()
-                    .contains(&(state.pc + if cpu.is_thumb() { 2 } else { 4 }))
-                {
-                    *tick_ref = false;
-                }
-                executed_instr = Some(instr);
-            }
-
-            mmio.tick_components();
-
-            executed_instr
-        };
-
-        let do_step = |cpu: &mut Cpu, mmio: &mut Mmio, tick: &mut bool, script_engine: &mut ScriptEngine| loop {
-            if let Some(_) = do_tick(cpu, mmio, tick, script_engine) {
-                break;
-            }
-        };
-
-        loop {
-            match process_debug_events(&cpu, &mut mmio, &dbg_req_rx, &dbg_resp_tx) {
-                EventResult::Break => tick = false,
-                EventResult::Continue => tick = true,
-                EventResult::Step if !tick => {
-                    step = true;
-                }
-                _ => (),
-            }
-
-            if tick || step {
-                do_step(&mut cpu, &mut mmio, &mut tick, &mut script_engine);
-            }
-
-            if step {
-                step = false;
-            }
-
-            if mmio.ppu.scanline == 160 && !frame_rendered {
-                let _ = display_tx.send(mmio.ppu.get_frame());
-                frame_rendered = true;
-            } else if mmio.ppu.scanline == 0 && frame_rendered {
-                frame_rendered = false;
-            }
-        }
-    });
-}
-
 fn main() {
-    // Parse command line arguments
     let args = Args::parse();
 
-    enable_logger(&args);
+    logging::enable_logger(&args);
 
-    let (display_tx, display_rx): (Sender<Frame>, Receiver<Frame>) = crossbeam_channel::bounded(1);
-    let (dbg_req_tx, dbg_req_rx): (Sender<RequestEvent>, Receiver<RequestEvent>) = crossbeam_channel::bounded(25);
-    let (dbg_resp_tx, dbg_resp_rx): (Sender<ResponseEvent>, Receiver<ResponseEvent>) = crossbeam_channel::bounded(25);
+    let (display_tx, display_rx): (Sender<Frame>, Receiver<Frame>) = bounded(1);
+    let (dbg_req_tx, dbg_req_rx) = bounded(25);
+    let (dbg_resp_tx, dbg_resp_rx) = bounded(25);
 
-    start_emulator(display_tx, dbg_req_rx, dbg_resp_tx, args.script);
+    let mut emulator = Emulator::new(display_tx, dbg_req_rx, dbg_resp_tx, args.script);
+
+    std::thread::spawn(move || {
+        emulator.run();
+    });
 
     let native_options = NativeOptions {
-        viewport: ViewportBuilder::default()
+        viewport: egui::ViewportBuilder::default()
             .with_inner_size([(SCREEN_WIDTH * SCALE) as f32, (SCREEN_HEIGHT * SCALE) as f32])
             .with_resizable(false),
         vsync: false,
@@ -305,8 +62,15 @@ fn main() {
     let _ = eframe::run_native(
         "ayyboy advance",
         native_options,
-        Box::new(move |cc| Ok(Box::new(Renderer::new(cc, display_rx, dbg_req_tx, dbg_resp_rx)))),
+        Box::new(move |cc| {
+            Ok(Box::new(frontend::renderer::Renderer::new(
+                cc,
+                display_rx,
+                dbg_req_tx,
+                dbg_resp_rx,
+            )))
+        }),
     );
 
-    default_logger().flush();
+    spdlog::default_logger().flush();
 }
