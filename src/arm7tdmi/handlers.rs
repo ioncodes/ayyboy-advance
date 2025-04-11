@@ -304,19 +304,13 @@ impl Handlers {
                 }
 
                 // align address, https://problemkaputt.de/gbatek.htm#armcpumemoryalignments
-                let (mut aligned_address, rotation) = if address % 2 != 0 {
-                    let mask = match length {
-                        TransferLength::Byte => 0b00,
-                        TransferLength::HalfWord if *signed_transfer => 0b11, // ldrsh misaligned reads the byte at the misaligned address
-                        TransferLength::HalfWord => 0b01,
-                        TransferLength::Word => 0b11,
-                    } as u32;
-                    let aligned_address = address & !mask;
-                    let rotation = (address & mask) * 8;
-                    (aligned_address, rotation)
-                } else {
-                    (address, 0)
-                };
+                let mask = match length {
+                    TransferLength::Byte => 0b00,
+                    TransferLength::HalfWord => 0b01,
+                    TransferLength::Word => 0b11,
+                } as u32;
+                let mut aligned_address = address & !mask;
+                let rotation = (address & mask) * 8;
 
                 match length {
                     TransferLength::Byte => {
@@ -417,15 +411,6 @@ impl Handlers {
                     }
                 }
 
-                if address % 2 != 0 {
-                    // align address, https://problemkaputt.de/gbatek.htm#armcpumemoryalignments
-                    address &= !((match length {
-                        TransferLength::Byte => 0b00,
-                        TransferLength::HalfWord => 0b01,
-                        TransferLength::Word => 0b11,
-                    }) as u32);
-                }
-
                 let cpu_read_reg = |reg: &Register| {
                     if *reg == Register::R15 {
                         cpu.read_register(reg) + 4
@@ -444,6 +429,8 @@ impl Handlers {
                         }
                     }
                     TransferLength::HalfWord => {
+                        address &= !0b01; // align address
+
                         let value = cpu_read_reg(src) as u16;
                         mmio.write_u16(address, value);
                         if *set_psr_flags {
@@ -452,6 +439,8 @@ impl Handlers {
                         }
                     }
                     TransferLength::Word => {
+                        address &= !0b11; // align address
+
                         let value = cpu_read_reg(src);
                         mmio.write_u32(address, value);
                         if *set_psr_flags {
