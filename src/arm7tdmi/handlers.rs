@@ -304,7 +304,7 @@ impl Handlers {
                 }
 
                 // align address, https://problemkaputt.de/gbatek.htm#armcpumemoryalignments
-                let (mut aligned_address, rotation) = if address % 4 != 0 {
+                let (mut aligned_address, rotation) = if address % 2 != 0 {
                     let mask = match length {
                         TransferLength::Byte => 0b00,
                         TransferLength::HalfWord if *signed_transfer => 0b11, // ldrsh misaligned reads the byte at the misaligned address
@@ -357,7 +357,8 @@ impl Handlers {
                             //   LDRH Rd,[odd]   -->  LDRH Rd,[odd-1] ROR 8  ;read to bit0-7 and bit24-31
                             //   LDRSH Rd,[odd]  -->  LDRSB Rd,[odd]         ;sign-expand BYTE value
                             let value = mmio.read(address); // Bits 0-7
-                            value as i8 as u32
+                                                            // TODO: value as i8 as u32
+                            value as u32
                         } else {
                             let value = mmio.read_u16(aligned_address) as u32;
                             value.rotate_right(rotation)
@@ -770,6 +771,7 @@ impl Handlers {
                 let carry = cpu.registers.cpsr.contains(Psr::C) as u32; // Grab carry first, as it may be modified due to shifter
                 let x = cpu.read_register(dst);
                 let y = Handlers::resolve_operand(src, cpu, *set_psr_flags);
+
                 let (result, carry1) = x.overflowing_add(y);
                 let (result, carry2) = result.overflowing_add(carry);
 

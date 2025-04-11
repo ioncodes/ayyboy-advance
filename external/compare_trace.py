@@ -5,9 +5,9 @@ import re
 def detect_format(line):
     """Detect which format the trace line is in."""
     if line.startswith('[debug'):
-        return 'format2'  # ayyboy_advance debug format
+        return 'format2'  # ayyboy_advance debug (verbose_debug feature) format
     else:
-        return 'format1'  # typical GBA format
+        return 'format1'  # Mesen2 trace format
 
 
 def parse_line(line):
@@ -78,7 +78,7 @@ def compare_traces(file1, file2):
                 # We'll handle this as a single instruction, so next iteration should skip a line
                 skip_next_line1 = True
                 # For the comparison, we'll use the BLL line but take note that it's a paired instruction
-                print(f"Note: BLL/BLH instruction pair at line {line_num}")
+                # print(f"Note: BLL/BLH instruction pair at line {line_num}")
             
             # Parse both lines
             addr1, regs1 = parse_line(line1)
@@ -102,11 +102,12 @@ def compare_traces(file1, file2):
 
             if failed:
                 print(f"Line {line_num} mismatch detected")
-                break
+                return False
             
             # Move to next line(s)
             i1 += 2 if skip_next_line1 else 1
             i2 += 1
+    return True
 
 
 def main():
@@ -118,8 +119,11 @@ def main():
     file2 = sys.argv[2]
     
     try:
-        compare_traces(file1, file2)
-        print("Comparison complete")
+        equivalent = compare_traces(file1, file2)
+        if equivalent:
+            print("Traces are equivalent")
+        else:
+            print("Traces are not equivalent")
     except Exception as e:
         print(f"Error during comparison: {str(e)}")
         sys.exit(1)
