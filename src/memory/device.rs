@@ -42,3 +42,29 @@ pub trait Addressable {
         T::from_bits_truncate(self.read_u16(addr))
     }
 }
+
+pub struct IoRegister(u16);
+
+impl IoRegister {
+    pub fn write_high(&mut self, value: u8) {
+        self.0 = (self.0 & 0x00ff) | ((value as u16) << 8);
+    }
+
+    pub fn write_low(&mut self, value: u8) {
+        self.0 = (self.0 & 0xff00) | (value as u16);
+    }
+
+    pub fn read_high(&self) -> u8 {
+        (self.0 >> 8) as u8
+    }
+
+    pub fn read_low(&self) -> u8 {
+        self.0 as u8
+    }
+}
+
+impl Default for IoRegister {
+    fn default() -> Self {
+        IoRegister(0)
+    }
+}

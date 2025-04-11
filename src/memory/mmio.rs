@@ -1,4 +1,4 @@
-use super::device::Addressable;
+use super::device::{Addressable, IoRegister};
 use crate::audio::apu::Apu;
 use crate::input::joypad::Joypad;
 use crate::video::ppu::Ppu;
@@ -10,6 +10,8 @@ pub struct Mmio {
     pub ppu: Ppu,
     pub joypad: Joypad,
     pub apu: Apu,
+    // I/O registers
+    pub ime: IoRegister,
 }
 
 impl Mmio {
@@ -23,6 +25,7 @@ impl Mmio {
             ppu: Ppu::new(),
             joypad: Joypad::new(),
             apu: Apu::new(),
+            ime: IoRegister::default(),
         }
     }
 
@@ -37,9 +40,11 @@ impl Mmio {
             0x04000000..=0x04000056 => self.ppu.read(addr),    // PPU I/O
             0x04000080..=0x0400008E => self.apu.read(addr),    // APU I/O
             0x04000130..=0x04000133 => self.joypad.read(addr), // Joypad I/O
+            0x04000208 => self.ime.read_low(),                 // Interrupt Master Enable
+            0x04000209 => self.ime.read_high(),                // Interrupt Master Enable (high byte)
             0x04000000..=0x040003FE => {
                 error!("Unmapped I/O read: {:08x}", addr);
-                0
+                self.internal_memory[addr as usize]
             }
             0x00000000..=0x04FFFFFF => self.internal_memory[addr as usize],
             0x05000000..=0x07FFFFFF => self.ppu.read(addr),
@@ -49,7 +54,7 @@ impl Mmio {
             0x0E000000..=0x0FFFFFFF => self.external_memory[(addr - 0x0E000000) as usize], // Mostly Gamepak SRAM
             _ => {
                 error!("Reading from unmapped memory address: {:08x}", addr);
-                0
+                0x69
             }
         }
     }
@@ -75,7 +80,12 @@ impl Mmio {
             0x04000000..=0x04000056 => self.ppu.write(addr, value), // PPU I/O
             0x04000080..=0x0400008E => self.apu.write(addr, value), // APU I/O
             0x04000130..=0x04000133 => self.joypad.write(addr, value), // Joypad I/O
-            0x04000000..=0x040003FE => error!("Unmapped I/O write: {:02x} to {:08x}", value, addr),
+            0x04000208 => self.ime.write_low(value),                // Interrupt Master Enable
+            0x04000209 => self.ime.write_high(value),               // Interrupt Master Enable (high byte)
+            0x04000000..=0x040003FE => {
+                error!("Unmapped I/O write: {:02x} to {:08x}", value, addr);
+                self.internal_memory[addr as usize] = value; // Unmapped I/O region
+            }
             0x00000000..=0x04FFFFFF => self.internal_memory[addr as usize] = value,
             0x05000000..=0x07FFFFFF => self.ppu.write(addr, value),
             0x08000000..=0x09FFFFFF => self.external_memory[(addr - 0x08000000) as usize] = value,
