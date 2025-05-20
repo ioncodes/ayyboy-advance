@@ -29,9 +29,9 @@ impl Cpu {
     }
 
     pub fn tick(&mut self, script_engine: Option<&mut ScriptEngine>) -> Option<(Instruction, State)> {
-        let IoRegister(ime_value) = self.mmio.io_ime;
-        let IoRegister(if_value) = self.mmio.io_if;
-        let IoRegister(ie_value) = self.mmio.io_ie;
+        let IoRegister(_ime_value) = self.mmio.io_ime;
+        let IoRegister(_if_value) = self.mmio.io_if;
+        let IoRegister(_ie_value) = self.mmio.io_ie;
 
         self.pipeline.advance(self.get_pc(), self.is_thumb(), &mut self.mmio);
         trace!("Pipeline: {}", self.pipeline);
@@ -134,7 +134,7 @@ impl Cpu {
             self.read_register(&Register::R14),
             self.read_register(&Register::R15),
             self.registers.cpsr,
-            if self.mmio.io_ime.value() != 0 {
+            if *self.mmio.io_ime.value() != 0 {
                 1
             } else {
                 0

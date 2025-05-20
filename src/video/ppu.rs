@@ -11,8 +11,8 @@ pub struct Ppu {
     vblank_raised_for_frame: bool,
     // I/O Registers
     pub scanline: IoRegister,
-    disp_stat: IoRegister,
-    disp_cnt: IoRegister,
+    disp_stat: IoRegister<DispStat>,
+    disp_cnt: IoRegister<DispCnt>,
 }
 
 impl Ppu {
@@ -42,20 +42,17 @@ impl Ppu {
         if self.scanline.0 == 228 {
             self.scanline.0 = 0;
             self.vblank_raised_for_frame = false;
-
-            self.disp_stat
-                .set(self.disp_stat.value() & !DispStat::VBLANK_FLAG.bits());
+            self.disp_stat.clear_flags(DispStat::VBLANK_FLAG);
         }
 
         if self.scanline.0 >= 160 && !self.vblank_raised_for_frame {
-            self.disp_stat
-                .set(self.disp_stat.value() | DispStat::VBLANK_FLAG.bits());
+            self.disp_stat.set_flags(DispStat::VBLANK_FLAG);
             self.vblank_raised_for_frame = true;
         }
     }
 
     pub fn get_frame(&self) -> Frame {
-        let lcd_control = self.disp_cnt.value_as::<DispCnt>();
+        let lcd_control = self.disp_cnt.value();
         trace!("Grabbing internal frame buffer for PPU mode: {}", lcd_control.bg_mode());
 
         let parse_bg_layer_view = |layer: DispCnt| {

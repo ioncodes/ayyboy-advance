@@ -43,9 +43,22 @@ pub trait Addressable {
     }
 }
 
-pub struct IoRegister(pub u16);
+pub struct IoRegister<T = u16>(pub T);
 
-impl IoRegister {
+impl<T> IoRegister<T> {
+    pub fn set(&mut self, value: T)
+    where
+        T: Copy,
+    {
+        self.0 = value;
+    }
+
+    pub fn value(&self) -> &T {
+        &self.0
+    }
+}
+
+impl IoRegister<u16> {
     pub fn write_high(&mut self, value: u8) {
         self.0 = (self.0 & 0x00ff) | ((value as u16) << 8);
     }
@@ -77,22 +90,41 @@ impl IoRegister {
             self.read_high()
         }
     }
+}
 
-    pub fn set(&mut self, value: u16) {
+impl IoRegister<u8> {
+    pub fn write(&mut self, value: u8) {
         self.0 = value;
     }
 
-    pub fn value(&self) -> u16 {
+    pub fn read(&self) -> u8 {
         self.0
-    }
-
-    pub fn value_as<T: Flags<Bits = u16>>(&self) -> T {
-        T::from_bits_truncate(self.0)
     }
 }
 
-impl Default for IoRegister {
+impl<T> IoRegister<T>
+where
+    T: Flags<Bits = u16> + Copy,
+{
+    pub fn set_flags(&mut self, flags: T) {
+        self.0 = self.0.union(flags);
+    }
+
+    pub fn clear_flags(&mut self, flags: T) {
+        self.0 = self.0.difference(flags);
+    }
+
+    pub fn toggle_flags(&mut self, flags: T) {
+        self.0 = self.0.symmetric_difference(flags);
+    }
+
+    pub fn contains_flags(&self, flags: T) -> bool {
+        self.0.contains(flags)
+    }
+}
+
+impl<T: Default> Default for IoRegister<T> {
     fn default() -> Self {
-        IoRegister(0)
+        IoRegister(T::default())
     }
 }

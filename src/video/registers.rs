@@ -1,6 +1,7 @@
 use bitflags::bitflags;
 
 bitflags! {
+    #[derive(Default, Copy, Clone)]
     pub struct DispStat: u16 {
         const V_COUNT_SETTING   = 0b1111_1111_0000_0000;
         const V_COUNTER_ENABLE  = 1 << 5;
@@ -11,6 +12,7 @@ bitflags! {
         const VBLANK_FLAG       = 1 << 0;
     }
 
+    #[derive(Default, Copy, Clone)]
     pub struct DispCnt: u16 {
         const BG_MODE               = 0b0000_0000_0000_0111;
         const CGB_MODE              = 1 << 3;
