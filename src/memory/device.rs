@@ -54,6 +54,14 @@ impl IoRegister {
         self.0 = (self.0 & 0xff00) | (value as u16);
     }
 
+    pub fn write(&mut self, addr: u32, value: u8) {
+        if addr % 2 == 0 {
+            self.write_low(value);
+        } else {
+            self.write_high(value);
+        }
+    }
+
     pub fn read_high(&self) -> u8 {
         (self.0 >> 8) as u8
     }
@@ -62,8 +70,24 @@ impl IoRegister {
         self.0 as u8
     }
 
+    pub fn read(&self, addr: u32) -> u8 {
+        if addr % 2 == 0 {
+            self.read_low()
+        } else {
+            self.read_high()
+        }
+    }
+
+    pub fn set(&mut self, value: u16) {
+        self.0 = value;
+    }
+
     pub fn value(&self) -> u16 {
         self.0
+    }
+
+    pub fn value_as<T: Flags<Bits = u16>>(&self) -> T {
+        T::from_bits_truncate(self.0)
     }
 }
 

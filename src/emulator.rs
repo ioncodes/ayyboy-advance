@@ -107,10 +107,10 @@ impl Emulator {
                 step = false;
             }
 
-            if self.cpu.mmio.ppu.scanline == 160 && !frame_rendered {
+            if self.cpu.mmio.ppu.scanline.0 == 160 && !frame_rendered {
                 let _ = self.display_tx.send(self.cpu.mmio.ppu.get_frame());
                 frame_rendered = true;
-            } else if self.cpu.mmio.ppu.scanline == 0 && frame_rendered {
+            } else if self.cpu.mmio.ppu.scanline.0 == 0 && frame_rendered {
                 frame_rendered = false;
             }
         }

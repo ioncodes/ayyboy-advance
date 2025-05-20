@@ -1,15 +1,18 @@
 use super::registers::{DispCnt, DispStat};
-use super::{Frame, DISPCNT_ADDR, SCREEN_HEIGHT, SCREEN_WIDTH};
-use crate::memory::device::Addressable;
-use crate::video::DISPSTAT_ADDR;
+use super::{Frame, SCREEN_HEIGHT, SCREEN_WIDTH};
+use crate::memory::device::{Addressable, IoRegister};
+use crate::memory::mmio::Mmio;
 use spdlog::prelude::*;
 
 pub struct Ppu {
     pub h_counter: u16,
-    pub scanline: u16,
     pub vram: Box<[u8; (0x07FFFFFF - 0x05000000) + 1]>,
     io: Box<[u8; (0x4000056 - 0x4000000) + 1]>,
     vblank_raised_for_frame: bool,
+    // I/O Registers
+    pub scanline: IoRegister,
+    disp_stat: IoRegister,
+    disp_cnt: IoRegister,
 }
 
 impl Ppu {
@@ -19,10 +22,12 @@ impl Ppu {
 
         Ppu {
             h_counter: 0,
-            scanline: 0,
             vram: unsafe { vram.assume_init() },
             io: unsafe { io.assume_init() },
             vblank_raised_for_frame: false,
+            scanline: IoRegister::default(),
+            disp_stat: IoRegister::default(),
+            disp_cnt: IoRegister::default(),
         }
     }
 
@@ -31,30 +36,26 @@ impl Ppu {
 
         if self.h_counter == 240 {
             self.h_counter = 0;
-            self.scanline += 1;
+            self.scanline.0 += 1;
         }
 
-        if self.scanline == 228 {
-            self.scanline = 0;
+        if self.scanline.0 == 228 {
+            self.scanline.0 = 0;
             self.vblank_raised_for_frame = false;
 
-            self.write_u16(
-                DISPSTAT_ADDR,
-                self.read_u16(DISPSTAT_ADDR) & !DispStat::VBLANK_FLAG.bits(),
-            );
+            self.disp_stat
+                .set(self.disp_stat.value() & !DispStat::VBLANK_FLAG.bits());
         }
 
-        if self.scanline >= 160 && !self.vblank_raised_for_frame {
-            self.write_u16(
-                DISPSTAT_ADDR,
-                self.read_u16(DISPSTAT_ADDR) | DispStat::VBLANK_FLAG.bits(),
-            );
+        if self.scanline.0 >= 160 && !self.vblank_raised_for_frame {
+            self.disp_stat
+                .set(self.disp_stat.value() | DispStat::VBLANK_FLAG.bits());
             self.vblank_raised_for_frame = true;
         }
     }
 
     pub fn get_frame(&self) -> Frame {
-        let lcd_control = self.read_as::<DispCnt>(DISPCNT_ADDR);
+        let lcd_control = self.disp_cnt.value_as::<DispCnt>();
         trace!("Grabbing internal frame buffer for PPU mode: {}", lcd_control.bg_mode());
 
         let parse_bg_layer_view = |layer: DispCnt| {
@@ -130,8 +131,7 @@ impl Addressable for Ppu {
     fn read(&self, addr: u32) -> u8 {
         match addr {
             // VCOUNT register
-            0x04000006 => (self.scanline & 0xff) as u8,
-            0x04000007 => ((self.scanline & 0xff00) >> 8) as u8,
+            0x04000006..=0x04000007 => self.scanline.read(addr),
             // rest of the registers
             0x04000000..=0x04000056 => self.io[(addr - 0x04000000) as usize],
             0x05000000..=0x07FFFFFF => self.vram[(addr - 0x05000000) as usize],
