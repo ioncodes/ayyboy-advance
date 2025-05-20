@@ -33,12 +33,10 @@ impl Cpu {
         let IoRegister(ime_value) = self.mmio.io_ime;
         let IoRegister(disp_stat) = self.mmio.ppu.disp_stat;
 
-        if ime_value != 0
-            && disp_stat.is_vblank()
-            && self.mmio.io_ie.contains_flags(Interrupt::VBLANK)
-            && self.mmio.io_if.contains_flags(Interrupt::VBLANK)
-        {
-            info!("vblank irq");
+        if ime_value != 0 && disp_stat.is_vblank() && self.mmio.io_ie.contains_flags(Interrupt::VBLANK) {
+            self.mmio.io_if.set_flags(Interrupt::VBLANK);
+            trace!("VBLANK interrupt raised");
+            // TODO: handle interrupt
         }
 
         self.pipeline.advance(self.get_pc(), self.is_thumb(), &mut self.mmio);
