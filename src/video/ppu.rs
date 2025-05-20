@@ -126,8 +126,9 @@ impl Ppu {
 impl Addressable for Ppu {
     fn read(&self, addr: u32) -> u8 {
         match addr {
-            // VCOUNT register
-            0x04000006..=0x04000007 => self.scanline.read(addr),
+            0x04000000..=0x04000001 => self.disp_cnt.read(addr),  // DISPCTRL
+            0x04000004..=0x04000005 => self.disp_stat.read(addr), // DISPSTAT
+            0x04000006..=0x04000007 => self.scanline.read(addr),  // VCOUNT
             // rest of the registers
             0x04000000..=0x04000056 => self.io[(addr - 0x04000000) as usize],
             0x05000000..=0x07FFFFFF => self.vram[(addr - 0x05000000) as usize],
@@ -137,6 +138,10 @@ impl Addressable for Ppu {
 
     fn write(&mut self, addr: u32, value: u8) {
         match addr {
+            0x04000000..=0x04000001 => self.disp_cnt.write(addr, value), // DISPCTRL
+            0x04000004..=0x04000005 => self.disp_stat.write(addr, value), // DISPSTAT
+            0x04000006..=0x04000007 => self.scanline.write(addr, value), // VCOUNT
+            // rest of the registers
             0x04000000..=0x04000056 => self.io[(addr - 0x04000000) as usize] = value,
             0x05000000..=0x07FFFFFF => {
                 trace!("Writing to VRAM address: {:08x} with value: {:02x}", addr, value);
