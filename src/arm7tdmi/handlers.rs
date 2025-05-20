@@ -45,7 +45,7 @@ pub struct Handlers {}
 
 #[allow(unused_variables)]
 impl Handlers {
-    pub fn branch(instr: &Instruction, cpu: &mut Cpu, mmio: &mut Mmio) {
+    pub fn branch(instr: &Instruction, cpu: &mut Cpu) {
         check_condition!(cpu, instr);
 
         match instr {
@@ -87,7 +87,7 @@ impl Handlers {
         cpu.pipeline.flush();
     }
 
-    pub fn software_interrupt(instr: &Instruction, cpu: &mut Cpu, mmio: &mut Mmio) {
+    pub fn software_interrupt(instr: &Instruction, cpu: &mut Cpu) {
         check_condition!(cpu, instr);
 
         match instr {
@@ -121,7 +121,7 @@ impl Handlers {
         cpu.pipeline.flush();
     }
 
-    pub fn push_pop(instr: &Instruction, cpu: &mut Cpu, mmio: &mut Mmio) {
+    pub fn push_pop(instr: &Instruction, cpu: &mut Cpu) {
         check_condition!(cpu, instr);
 
         match instr {
@@ -134,9 +134,9 @@ impl Handlers {
                 for register in registers.iter().rev() {
                     if *register == Register::R13 {
                         // If the stack pointer is pushed, we need to push the original stack pointer
-                        cpu.push_stack(mmio, current_sp);
+                        cpu.push_stack(current_sp);
                     } else {
-                        cpu.push_stack(mmio, cpu.read_register(register));
+                        cpu.push_stack(cpu.read_register(register));
                     }
                 }
             }
@@ -146,7 +146,7 @@ impl Handlers {
                 ..
             } => {
                 for register in registers {
-                    let value = cpu.pop_stack(mmio);
+                    let value = cpu.pop_stack();
                     cpu.write_register(register, value);
                 }
             }
@@ -154,7 +154,7 @@ impl Handlers {
         }
     }
 
-    pub fn test(instr: &Instruction, cpu: &mut Cpu, mmio: &mut Mmio) {
+    pub fn test(instr: &Instruction, cpu: &mut Cpu) {
         check_condition!(cpu, instr);
 
         match instr {
@@ -219,7 +219,7 @@ impl Handlers {
         }
     }
 
-    pub fn move_data(instr: &Instruction, cpu: &mut Cpu, mmio: &mut Mmio) {
+    pub fn move_data(instr: &Instruction, cpu: &mut Cpu) {
         check_condition!(cpu, instr);
 
         match instr {
@@ -275,7 +275,7 @@ impl Handlers {
         }
     }
 
-    pub fn load_store(instr: &Instruction, cpu: &mut Cpu, mmio: &mut Mmio) {
+    pub fn load_store(instr: &Instruction, cpu: &mut Cpu) {
         check_condition!(cpu, instr);
 
         match instr {
@@ -318,10 +318,10 @@ impl Handlers {
                             // The LDRSB instruction loads the selected Byte into bits 7
                             // to 0 of the destination register and bits 31 to 8 of the desti-
                             // nation register are set to the value of bit 7, the sign bit.
-                            let value = mmio.read(aligned_address).rotate_right(rotation);
+                            let value = cpu.mmio.read(aligned_address).rotate_right(rotation);
                             value as i8 as u32
                         } else {
-                            mmio.read(aligned_address).rotate_right(rotation) as u32
+                            cpu.mmio.read(aligned_address).rotate_right(rotation) as u32
                         };
 
                         cpu.write_register(dst, value as u32);
@@ -337,7 +337,7 @@ impl Handlers {
                             // bits 15 to 0 of the destination register and bits 31 to 16 of
                             // the destination register are set to the value of bit 15, the
                             // sign bit.
-                            let value = mmio.read_u16(aligned_address) as u32;
+                            let value = cpu.mmio.read_u16(aligned_address) as u32;
                             let value = value.rotate_right(rotation);
                             let sign_bit = value & (1 << 15);
                             if sign_bit != 0 {
@@ -350,11 +350,11 @@ impl Handlers {
                             // On ARM7 aka ARMv4 aka NDS7/GBA:
                             //   LDRH Rd,[odd]   -->  LDRH Rd,[odd-1] ROR 8  ;read to bit0-7 and bit24-31
                             //   LDRSH Rd,[odd]  -->  LDRSB Rd,[odd]         ;sign-expand BYTE value
-                            let value = mmio.read(address); // Bits 0-7
-                                                            // TODO: value as i8 as u32
+                            let value = cpu.mmio.read(address); // Bits 0-7
+                                                                // TODO: value as i8 as u32
                             value as u32
                         } else {
-                            let value = mmio.read_u16(aligned_address) as u32;
+                            let value = cpu.mmio.read_u16(aligned_address) as u32;
                             value.rotate_right(rotation)
                         };
 
@@ -366,7 +366,7 @@ impl Handlers {
                         }
                     }
                     TransferLength::Word => {
-                        let value = mmio.read_u32(aligned_address).rotate_right(rotation);
+                        let value = cpu.mmio.read_u32(aligned_address).rotate_right(rotation);
                         cpu.write_register(dst, value);
 
                         if *set_psr_flags {
@@ -422,7 +422,7 @@ impl Handlers {
                 match length {
                     TransferLength::Byte => {
                         let value = cpu_read_reg(src) as u8;
-                        mmio.write(address, value);
+                        cpu.mmio.write(address, value);
                         if *set_psr_flags {
                             cpu.update_flag(Psr::N, value & 0x80 != 0);
                             cpu.update_flag(Psr::Z, value == 0);
@@ -432,7 +432,7 @@ impl Handlers {
                         address &= !0b01; // align address
 
                         let value = cpu_read_reg(src) as u16;
-                        mmio.write_u16(address, value);
+                        cpu.mmio.write_u16(address, value);
                         if *set_psr_flags {
                             cpu.update_flag(Psr::N, value & 0x8000 != 0);
                             cpu.update_flag(Psr::Z, value == 0);
@@ -442,7 +442,7 @@ impl Handlers {
                         address &= !0b11; // align address
 
                         let value = cpu_read_reg(src);
-                        mmio.write_u32(address, value);
+                        cpu.mmio.write_u32(address, value);
                         if *set_psr_flags {
                             cpu.update_flag(Psr::N, value & 0x8000_0000 != 0);
                             cpu.update_flag(Psr::Z, value == 0);
@@ -485,8 +485,8 @@ impl Handlers {
                 };
 
                 let original_value = match length {
-                    TransferLength::Byte => mmio.read(aligned_addr) as u32,
-                    TransferLength::Word => mmio.read_u32(aligned_addr),
+                    TransferLength::Byte => cpu.mmio.read(aligned_addr) as u32,
+                    TransferLength::Word => cpu.mmio.read_u32(aligned_addr),
                     _ => unreachable!(),
                 }
                 .rotate_right(rotation);
@@ -494,11 +494,11 @@ impl Handlers {
                 match length {
                     TransferLength::Byte => {
                         let value = cpu.read_register(src) as u8;
-                        mmio.write(aligned_addr, value);
+                        cpu.mmio.write(aligned_addr, value);
                     }
                     TransferLength::Word => {
                         let value = cpu.read_register(src);
-                        mmio.write_u32(aligned_addr, value);
+                        cpu.mmio.write_u32(aligned_addr, value);
                     }
                     _ => unreachable!(),
                 }
@@ -546,7 +546,7 @@ impl Handlers {
                 }
 
                 for register in registers.iter() {
-                    let value = mmio.read_u32(address & !0b11);
+                    let value = cpu.mmio.read_u32(address & !0b11);
                     cpu_write_register(cpu, register, value);
                     address = address.wrapping_add(4);
                 }
@@ -614,7 +614,7 @@ impl Handlers {
                         cpu.read_register(register)
                     };
 
-                    mmio.write_u32(address & !0b11, value);
+                    cpu.mmio.write_u32(address & !0b11, value);
                     address = address.wrapping_add(4);
                 }
 
@@ -626,7 +626,7 @@ impl Handlers {
         }
     }
 
-    pub fn psr_transfer(instr: &Instruction, cpu: &mut Cpu, mmio: &mut Mmio) {
+    pub fn psr_transfer(instr: &Instruction, cpu: &mut Cpu) {
         check_condition!(cpu, instr);
 
         match instr {
@@ -643,7 +643,7 @@ impl Handlers {
         }
     }
 
-    pub fn alu(instr: &Instruction, cpu: &mut Cpu, mmio: &mut Mmio) {
+    pub fn alu(instr: &Instruction, cpu: &mut Cpu) {
         check_condition!(cpu, instr);
 
         match instr {

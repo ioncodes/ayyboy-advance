@@ -21,7 +21,6 @@ lazy_static! {
 
 pub struct Emulator {
     pub cpu: Cpu,
-    pub mmio: Mmio,
     pub script_engine: ScriptEngine,
     pub display_tx: Sender<Frame>,
     pub dbg_req_rx: Receiver<RequestEvent>,
@@ -53,7 +52,7 @@ impl Emulator {
             Vec::new()
         };
 
-        let mut cpu = Cpu::new(&elf_data);
+        let mut cpu = Cpu::new(&elf_data, mmio);
         let mut script_engine = ScriptEngine::new();
 
         // Load script if provided
@@ -78,7 +77,6 @@ impl Emulator {
 
         Self {
             cpu,
-            mmio,
             script_engine,
             display_tx,
             dbg_req_rx,
@@ -109,10 +107,10 @@ impl Emulator {
                 step = false;
             }
 
-            if self.mmio.ppu.scanline == 160 && !frame_rendered {
-                let _ = self.display_tx.send(self.mmio.ppu.get_frame());
+            if self.cpu.mmio.ppu.scanline == 160 && !frame_rendered {
+                let _ = self.display_tx.send(self.cpu.mmio.ppu.get_frame());
                 frame_rendered = true;
-            } else if self.mmio.ppu.scanline == 0 && frame_rendered {
+            } else if self.cpu.mmio.ppu.scanline == 0 && frame_rendered {
                 frame_rendered = false;
             }
         }
@@ -134,9 +132,9 @@ impl Emulator {
                         let memory = Box::<[u8; 0x0FFFFFFF + 1]>::new_zeroed();
                         memory.assume_init()
                     };
-                    memory[..=0x04FFFFFF].copy_from_slice(&self.mmio.internal_memory[..]);
-                    memory[0x05000000..=0x07FFFFFF].copy_from_slice(&self.mmio.ppu.vram[..]);
-                    memory[0x08000000..=0x0FFFFFFF].copy_from_slice(&self.mmio.external_memory[..]);
+                    memory[..=0x04FFFFFF].copy_from_slice(&self.cpu.mmio.internal_memory[..]);
+                    memory[0x05000000..=0x07FFFFFF].copy_from_slice(&self.cpu.mmio.ppu.vram[..]);
+                    memory[0x08000000..=0x0FFFFFFF].copy_from_slice(&self.cpu.mmio.external_memory[..]);
                     let _ = self.dbg_resp_tx.send(ResponseEvent::Memory(memory));
                     EventResult::None
                 }
@@ -164,7 +162,7 @@ impl Emulator {
                     let mut disasm: Vec<DecodedInstruction> = Vec::new();
                     for addr in 0..count {
                         let addr = base + (addr * if self.cpu.is_thumb() { 2 } else { 4 });
-                        let opcode = self.mmio.read_u32(addr);
+                        let opcode = self.cpu.mmio.read_u32(addr);
                         match Instruction::decode(opcode, self.cpu.is_thumb()) {
                             Ok(instr) => disasm.push(DecodedInstruction {
                                 addr,
@@ -185,7 +183,7 @@ impl Emulator {
                 }
                 RequestEvent::UpdateKeyState(state) => {
                     for (key, pressed) in state {
-                        self.mmio.joypad.set_key_state(key, pressed);
+                        self.cpu.mmio.joypad.set_key_state(key, pressed);
                     }
                     EventResult::None
                 }
@@ -204,7 +202,7 @@ impl Emulator {
     fn do_tick(&mut self, tick: &mut bool) -> Option<Instruction> {
         let mut executed_instr: Option<Instruction> = None;
 
-        if let Some((instr, state)) = self.cpu.tick(&mut self.mmio, Some(&mut self.script_engine)) {
+        if let Some((instr, state)) = self.cpu.tick(Some(&mut self.script_engine)) {
             if BREAKPOINTS
                 .lock()
                 .unwrap()
@@ -215,7 +213,7 @@ impl Emulator {
             executed_instr = Some(instr);
         }
 
-        self.mmio.tick_components();
+        self.cpu.mmio.tick_components();
 
         executed_instr
     }

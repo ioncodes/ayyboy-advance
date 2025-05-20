@@ -14,7 +14,7 @@ mod tests {
         mmio.load(0x00000000, BIOS); // bios addr
         mmio.load(0x08000000, ARM_TEST); // gamepak addr
 
-        let mut cpu = Cpu::new(&[]);
+        let mut cpu = Cpu::new(&[], mmio);
         cpu.registers.r[13] = 0x03007f00; // sp
         cpu.registers.r[15] = 0x08000000; // pc
         cpu.set_processor_mode(ProcessorMode::System);
@@ -22,7 +22,7 @@ mod tests {
         let mut trace: Vec<(u32, Instruction)> = Vec::new();
 
         loop {
-            if let Some((instr, state)) = cpu.tick(&mut mmio, None) {
+            if let Some((instr, state)) = cpu.tick(None) {
                 trace.push((state.pc, instr));
             }
             mmio.tick_components();

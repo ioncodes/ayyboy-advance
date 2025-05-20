@@ -11,7 +11,9 @@ pub struct Mmio {
     pub joypad: Joypad,
     pub apu: Apu,
     // I/O registers
-    pub ime: IoRegister,
+    pub io_ime: IoRegister,
+    pub io_ie: IoRegister,
+    pub io_if: IoRegister,
 }
 
 impl Mmio {
@@ -25,7 +27,9 @@ impl Mmio {
             ppu: Ppu::new(),
             joypad: Joypad::new(),
             apu: Apu::new(),
-            ime: IoRegister::default(),
+            io_ime: IoRegister::default(),
+            io_ie: IoRegister::default(),
+            io_if: IoRegister::default(),
         }
     }
 
@@ -40,8 +44,12 @@ impl Mmio {
             0x04000000..=0x04000056 => self.ppu.read(addr),    // PPU I/O
             0x04000080..=0x0400008E => self.apu.read(addr),    // APU I/O
             0x04000130..=0x04000133 => self.joypad.read(addr), // Joypad I/O
-            0x04000208 => self.ime.read_low(),                 // Interrupt Master Enable
-            0x04000209 => self.ime.read_high(),                // Interrupt Master Enable (high byte)
+            0x04000200 => self.io_ie.read_low(),               // Interrupt Enable
+            0x04000201 => self.io_ie.read_high(),              // Interrupt Enable (high byte)
+            0x04000202 => self.io_if.read_low(),               // Interrupt Flag
+            0x04000203 => self.io_if.read_high(),              // Interrupt Flag (high byte)
+            0x04000208 => self.io_ime.read_low(),              // Interrupt Master Enable
+            0x04000209 => self.io_ime.read_high(),             // Interrupt Master Enable (high byte)
             0x04000000..=0x040003FE => {
                 error!("Unmapped I/O read: {:08x}", addr);
                 self.internal_memory[addr as usize]
@@ -80,8 +88,12 @@ impl Mmio {
             0x04000000..=0x04000056 => self.ppu.write(addr, value), // PPU I/O
             0x04000080..=0x0400008E => self.apu.write(addr, value), // APU I/O
             0x04000130..=0x04000133 => self.joypad.write(addr, value), // Joypad I/O
-            0x04000208 => self.ime.write_low(value),                // Interrupt Master Enable
-            0x04000209 => self.ime.write_high(value),               // Interrupt Master Enable (high byte)
+            0x04000200 => self.io_ie.write_low(value),              // Interrupt Enable
+            0x04000201 => self.io_ie.write_high(value),             // Interrupt Enable (high byte)
+            0x04000202 => self.io_if.write_low(value),              // Interrupt Flag
+            0x04000203 => self.io_if.write_high(value),             // Interrupt Flag (high byte)
+            0x04000208 => self.io_ime.write_low(value),             // Interrupt Master Enable
+            0x04000209 => self.io_ime.write_high(value),            // Interrupt Master Enable (high byte)
             0x04000000..=0x040003FE => {
                 error!("Unmapped I/O write: {:02x} to {:08x}", value, addr);
                 self.internal_memory[addr as usize] = value; // Unmapped I/O region

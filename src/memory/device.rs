@@ -43,7 +43,7 @@ pub trait Addressable {
     }
 }
 
-pub struct IoRegister(u16);
+pub struct IoRegister(pub u16);
 
 impl IoRegister {
     pub fn write_high(&mut self, value: u8) {
@@ -60,6 +60,10 @@ impl IoRegister {
 
     pub fn read_low(&self) -> u8 {
         self.0 as u8
+    }
+
+    pub fn value(&self) -> u16 {
+        self.0
     }
 }
 

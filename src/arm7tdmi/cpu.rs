@@ -5,6 +5,7 @@ use super::registers::{Psr, Registers};
 use super::symbolizer::Symbolizer;
 use crate::arm7tdmi::decoder::Opcode;
 use crate::arm7tdmi::handlers::Handlers;
+use crate::memory::device::IoRegister;
 use crate::memory::mmio::Mmio;
 use crate::script::engine::ScriptEngine;
 use spdlog::prelude::*;
@@ -13,20 +14,26 @@ use std::fmt::Display;
 pub struct Cpu {
     pub registers: Registers,
     pub pipeline: Pipeline,
+    pub mmio: Mmio,
     symbolizer: Symbolizer,
 }
 
 impl Cpu {
-    pub fn new(buffer: &[u8]) -> Cpu {
+    pub fn new(buffer: &[u8], mmio: Mmio) -> Cpu {
         Cpu {
             registers: Registers::default(),
             pipeline: Pipeline::new(),
             symbolizer: Symbolizer::new(buffer),
+            mmio,
         }
     }
 
-    pub fn tick(&mut self, mmio: &mut Mmio, script_engine: Option<&mut ScriptEngine>) -> Option<(Instruction, State)> {
-        self.pipeline.advance(self.get_pc(), self.is_thumb(), mmio);
+    pub fn tick(&mut self, script_engine: Option<&mut ScriptEngine>) -> Option<(Instruction, State)> {
+        let IoRegister(ime_value) = self.mmio.io_ime;
+        let IoRegister(if_value) = self.mmio.io_if;
+        let IoRegister(ie_value) = self.mmio.io_ie;
+
+        self.pipeline.advance(self.get_pc(), self.is_thumb(), &mut self.mmio);
         trace!("Pipeline: {}", self.pipeline);
 
         if self.is_thumb() {
@@ -60,20 +67,20 @@ impl Cpu {
             );
 
             if let Some(script_engine) = script_engine {
-                if script_engine.handle_breakpoint(state.pc, self, mmio) {
+                if script_engine.handle_breakpoint(state.pc, self) {
                     trace!("Executed script at breakpoint 0x{:08x}", state.pc);
                 }
             }
 
             match instruction.opcode {
-                Opcode::B | Opcode::Bl | Opcode::Bx => Handlers::branch(&instruction, self, mmio),
-                Opcode::Push | Opcode::Pop => Handlers::push_pop(&instruction, self, mmio),
-                Opcode::Cmp | Opcode::Tst | Opcode::Teq | Opcode::Cmn => Handlers::test(&instruction, self, mmio),
-                Opcode::Mov | Opcode::Mvn => Handlers::move_data(&instruction, self, mmio),
+                Opcode::B | Opcode::Bl | Opcode::Bx => Handlers::branch(&instruction, self),
+                Opcode::Push | Opcode::Pop => Handlers::push_pop(&instruction, self),
+                Opcode::Cmp | Opcode::Tst | Opcode::Teq | Opcode::Cmn => Handlers::test(&instruction, self),
+                Opcode::Mov | Opcode::Mvn => Handlers::move_data(&instruction, self),
                 Opcode::Ldm | Opcode::Stm | Opcode::Ldr | Opcode::Str | Opcode::Swp => {
-                    Handlers::load_store(&instruction, self, mmio)
+                    Handlers::load_store(&instruction, self)
                 }
-                Opcode::Mrs | Opcode::Msr => Handlers::psr_transfer(&instruction, self, mmio),
+                Opcode::Mrs | Opcode::Msr => Handlers::psr_transfer(&instruction, self),
                 Opcode::Add
                 | Opcode::Adc
                 | Opcode::Sub
@@ -94,8 +101,8 @@ impl Cpu {
                 | Opcode::Umull
                 | Opcode::Umlal
                 | Opcode::Smull
-                | Opcode::Smlal => Handlers::alu(&instruction, self, mmio),
-                Opcode::Swi => Handlers::software_interrupt(&instruction, self, mmio),
+                | Opcode::Smlal => Handlers::alu(&instruction, self),
+                Opcode::Swi => Handlers::software_interrupt(&instruction, self),
             }
 
             trace!("\n{}", self);
@@ -109,7 +116,7 @@ impl Cpu {
     #[cfg(feature = "verbose_debug")]
     fn compact_registers(&self) -> String {
         format!(
-            "r0={:08x} r1={:08x} r2={:08x} r3={:08x} r4={:08x} r5={:08x} r6={:08x} r7={:08x} r8={:08x} r9={:08x} r10={:08x} r11={:08x} r12={:08x} sp={:08x} lr={:08x} pc={:08x} cpsr={}",
+            "r0={:08x} r1={:08x} r2={:08x} r3={:08x} r4={:08x} r5={:08x} r6={:08x} r7={:08x} r8={:08x} r9={:08x} r10={:08x} r11={:08x} r12={:08x} sp={:08x} lr={:08x} pc={:08x} cpsr={} ime={} if={:016b} ie={:016b}",
             self.read_register(&Register::R0),
             self.read_register(&Register::R1),
             self.read_register(&Register::R2),
@@ -126,7 +133,14 @@ impl Cpu {
             self.read_register(&Register::R13),
             self.read_register(&Register::R14),
             self.read_register(&Register::R15),
-            self.registers.cpsr
+            self.registers.cpsr,
+            if self.mmio.io_ime.value() != 0 {
+                1
+            } else {
+                0
+            },
+            self.mmio.io_if.value(),
+            self.mmio.io_ie.value(),
         )
     }
 
@@ -344,16 +358,16 @@ impl Cpu {
         self.registers.cpsr.set(flag, value);
     }
 
-    pub fn push_stack(&mut self, mmio: &mut Mmio, value: u32) {
+    pub fn push_stack(&mut self, value: u32) {
         let sp = self.get_sp();
         let addr = sp.wrapping_sub(4);
-        mmio.write_u32(addr, value);
+        self.mmio.write_u32(addr, value);
         self.write_register(&Register::R13, addr);
     }
 
-    pub fn pop_stack(&mut self, mmio: &mut Mmio) -> u32 {
+    pub fn pop_stack(&mut self) -> u32 {
         let sp = self.get_sp();
-        let value = mmio.read_u32(sp);
+        let value = self.mmio.read_u32(sp);
         self.write_register(&Register::R13, sp.wrapping_add(4));
         value
     }

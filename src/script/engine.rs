@@ -127,7 +127,7 @@ impl ScriptEngine {
         }
     }
 
-    pub fn handle_breakpoint(&mut self, address: u32, cpu: &mut Cpu, mmio: &mut Mmio) -> bool {
+    pub fn handle_breakpoint(&mut self, address: u32, cpu: &mut Cpu) -> bool {
         if !self.loaded || !self.breakpoint_handlers.contains_key(&address) {
             return false;
         }
@@ -140,8 +140,7 @@ impl ScriptEngine {
         if let Some(ast) = &self.script {
             let mut scope = Scope::new();
 
-            let cpu = CpuProxy(cpu);
-            let mmio = MmioProxy(mmio);
+            let (cpu, mmio) = (CpuProxy(cpu), MmioProxy(&mut cpu.mmio));
 
             scope.push("cpu", cpu);
             scope.push("mmio", mmio);
