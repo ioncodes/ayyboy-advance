@@ -25,7 +25,7 @@ mod tests {
             if let Some((instr, state)) = cpu.tick(None) {
                 trace.push((state.pc, instr));
             }
-            mmio.tick_components();
+            cpu.mmio.tick_components();
 
             if cpu.registers.r[15] == 0x08001e18 {
                 // arm.gba SWI to extract failed test
@@ -45,7 +45,7 @@ mod tests {
                         println!(
                             "{:08x}: {:032b} -> {}",
                             faulting_pc,
-                            mmio.read_u32(*faulting_pc),
+                            cpu.mmio.read_u32(*faulting_pc),
                             faulting_instr
                         );
                     }

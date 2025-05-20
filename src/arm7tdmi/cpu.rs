@@ -7,6 +7,7 @@ use crate::arm7tdmi::decoder::Opcode;
 use crate::arm7tdmi::handlers::Handlers;
 use crate::memory::device::IoRegister;
 use crate::memory::mmio::Mmio;
+use crate::memory::registers::Interrupt;
 use crate::script::engine::ScriptEngine;
 use spdlog::prelude::*;
 use std::fmt::Display;
@@ -29,9 +30,16 @@ impl Cpu {
     }
 
     pub fn tick(&mut self, script_engine: Option<&mut ScriptEngine>) -> Option<(Instruction, State)> {
-        let IoRegister(_ime_value) = self.mmio.io_ime;
-        let IoRegister(_if_value) = self.mmio.io_if;
-        let IoRegister(_ie_value) = self.mmio.io_ie;
+        let IoRegister(ime_value) = self.mmio.io_ime;
+        let IoRegister(disp_stat) = self.mmio.ppu.disp_stat;
+
+        if ime_value != 0
+            && disp_stat.is_vblank()
+            && self.mmio.io_ie.contains_flags(Interrupt::VBLANK)
+            && self.mmio.io_if.contains_flags(Interrupt::VBLANK)
+        {
+            info!("vblank irq");
+        }
 
         self.pipeline.advance(self.get_pc(), self.is_thumb(), &mut self.mmio);
         trace!("Pipeline: {}", self.pipeline);

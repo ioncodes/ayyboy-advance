@@ -92,16 +92,6 @@ impl IoRegister<u16> {
     }
 }
 
-impl IoRegister<u8> {
-    pub fn write(&mut self, value: u8) {
-        self.0 = value;
-    }
-
-    pub fn read(&self) -> u8 {
-        self.0
-    }
-}
-
 impl<T> IoRegister<T>
 where
     T: Flags<Bits = u16> + Copy,
@@ -120,6 +110,27 @@ where
 
     pub fn contains_flags(&self, flags: T) -> bool {
         self.0.contains(flags)
+    }
+}
+
+impl<T> Addressable for IoRegister<T>
+where
+    T: Flags<Bits = u16> + Copy,
+{
+    fn read(&self, addr: u32) -> u8 {
+        if addr % 2 == 0 {
+            self.0.bits() as u8
+        } else {
+            (self.0.bits() >> 8) as u8
+        }
+    }
+
+    fn write(&mut self, addr: u32, value: u8) {
+        if addr % 2 == 0 {
+            self.0 = T::from_bits_truncate((self.0.bits() & 0x00ff) | ((value as u16) << 8));
+        } else {
+            self.0 = T::from_bits_truncate((self.0.bits() & 0xff00) | (value as u16));
+        }
     }
 }
 

@@ -1,6 +1,7 @@
 use super::device::{Addressable, IoRegister};
 use crate::audio::apu::Apu;
 use crate::input::joypad::Joypad;
+use crate::memory::registers::Interrupt;
 use crate::video::ppu::Ppu;
 use spdlog::prelude::*;
 
@@ -11,9 +12,9 @@ pub struct Mmio {
     pub joypad: Joypad,
     pub apu: Apu,
     // I/O registers
-    pub io_ime: IoRegister, // IME
-    pub io_ie: IoRegister,  // IE
-    pub io_if: IoRegister,  // IF
+    pub io_ime: IoRegister,           // IME
+    pub io_ie: IoRegister<Interrupt>, // IE
+    pub io_if: IoRegister<Interrupt>, // IF
 }
 
 impl Mmio {

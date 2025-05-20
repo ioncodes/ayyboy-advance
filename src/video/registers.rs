@@ -31,6 +31,12 @@ bitflags! {
     }
 }
 
+impl DispStat {
+    pub fn is_vblank(&self) -> bool {
+        self.contains(DispStat::VBLANK_FLAG)
+    }
+}
+
 impl DispCnt {
     pub fn bg_mode(&self) -> u8 {
         (self.bits() & DispCnt::BG_MODE.bits()) as u8

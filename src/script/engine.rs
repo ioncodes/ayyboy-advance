@@ -1,5 +1,4 @@
 use crate::arm7tdmi::cpu::Cpu;
-use crate::memory::mmio::Mmio;
 use rhai::{Dynamic, Engine, Map, Scope, AST};
 use spdlog::prelude::*;
 use std::collections::HashMap;

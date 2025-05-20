@@ -1,7 +1,6 @@
 use super::registers::{DispCnt, DispStat};
 use super::{Frame, SCREEN_HEIGHT, SCREEN_WIDTH};
 use crate::memory::device::{Addressable, IoRegister};
-use crate::memory::mmio::Mmio;
 use spdlog::prelude::*;
 
 pub struct Ppu {
@@ -11,8 +10,8 @@ pub struct Ppu {
     vblank_raised_for_frame: bool,
     // I/O Registers
     pub scanline: IoRegister,
-    disp_stat: IoRegister<DispStat>,
-    disp_cnt: IoRegister<DispCnt>,
+    pub disp_stat: IoRegister<DispStat>,
+    pub disp_cnt: IoRegister<DispCnt>,
 }
 
 impl Ppu {
