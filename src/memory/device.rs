@@ -127,9 +127,9 @@ where
 
     fn write(&mut self, addr: u32, value: u8) {
         if addr % 2 == 0 {
-            self.0 = T::from_bits_truncate((self.0.bits() & 0x00ff) | ((value as u16) << 8));
-        } else {
             self.0 = T::from_bits_truncate((self.0.bits() & 0xff00) | (value as u16));
+        } else {
+            self.0 = T::from_bits_truncate((self.0.bits() & 0x00ff) | ((value as u16) << 8));
         }
     }
 }
