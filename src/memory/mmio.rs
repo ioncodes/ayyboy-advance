@@ -2,7 +2,7 @@ use super::device::{Addressable, IoRegister};
 use crate::audio::apu::Apu;
 use crate::input::joypad::Joypad;
 use crate::memory::registers::Interrupt;
-use crate::video::ppu::Ppu;
+use crate::video::ppu::{Ppu, PpuEvent};
 use spdlog::prelude::*;
 
 pub struct Mmio {
@@ -15,6 +15,7 @@ pub struct Mmio {
     pub io_ime: IoRegister,           // IME
     pub io_ie: IoRegister<Interrupt>, // IE
     pub io_if: IoRegister<Interrupt>, // IF
+    pub io_halt_cnt: IoRegister<u8>,  // HALTCNT
 }
 
 impl Mmio {
@@ -31,11 +32,22 @@ impl Mmio {
             io_ime: IoRegister::default(),
             io_ie: IoRegister::default(),
             io_if: IoRegister::default(),
+            io_halt_cnt: IoRegister(0xff),
         }
     }
 
     pub fn tick_components(&mut self) {
-        self.ppu.tick();
+        let events = self.ppu.tick();
+
+        if events.contains(&PpuEvent::VBlank) {
+            self.io_if.set_flags(Interrupt::VBLANK);
+            trace!("VBLANK interrupt raised");
+        }
+
+        if events.contains(&PpuEvent::HBlank) {
+            self.io_if.set_flags(Interrupt::HBLANK);
+            trace!("HBLANK interrupt raised");
+        }
     }
 
     pub fn read(&self, addr: u32) -> u8 {
@@ -49,6 +61,7 @@ impl Mmio {
             0x04000202..=0x04000203 => self.io_if.read(addr),               // Interrupt Flag
             0x04000208..=0x04000209 => self.io_ime.read(addr),              // Interrupt Master Enable
             0x0400020A..=0x0400020B => self.internal_memory[addr as usize], // Unused
+            0x04000301 => self.io_halt_cnt.read(),                          // HALTCNT
             0x04000000..=0x040003FE => {
                 error!("Unmapped I/O read: {:08x}", addr);
                 self.internal_memory[addr as usize]
@@ -91,6 +104,7 @@ impl Mmio {
             0x04000202..=0x04000203 => self.io_if.write(addr, value), // Interrupt Flag
             0x04000208..=0x04000209 => self.io_ime.write(addr, value), // Interrupt Master Enable
             0x0400020A..=0x0400020B => self.internal_memory[addr as usize] = value, // Unused
+            0x04000301 => self.io_halt_cnt.write(value),            // HALTCNT
             0x04000000..=0x040003FE => {
                 error!("Unmapped I/O write: {:02x} to {:08x}", value, addr);
                 self.internal_memory[addr as usize] = value; // Unmapped I/O region

@@ -3,6 +3,12 @@ use super::{Frame, SCREEN_HEIGHT, SCREEN_WIDTH};
 use crate::memory::device::{Addressable, IoRegister};
 use spdlog::prelude::*;
 
+#[derive(PartialEq)]
+pub enum PpuEvent {
+    VBlank,
+    HBlank,
+}
+
 pub struct Ppu {
     pub h_counter: u16,
     pub vram: Box<[u8; (0x07FFFFFF - 0x05000000) + 1]>,
@@ -30,7 +36,9 @@ impl Ppu {
         }
     }
 
-    pub fn tick(&mut self) {
+    pub fn tick(&mut self) -> Vec<PpuEvent> {
+        let mut events = Vec::new();
+
         self.h_counter += 1;
 
         if self.h_counter == 0 {
@@ -40,6 +48,7 @@ impl Ppu {
         if self.h_counter == 240 {
             self.h_counter = 0;
             self.scanline.0 += 1;
+            events.push(PpuEvent::HBlank);
             self.disp_stat.set_flags(DispStat::HBLANK_FLAG);
         }
 
@@ -50,9 +59,12 @@ impl Ppu {
         }
 
         if self.scanline.0 >= 160 && !self.vblank_raised_for_frame {
-            self.disp_stat.set_flags(DispStat::VBLANK_FLAG);
             self.vblank_raised_for_frame = true;
+            events.push(PpuEvent::VBlank);
+            self.disp_stat.set_flags(DispStat::VBLANK_FLAG);
         }
+
+        events
     }
 
     pub fn get_frame(&self) -> Frame {

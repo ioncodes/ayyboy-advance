@@ -33,17 +33,7 @@ impl Cpu {
     pub fn tick(&mut self, script_engine: Option<&mut ScriptEngine>) -> Option<(Instruction, State)> {
         let IoRegister(ime_value) = self.mmio.io_ime;
         let IoRegister(disp_stat) = self.mmio.ppu.disp_stat;
-
-        // we do this here since we cant pass mmio to ppu, will fix later
-        if disp_stat.is_vblank() {
-            trace!("VBLANK interrupt raised");
-            self.mmio.io_if.set(Interrupt::VBLANK);
-        }
-
-        if disp_stat.is_hblank() {
-            trace!("HBLANK interrupt raised");
-            self.mmio.io_if.set(Interrupt::HBLANK);
-        }
+        let IoRegister(halt_cnt) = self.mmio.io_halt_cnt;
 
         let vblank_available = self.mmio.io_if.contains_flags(Interrupt::VBLANK)
             && self.mmio.io_ie.contains_flags(Interrupt::VBLANK)
@@ -54,23 +44,37 @@ impl Cpu {
 
         if ime_value != 0 && (vblank_available || hblank_available) && !self.registers.cpsr.contains(Psr::I) {
             trace!("IRQ available, switching to IRQ mode");
+
+            // copy CPSR to SPSR and switch to IRQ mode
+            self.write_to_spsr(ProcessorMode::Irq, self.registers.cpsr);
             self.set_processor_mode(ProcessorMode::Irq);
 
+            // write LR and jump to IRQ vector
             self.write_register(
                 &Register::R14,
                 if self.is_thumb() {
-                    self.get_pc() | 1
+                    self.get_pc() + 2
                 } else {
-                    self.get_pc() - 4
+                    self.get_pc()
                 },
             );
             self.write_register(&Register::R15, 0x18);
 
+            // disable interrupts and switch to ARM
             self.registers.cpsr.set(Psr::I, true);
             self.registers.cpsr.set(Psr::T, false);
 
             self.pipeline.flush();
 
+            // allow cpu to continue
+            self.mmio.io_halt_cnt.set(0xff);
+
+            return None;
+        }
+
+        // TODO: 0x80 is STOP MODE, it should be handled differently
+        if halt_cnt == 0 {
+            trace!("CPU is halted");
             return None;
         }
 

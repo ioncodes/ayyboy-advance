@@ -93,6 +93,16 @@ impl IoRegister<u16> {
     }
 }
 
+impl IoRegister<u8> {
+    pub fn write(&mut self, value: u8) {
+        self.0 = value;
+    }
+
+    pub fn read(&self) -> u8 {
+        self.0
+    }
+}
+
 impl<T> IoRegister<T>
 where
     T: Flags<Bits = u16> + Copy,

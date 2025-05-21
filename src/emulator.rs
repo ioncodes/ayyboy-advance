@@ -213,8 +213,9 @@ impl Emulator {
                 *tick = false;
             }
             executed_instr = Some(instr);
-            self.current_cycles += 1; // TODO: actually track it
         }
+
+        self.current_cycles += 1; // TODO: actually track it
 
         if self.current_cycles > 5 {
             self.current_cycles = 0;
