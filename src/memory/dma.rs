@@ -1,5 +1,7 @@
 use std::fmt::Display;
 
+use spdlog::trace;
+
 use super::device::Addressable;
 use super::registers::{DmaControl, MappedRegister16, MappedRegister32};
 
@@ -103,7 +105,7 @@ impl Display for Dma {
         for (i, channel) in self.channels.iter().enumerate() {
             write!(
                 f,
-                "\nChannel {} = src: {:032b}, dst: {:032b}, cnt: {:016b}, ctl: {:016b}",
+                "\nChannel {} = src: {:08x}, dst: {:08x}, cnt: {:04x}, ctl: {:016b}",
                 i,
                 channel.src.value(),
                 channel.dst.value(),
