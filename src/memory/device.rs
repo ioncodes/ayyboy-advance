@@ -1,4 +1,5 @@
 use bitflags::Flags;
+use spdlog::trace;
 
 #[allow(dead_code)]
 pub trait Addressable {
@@ -126,6 +127,23 @@ where
     }
 
     fn write(&mut self, addr: u32, value: u8) {
+        // Interrupts must be manually acknowledged by writing a "1" to one of the IRQ bits, the IRQ bit will then be cleared.
+        match addr {
+            0x4000202 => {
+                let ack = value as u16;
+                self.0 = T::from_bits_truncate(self.0.bits() & !ack);
+                trace!("Acknowledged interrupt, IF now: {:04x}", self.0.bits());
+                return;
+            }
+            0x4000203 => {
+                let ack = (value as u16) << 8;
+                self.0 = T::from_bits_truncate(self.0.bits() & !ack);
+                trace!("Acknowledged interrupt, IF now: {:04x}", self.0.bits());
+                return;
+            }
+            _ => {}
+        }
+
         if addr % 2 == 0 {
             self.0 = T::from_bits_truncate((self.0.bits() & 0xff00) | (value as u16));
         } else {

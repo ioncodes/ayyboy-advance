@@ -9,6 +9,7 @@ use crate::memory::device::IoRegister;
 use crate::memory::mmio::Mmio;
 use crate::memory::registers::Interrupt;
 use crate::script::engine::ScriptEngine;
+use crate::video::registers::DispStat;
 use spdlog::prelude::*;
 use std::fmt::Display;
 
@@ -33,10 +34,44 @@ impl Cpu {
         let IoRegister(ime_value) = self.mmio.io_ime;
         let IoRegister(disp_stat) = self.mmio.ppu.disp_stat;
 
-        if ime_value != 0 && disp_stat.is_vblank() && self.mmio.io_ie.contains_flags(Interrupt::VBLANK) {
-            self.mmio.io_if.set_flags(Interrupt::VBLANK);
+        // we do this here since we cant pass mmio to ppu, will fix later
+        if disp_stat.is_vblank() {
             trace!("VBLANK interrupt raised");
-            // TODO: handle interrupt
+            self.mmio.io_if.set(Interrupt::VBLANK);
+        }
+
+        if disp_stat.is_hblank() {
+            trace!("HBLANK interrupt raised");
+            self.mmio.io_if.set(Interrupt::HBLANK);
+        }
+
+        let vblank_available = self.mmio.io_if.contains_flags(Interrupt::VBLANK)
+            && self.mmio.io_ie.contains_flags(Interrupt::VBLANK)
+            && disp_stat.contains(DispStat::VBLANK_IRQ_ENABLE);
+        let hblank_available = self.mmio.io_if.contains_flags(Interrupt::HBLANK)
+            && self.mmio.io_ie.contains_flags(Interrupt::HBLANK)
+            && disp_stat.contains(DispStat::HBLANK_IRQ_ENABLE);
+
+        if ime_value != 0 && (vblank_available || hblank_available) && !self.registers.cpsr.contains(Psr::I) {
+            trace!("IRQ available, switching to IRQ mode");
+            self.set_processor_mode(ProcessorMode::Irq);
+
+            self.write_register(
+                &Register::R14,
+                if self.is_thumb() {
+                    self.get_pc() | 1
+                } else {
+                    self.get_pc() - 4
+                },
+            );
+            self.write_register(&Register::R15, 0x18);
+
+            self.registers.cpsr.set(Psr::I, true);
+            self.registers.cpsr.set(Psr::T, false);
+
+            self.pipeline.flush();
+
+            return None;
         }
 
         self.pipeline.advance(self.get_pc(), self.is_thumb(), &mut self.mmio);
@@ -434,14 +469,12 @@ impl Cpu {
                 error!("Attempted to read from User/System SPSR");
                 self.registers.cpsr
             }
-            _ => match mode {
-                ProcessorMode::Fiq => self.registers.spsr[0],
-                ProcessorMode::Supervisor => self.registers.spsr[1],
-                ProcessorMode::Abort => self.registers.spsr[2],
-                ProcessorMode::Irq => self.registers.spsr[3],
-                ProcessorMode::Undefined => self.registers.spsr[4],
-                _ => todo!(),
-            },
+            ProcessorMode::Fiq => self.registers.spsr[0],
+            ProcessorMode::Supervisor => self.registers.spsr[1],
+            ProcessorMode::Abort => self.registers.spsr[2],
+            ProcessorMode::Irq => self.registers.spsr[3],
+            ProcessorMode::Undefined => self.registers.spsr[4],
+            _ => todo!(),
         }
     }
 

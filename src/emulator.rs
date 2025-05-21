@@ -25,6 +25,7 @@ pub struct Emulator {
     pub display_tx: Sender<Frame>,
     pub dbg_req_rx: Receiver<RequestEvent>,
     pub dbg_resp_tx: Sender<ResponseEvent>,
+    current_cycles: usize,
 }
 
 impl Emulator {
@@ -81,6 +82,7 @@ impl Emulator {
             display_tx,
             dbg_req_rx,
             dbg_resp_tx,
+            current_cycles: 0,
         }
     }
 
@@ -211,9 +213,13 @@ impl Emulator {
                 *tick = false;
             }
             executed_instr = Some(instr);
+            self.current_cycles += 1; // TODO: actually track it
         }
 
-        self.cpu.mmio.tick_components();
+        if self.current_cycles > 5 {
+            self.current_cycles = 0;
+            self.cpu.mmio.tick_components();
+        }
 
         executed_instr
     }

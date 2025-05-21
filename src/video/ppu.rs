@@ -33,9 +33,14 @@ impl Ppu {
     pub fn tick(&mut self) {
         self.h_counter += 1;
 
+        if self.h_counter == 0 {
+            self.disp_stat.clear_flags(DispStat::HBLANK_FLAG);
+        }
+
         if self.h_counter == 240 {
             self.h_counter = 0;
             self.scanline.0 += 1;
+            self.disp_stat.set_flags(DispStat::HBLANK_FLAG);
         }
 
         if self.scanline.0 == 228 {

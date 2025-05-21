@@ -42,12 +42,13 @@ impl Mmio {
         trace!("Reading from {:08x}", addr);
 
         match addr {
-            0x04000000..=0x04000056 => self.ppu.read(addr),    // PPU I/O
-            0x04000080..=0x0400008E => self.apu.read(addr),    // APU I/O
-            0x04000130..=0x04000133 => self.joypad.read(addr), // Joypad I/O
-            0x04000200..=0x04000201 => self.io_ie.read(addr),  // Interrupt Enable
-            0x04000202..=0x04000203 => self.io_if.read(addr),  // Interrupt Flag
-            0x04000208..=0x04000209 => self.io_ime.read(addr), // Interrupt Master Enable
+            0x04000000..=0x04000056 => self.ppu.read(addr),                 // PPU I/O
+            0x04000080..=0x0400008E => self.apu.read(addr),                 // APU I/O
+            0x04000130..=0x04000133 => self.joypad.read(addr),              // Joypad I/O
+            0x04000200..=0x04000201 => self.io_ie.read(addr),               // Interrupt Enable
+            0x04000202..=0x04000203 => self.io_if.read(addr),               // Interrupt Flag
+            0x04000208..=0x04000209 => self.io_ime.read(addr),              // Interrupt Master Enable
+            0x0400020A..=0x0400020B => self.internal_memory[addr as usize], // Unused
             0x04000000..=0x040003FE => {
                 error!("Unmapped I/O read: {:08x}", addr);
                 self.internal_memory[addr as usize]
@@ -89,6 +90,7 @@ impl Mmio {
             0x04000200..=0x04000201 => self.io_ie.write(addr, value), // Interrupt Enable
             0x04000202..=0x04000203 => self.io_if.write(addr, value), // Interrupt Flag
             0x04000208..=0x04000209 => self.io_ime.write(addr, value), // Interrupt Master Enable
+            0x0400020A..=0x0400020B => self.internal_memory[addr as usize] = value, // Unused
             0x04000000..=0x040003FE => {
                 error!("Unmapped I/O write: {:02x} to {:08x}", value, addr);
                 self.internal_memory[addr as usize] = value; // Unmapped I/O region

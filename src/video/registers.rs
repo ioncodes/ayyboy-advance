@@ -35,6 +35,14 @@ impl DispStat {
     pub fn is_vblank(&self) -> bool {
         self.contains(DispStat::VBLANK_FLAG)
     }
+
+    pub fn is_hblank(&self) -> bool {
+        self.contains(DispStat::HBLANK_FLAG)
+    }
+
+    pub fn is_vcounter(&self) -> bool {
+        self.contains(DispStat::VCOUNTER_FLAG)
+    }
 }
 
 impl DispCnt {
