@@ -1,9 +1,6 @@
-use std::fmt::Display;
-
-use spdlog::trace;
-
 use super::device::Addressable;
 use super::registers::{DmaControl, MappedRegister16, MappedRegister32};
+use std::fmt::Display;
 
 #[derive(PartialEq, Clone, Copy)]
 pub struct TransferChannel {
@@ -11,6 +8,29 @@ pub struct TransferChannel {
     pub dst: MappedRegister32,
     pub cnt: MappedRegister16,
     pub ctl: MappedRegister16,
+}
+
+impl TransferChannel {
+    pub fn is_enabled(&self) -> bool {
+        self.ctl.value_as::<DmaControl>().contains(DmaControl::ENABLE)
+    }
+
+    pub fn transfer_size(&self, channel: usize) -> u16 {
+        let cnt = self.cnt.value_as::<DmaControl>();
+        let size = if cnt.contains(DmaControl::DMA_TRANFER_TYPE) {
+            4
+        } else {
+            2
+        };
+
+        let max_size = if channel == 3 { 0xFFFF } else { 0x3FFF };
+        let count = (self.cnt.value() & max_size) * size;
+        if count == 0 {
+            max_size
+        } else {
+            count
+        }
+    }
 }
 
 impl Default for TransferChannel {
@@ -39,17 +59,6 @@ impl Dma {
                 TransferChannel::default(),
             ],
         }
-    }
-
-    pub fn is_channel_enabled(&self, channel: usize) -> bool {
-        if channel >= self.channels.len() {
-            panic!("Invalid DMA channel: {}", channel);
-        }
-
-        self.channels[channel]
-            .cnt
-            .value_as::<DmaControl>()
-            .contains(DmaControl::ENABLE)
     }
 }
 

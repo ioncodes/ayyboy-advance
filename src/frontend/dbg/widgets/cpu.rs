@@ -2,7 +2,6 @@ use crate::arm7tdmi::registers::Psr;
 use crate::frontend::dbg::tracked_value::TrackedValue;
 use crate::frontend::event::RequestEvent;
 use crate::memory::dma::Dma;
-use crate::memory::registers::DmaControl;
 use crossbeam_channel::Sender;
 use egui::{Color32, ComboBox, Context, RichText, TextEdit, Window};
 
@@ -45,6 +44,7 @@ impl CpuWidget {
             reg.set(cpu.registers[i]);
         });
         self.cpu.cpsr.set(cpu.cpsr);
+        self.cpu.dma.set(cpu.dma);
     }
 
     pub fn render(&mut self, ctx: &Context) {
@@ -167,26 +167,17 @@ impl CpuWidget {
                 ui.horizontal(|ui| {
                     ui.label(
                         RichText::new(format!(
-                            "DMA{} SRC: {:08x}",
+                            "DMA{}: {:08x} -> {:08x}, {:04x} bytes",
                             i,
-                            self.cpu.dma.get().channels[i].src.value()
-                        ))
-                        .monospace(),
-                    );
-                    ui.label(
-                        RichText::new(format!(
-                            "DMA{} DST: {:08x}",
-                            i,
-                            self.cpu.dma.get().channels[i].dst.value()
+                            self.cpu.dma.get().channels[i].src.value(),
+                            self.cpu.dma.get().channels[i].dst.value(),
+                            self.cpu.dma.get().channels[i].transfer_size(i)
                         ))
                         .monospace(),
                     );
                     ui.checkbox(
-                        &mut self.cpu.dma.get().channels[i]
-                            .ctl
-                            .value_as::<DmaControl>()
-                            .contains(DmaControl::ENABLE),
-                        RichText::new(format!("DMA{} Enable", i)).monospace(),
+                        &mut self.cpu.dma.get().channels[i].is_enabled(),
+                        RichText::new("Enabled").monospace(),
                     );
                 });
             }
