@@ -1,6 +1,8 @@
 use crate::arm7tdmi::registers::Psr;
 use crate::frontend::dbg::tracked_value::TrackedValue;
 use crate::frontend::event::RequestEvent;
+use crate::memory::dma::Dma;
+use crate::memory::registers::DmaControl;
 use crossbeam_channel::Sender;
 use egui::{Color32, ComboBox, Context, RichText, TextEdit, Window};
 
@@ -8,11 +10,13 @@ use egui::{Color32, ComboBox, Context, RichText, TextEdit, Window};
 pub struct TrackedCpu {
     registers: [TrackedValue<u32>; 16],
     cpsr: TrackedValue<Psr>,
+    dma: TrackedValue<Dma>,
 }
 
 pub struct Cpu {
     pub registers: [u32; 16],
     pub cpsr: Psr,
+    pub dma: Dma,
 }
 
 pub struct CpuWidget {
@@ -156,6 +160,36 @@ impl CpuWidget {
             } else {
                 RichText::new(format!("CPSR: {:032b} ({})", self.cpu.cpsr.get(), self.cpu.cpsr.get())).monospace()
             });
+
+            ui.separator();
+
+            for i in 0..4 {
+                ui.horizontal(|ui| {
+                    ui.label(
+                        RichText::new(format!(
+                            "DMA{} SRC: {:08x}",
+                            i,
+                            self.cpu.dma.get().channels[i].src.value()
+                        ))
+                        .monospace(),
+                    );
+                    ui.label(
+                        RichText::new(format!(
+                            "DMA{} DST: {:08x}",
+                            i,
+                            self.cpu.dma.get().channels[i].dst.value()
+                        ))
+                        .monospace(),
+                    );
+                    ui.checkbox(
+                        &mut self.cpu.dma.get().channels[i]
+                            .ctl
+                            .value_as::<DmaControl>()
+                            .contains(DmaControl::ENABLE),
+                        RichText::new(format!("DMA{} Enable", i)).monospace(),
+                    );
+                });
+            }
         });
     }
 }

@@ -1,4 +1,5 @@
 use super::device::{Addressable, IoRegister};
+use super::dma::Dma;
 use crate::audio::apu::Apu;
 use crate::input::joypad::Joypad;
 use crate::memory::registers::Interrupt;
@@ -11,6 +12,7 @@ pub struct Mmio {
     pub ppu: Ppu,
     pub joypad: Joypad,
     pub apu: Apu,
+    pub dma: Dma,
     // I/O registers
     pub io_ime: IoRegister,           // IME
     pub io_ie: IoRegister<Interrupt>, // IE
@@ -29,6 +31,7 @@ impl Mmio {
             ppu: Ppu::new(),
             joypad: Joypad::new(),
             apu: Apu::new(),
+            dma: Dma::new(),
             io_ime: IoRegister::default(),
             io_ie: IoRegister::default(),
             io_if: IoRegister::default(),
@@ -56,6 +59,7 @@ impl Mmio {
         match addr {
             0x04000000..=0x04000056 => self.ppu.read(addr),                 // PPU I/O
             0x04000080..=0x0400008E => self.apu.read(addr),                 // APU I/O
+            0x040000B0..=0x040000E0 => self.dma.read(addr),                 // DMA I/O
             0x04000130..=0x04000133 => self.joypad.read(addr),              // Joypad I/O
             0x04000200..=0x04000201 => self.io_ie.read(addr),               // Interrupt Enable
             0x04000202..=0x04000203 => self.io_if.read(addr),               // Interrupt Flag
@@ -99,6 +103,7 @@ impl Mmio {
             0x00000000..=0x00003FFF => error!("Writing to BIOS: {:02x} to {:08x}", value, addr),
             0x04000000..=0x04000056 => self.ppu.write(addr, value), // PPU I/O
             0x04000080..=0x0400008E => self.apu.write(addr, value), // APU I/O
+            0x040000B0..=0x040000E0 => self.dma.write(addr, value), // DMA I/O
             0x04000130..=0x04000133 => self.joypad.write(addr, value), // Joypad I/O
             0x04000200..=0x04000201 => self.io_ie.write(addr, value), // Interrupt Enable
             0x04000202..=0x04000203 => self.io_if.write(addr, value), // Interrupt Flag

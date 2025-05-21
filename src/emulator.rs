@@ -126,6 +126,7 @@ impl Emulator {
                     let _ = self.dbg_resp_tx.send(ResponseEvent::Cpu(widgets::cpu::Cpu {
                         registers: self.cpu.registers.r,
                         cpsr: self.cpu.registers.cpsr,
+                        dma: self.cpu.mmio.dma,
                     }));
                     EventResult::None
                 }

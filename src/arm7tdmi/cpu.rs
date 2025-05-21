@@ -530,7 +530,7 @@ impl Display for Cpu {
         )?;
         write!(
             f,
-            "spsr[0]: {}{{{},{}}}\nspsr[1]: {}{{{},{}}}\nspsr[2]: {}{{{},{}}}\nspsr[3]: {}{{{},{}}}\nspsr[4]: {}{{{},{}}}",
+            "spsr[0]: {}{{{},{}}}\nspsr[1]: {}{{{},{}}}\nspsr[2]: {}{{{},{}}}\nspsr[3]: {}{{{},{}}}\nspsr[4]: {}{{{},{}}}\n",
             self.registers.spsr[0],
             if self.registers.spsr[0].contains(Psr::T) { "Thumb" } else { "Arm" },
             self.registers.spsr[0].mode(),
@@ -546,6 +546,20 @@ impl Display for Cpu {
             self.registers.spsr[4],
             if self.registers.spsr[4].contains(Psr::T) { "Thumb" } else { "Arm" },
             self.registers.spsr[4].mode()
-        )
+        )?;
+        write!(
+            f,
+            "ime: {} if: {:016b} ie: {:016b}\n",
+            if *self.mmio.io_ime.value() != 0 { 1 } else { 0 },
+            self.mmio.io_if.value(),
+            self.mmio.io_ie.value()
+        )?;
+        write!(
+            f,
+            "halt_cnt: {:08b} disp_stat: {:08b}\n",
+            self.mmio.io_halt_cnt.value(),
+            self.mmio.ppu.disp_stat.value()
+        )?;
+        write!(f, "{}", self.mmio.dma)
     }
 }
