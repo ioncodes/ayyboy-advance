@@ -92,6 +92,11 @@ impl MappedRegister16 {
         }
     }
 
+    pub fn set(&mut self, value: u16) {
+        self.0 = (value & 0x00FF) as u8;
+        self.1 = ((value >> 8) & 0x00FF) as u8;
+    }
+
     pub fn value(&self) -> u16 {
         (self.0 as u16) | ((self.1 as u16) << 8)
     }

@@ -102,7 +102,7 @@ impl Emulator {
             }
 
             if tick || step {
-                self.do_step(&mut tick);
+                self.do_tick(&mut tick);
             }
 
             if step {
@@ -111,6 +111,7 @@ impl Emulator {
 
             if self.cpu.mmio.ppu.scanline.0 == 160 && !frame_rendered {
                 let _ = self.display_tx.send(self.cpu.mmio.ppu.get_frame());
+                println!("Frame sent");
                 frame_rendered = true;
             } else if self.cpu.mmio.ppu.scanline.0 == 0 && frame_rendered {
                 frame_rendered = false;
@@ -192,14 +193,6 @@ impl Emulator {
                 }
             })
             .unwrap_or(EventResult::None)
-    }
-
-    fn do_step(&mut self, tick: &mut bool) {
-        loop {
-            if let Some(_) = self.do_tick(tick) {
-                break;
-            }
-        }
     }
 
     fn do_tick(&mut self, tick: &mut bool) -> Option<Instruction> {

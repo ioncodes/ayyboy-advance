@@ -1,21 +1,33 @@
 use super::device::Addressable;
+use super::mmio::Mmio;
 use super::registers::{DmaControl, MappedRegister16, MappedRegister32};
 use std::fmt::Display;
 
-#[derive(PartialEq, Clone, Copy)]
+#[derive(Default, PartialEq, Clone, Copy)]
 pub struct TransferChannel {
     pub src: MappedRegister32,
     pub dst: MappedRegister32,
     pub cnt: MappedRegister16,
     pub ctl: MappedRegister16,
+    id: usize,
 }
 
 impl TransferChannel {
+    pub fn new(id: usize) -> Self {
+        TransferChannel {
+            src: MappedRegister32::default(),
+            dst: MappedRegister32::default(),
+            cnt: MappedRegister16::default(),
+            ctl: MappedRegister16::default(),
+            id,
+        }
+    }
+
     pub fn is_enabled(&self) -> bool {
         self.ctl.value_as::<DmaControl>().contains(DmaControl::ENABLE)
     }
 
-    pub fn transfer_size(&self, channel: usize) -> u16 {
+    pub fn transfer_size(&self) -> u16 {
         let cnt = self.cnt.value_as::<DmaControl>();
         let size = if cnt.contains(DmaControl::DMA_TRANFER_TYPE) {
             4
@@ -23,23 +35,12 @@ impl TransferChannel {
             2
         };
 
-        let max_size = if channel == 3 { 0xFFFF } else { 0x3FFF };
+        let max_size = if self.id == 3 { 0xFFFF } else { 0x3FFF };
         let count = (self.cnt.value() & max_size) * size;
         if count == 0 {
             max_size
         } else {
             count
-        }
-    }
-}
-
-impl Default for TransferChannel {
-    fn default() -> Self {
-        TransferChannel {
-            src: MappedRegister32::default(),
-            dst: MappedRegister32::default(),
-            cnt: MappedRegister16::default(),
-            ctl: MappedRegister16::default(),
         }
     }
 }
@@ -53,10 +54,10 @@ impl Dma {
     pub fn new() -> Self {
         Dma {
             channels: [
-                TransferChannel::default(),
-                TransferChannel::default(),
-                TransferChannel::default(),
-                TransferChannel::default(),
+                TransferChannel::new(0),
+                TransferChannel::new(1),
+                TransferChannel::new(2),
+                TransferChannel::new(3),
             ],
         }
     }
@@ -81,7 +82,7 @@ impl Addressable for Dma {
             0x040000D8..=0x040000DB => self.channels[3].dst.read(addr - 0x040000D8),
             0x040000DC..=0x040000DD => self.channels[3].cnt.read(addr - 0x040000DC),
             0x040000DE..=0x040000DF => self.channels[3].ctl.read(addr - 0x040000DE),
-            _ => panic!("Invalid DMA address: {:#X}", addr),
+            _ => panic!("Invalid DMA address: {:08x}", addr),
         }
     }
 
@@ -103,7 +104,7 @@ impl Addressable for Dma {
             0x040000D8..=0x040000DB => self.channels[3].dst.write(addr - 0x040000D8, value),
             0x040000DC..=0x040000DD => self.channels[3].cnt.write(addr - 0x040000DC, value),
             0x040000DE..=0x040000DF => self.channels[3].ctl.write(addr - 0x040000DE, value),
-            _ => panic!("Invalid DMA address: {:#X}", addr),
+            _ => panic!("Invalid DMA address: {:08x}", addr),
         }
     }
 }
