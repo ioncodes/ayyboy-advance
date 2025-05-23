@@ -63,6 +63,11 @@ impl Mmio {
 
                 let src = self.dma.channels[channel].src.value();
                 let dst = self.dma.channels[channel].dst.value();
+                if dst == 0x040000A0 || dst == 0x040000A4 {
+                    // TODO: WE SKIP SOUND DMA FOR NOW
+                    continue;
+                }
+
                 let size = self.dma.channels[channel].transfer_size();
 
                 // transfer it at once
