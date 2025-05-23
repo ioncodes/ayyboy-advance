@@ -522,23 +522,20 @@ impl Instruction {
                 let src = Register::from(y)?;
                 let is_load = l == 1;
 
-                let offset = if i == 1 {
-                    // Immediate Operand
-                    let z = z & 0b1111;
-                    Operand::Immediate(z, None)
+                let (operand1, operand2, operand3) = if i == 0 {
+                    // Register Offset
+                    (
+                        Some(Operand::Register(Register::from(x)?, None)),
+                        Some(Operand::Register(Register::from(y)?, None)),
+                        Some(Operand::Register(Register::from(z)?, None)),
+                    )
                 } else {
-                    // Register Operand 2
-                    let shift_amount = (z & 0b1111_1000_0000) >> 7;
-                    let shift_type = (z & 0b0000_0110_0000) >> 5;
-
-                    if shift_amount == 0 {
-                        Operand::Register(Register::from(z)?, None)
-                    } else {
-                        Operand::Register(
-                            Register::from(z)?,
-                            Some(ShiftType::from(shift_type, ShiftSource::Immediate(shift_amount))?),
-                        )
-                    }
+                    // Immediate Offset
+                    (
+                        Some(Operand::Register(Register::from(x)?, None)),
+                        Some(Operand::Register(Register::from(y)?, None)),
+                        Some(Operand::Immediate((o << 4) | z, None)),
+                    )
                 };
 
                 // "In the case of post-indexed addressing, the write back bit is redundant and
@@ -550,9 +547,9 @@ impl Instruction {
                     opcode: if is_load { Opcode::Ldr } else { Opcode::Str },
                     condition,
                     set_psr_flags: false,
-                    operand1: Some(Operand::Register(dst, None)),
-                    operand2: Some(Operand::Register(src, None)),
-                    operand3: Some(offset),
+                    operand1,
+                    operand2,
+                    operand3,
                     transfer_length: match (s, h) {
                         (0, 1) => Some(TransferLength::HalfWord), // unsigned
                         (1, 0) => Some(TransferLength::Byte),     // signed
