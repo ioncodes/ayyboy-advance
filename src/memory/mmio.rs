@@ -59,13 +59,19 @@ impl Mmio {
     pub fn transfer_dma(&mut self) {
         for channel in 0..4 {
             if self.dma.channels[channel].is_enabled() {
+                trace!("DMA transfer on channel {}", channel);
+
                 let src = self.dma.channels[channel].src.value();
                 let dst = self.dma.channels[channel].dst.value();
                 let size = self.dma.channels[channel].transfer_size();
+
+                // transfer it at once
                 for i in 0..size {
                     let value = self.read(src + i as u32);
                     self.write(dst + i as u32, value);
                 }
+
+                // disable the DMA channel
                 self.dma.channels[channel]
                     .ctl
                     .set(self.dma.channels[channel].ctl.value() & !DmaControl::ENABLE.bits());

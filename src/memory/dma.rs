@@ -1,5 +1,4 @@
 use super::device::Addressable;
-use super::mmio::Mmio;
 use super::registers::{DmaControl, MappedRegister16, MappedRegister32};
 use std::fmt::Display;
 

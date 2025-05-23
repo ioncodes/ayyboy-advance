@@ -9,6 +9,7 @@ pub enum MemoryView {
     Bios,
     OnboardWram,
     OnchipWram,
+    IoRegisters,
     PaletteRam,
     Vram,
     Oam,
@@ -22,6 +23,7 @@ impl std::fmt::Display for MemoryView {
             MemoryView::Bios => write!(f, "BIOS"),
             MemoryView::OnboardWram => write!(f, "On-board WRAM"),
             MemoryView::OnchipWram => write!(f, "On-chip WRAM"),
+            MemoryView::IoRegisters => write!(f, "I/O Registers"),
             MemoryView::PaletteRam => write!(f, "Palette RAM"),
             MemoryView::Vram => write!(f, "VRAM"),
             MemoryView::Oam => write!(f, "OAM - OBJ Attributes"),
@@ -37,6 +39,7 @@ impl MemoryView {
             MemoryView::Bios => 0x00000000..=0x00003FFF,
             MemoryView::OnboardWram => 0x02000000..=0x0203FFFF,
             MemoryView::OnchipWram => 0x03000000..=0x03007FFF,
+            MemoryView::IoRegisters => 0x04000000..=0x040003FE,
             MemoryView::PaletteRam => 0x05000000..=0x050003FF,
             MemoryView::Vram => 0x06000000..=0x06017FFF,
             MemoryView::Oam => 0x07000000..=0x070003FF,
@@ -87,6 +90,7 @@ impl MemoryWidget {
                             ui.selectable_value(&mut self.memory_view, MemoryView::Bios, "BIOS");
                             ui.selectable_value(&mut self.memory_view, MemoryView::OnboardWram, "On-board WRAM");
                             ui.selectable_value(&mut self.memory_view, MemoryView::OnchipWram, "On-chip WRAM");
+                            ui.selectable_value(&mut self.memory_view, MemoryView::IoRegisters, "I/O Registers");
                             ui.selectable_value(&mut self.memory_view, MemoryView::PaletteRam, "Palette RAM");
                             ui.selectable_value(&mut self.memory_view, MemoryView::Vram, "VRAM");
                             ui.selectable_value(&mut self.memory_view, MemoryView::Oam, "OAM - OBJ Attributes");

@@ -111,7 +111,6 @@ impl Emulator {
 
             if self.cpu.mmio.ppu.scanline.0 == 160 && !frame_rendered {
                 let _ = self.display_tx.send(self.cpu.mmio.ppu.get_frame());
-                println!("Frame sent");
                 frame_rendered = true;
             } else if self.cpu.mmio.ppu.scanline.0 == 0 && frame_rendered {
                 frame_rendered = false;

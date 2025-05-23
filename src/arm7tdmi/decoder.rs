@@ -739,45 +739,12 @@ impl Instruction {
                 let condition = Condition::from(c)?;
                 let base_register = Register::from(b)?;
 
-                /*
-                    lilyu — Today at 5:18 PM
-                    STMDB and LDMIA with SP as the base register have the aliases PUSH and POP respectively
-                */
-
-                let (opcode, operand1, operand2) = if l == 0 && base_register == Register::R13 {
-                    (
-                        Opcode::Push,
-                        Some(Operand::RegisterList(Instruction::extract_register_list(r)?)),
-                        None,
-                    )
-                } else if l == 1 && base_register == Register::R13 {
-                    (
-                        Opcode::Pop,
-                        Some(Operand::RegisterList(Instruction::extract_register_list(r)?)),
-                        None,
-                    )
-                } else {
-                    if l == 0 {
-                        (
-                            Opcode::Stm,
-                            Some(Operand::Register(base_register, None)),
-                            Some(Operand::RegisterList(Instruction::extract_register_list(r)?)),
-                        )
-                    } else {
-                        (
-                            Opcode::Ldm,
-                            Some(Operand::Register(base_register, None)),
-                            Some(Operand::RegisterList(Instruction::extract_register_list(r)?)),
-                        )
-                    }
-                };
-
                 Ok(Instruction {
-                    opcode,
+                    opcode: if l == 1 { Opcode::Ldm } else { Opcode::Stm },
                     condition,
                     set_psr_flags: s == 1,
-                    operand1,
-                    operand2,
+                    operand1: Some(Operand::Register(base_register, None)),
+                    operand2: Some(Operand::RegisterList(Instruction::extract_register_list(r)?)),
                     indexing: if p == 1 {
                         Some(Indexing::Pre)
                     } else {

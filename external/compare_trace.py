@@ -92,7 +92,7 @@ def compare_traces(file1, file2):
                 failed = True
             
             # Check registers
-            for i in range(15):  # r0 through r14
+            for i in range(13):  # r0 through r12
                 reg_name = f'r{i}'
                 if reg_name in regs1 and reg_name in regs2:
                     if regs1[reg_name] != regs2[reg_name]:

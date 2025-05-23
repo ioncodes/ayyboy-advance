@@ -97,6 +97,8 @@ impl Ppu {
     }
 
     fn render_background_mode3(&self, base_addr: u32) -> Frame {
+        trace!("Rendering background mode 3 @ {:08x}", base_addr);
+
         let mut frame = [[(0, 0, 0); SCREEN_WIDTH]; SCREEN_HEIGHT];
 
         for y in 0..SCREEN_HEIGHT {
@@ -118,6 +120,8 @@ impl Ppu {
     }
 
     fn render_background_mode4(&self, base_addr: u32) -> Frame {
+        trace!("Rendering background mode 4 @ {:08x}", base_addr);
+
         let mut frame = [[(0, 0, 0); SCREEN_WIDTH]; SCREEN_HEIGHT];
 
         for y in 0..SCREEN_HEIGHT {
@@ -143,7 +147,7 @@ impl Ppu {
 impl Addressable for Ppu {
     fn read(&self, addr: u32) -> u8 {
         match addr {
-            0x04000000..=0x04000001 => self.disp_cnt.read(addr),  // DISPCTRL
+            0x04000000..=0x04000001 => self.disp_cnt.read(addr),  // DISPCNT
             0x04000004..=0x04000005 => self.disp_stat.read(addr), // DISPSTAT
             0x04000006..=0x04000007 => self.scanline.read(addr),  // VCOUNT
             // rest of the registers
@@ -155,7 +159,7 @@ impl Addressable for Ppu {
 
     fn write(&mut self, addr: u32, value: u8) {
         match addr {
-            0x04000000..=0x04000001 => self.disp_cnt.write(addr, value), // DISPCTRL
+            0x04000000..=0x04000001 => self.disp_cnt.write(addr, value), // DISPCNT
             0x04000004..=0x04000005 => self.disp_stat.write(addr, value), // DISPSTAT
             0x04000006..=0x04000007 => self.scanline.write(addr, value), // VCOUNT
             // rest of the registers
