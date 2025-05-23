@@ -1,5 +1,7 @@
 use bitflags::bitflags;
 
+use super::{FRAME_0_ADDRESS, FRAME_1_ADDRESS};
+
 bitflags! {
     #[derive(Default, Copy, Clone)]
     pub struct DispStat: u16 {
@@ -52,9 +54,9 @@ impl DispCnt {
 
     pub fn frame_address(&self) -> u32 {
         if !self.contains(DispCnt::DISPLAY_FRAME_SELECT) {
-            0x0600_0000
+            FRAME_0_ADDRESS
         } else {
-            0x0600_A000
+            FRAME_1_ADDRESS
         }
     }
 }

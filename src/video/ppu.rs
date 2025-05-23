@@ -92,7 +92,18 @@ impl Ppu {
             }
             3 => self.render_background_mode3(lcd_control.frame_address()),
             4 => self.render_background_mode4(lcd_control.frame_address()),
-            _ => unreachable!(), // todo: there might be 5?
+            5 => self.render_background_mode5(lcd_control.frame_address()),
+            _ => unreachable!(),
+        }
+    }
+
+    pub fn get_background_frame(&self, mode: usize, base_addr: u32) -> Frame {
+        match mode {
+            0..=2 => [[(0, 0, 0); SCREEN_WIDTH]; SCREEN_HEIGHT],
+            3 => self.render_background_mode3(base_addr),
+            4 => self.render_background_mode4(base_addr),
+            5 => self.render_background_mode5(base_addr),
+            _ => unreachable!(),
         }
     }
 
@@ -129,6 +140,29 @@ impl Ppu {
                 let addr = base_addr + (y * SCREEN_WIDTH + x) as u32;
                 let idx = self.read(addr) as u32;
                 let rgb = self.read_u16(0x05000000 + (idx * 2));
+
+                let (r, g, b) = (
+                    ((rgb & 0b0000_0000_0001_1111) as u8),
+                    (((rgb & 0b0000_0011_1110_0000) >> 5) as u8),
+                    (((rgb & 0b0111_1100_0000_0000) >> 10) as u8),
+                );
+
+                frame[y][x] = (r << 3, g << 3, b << 3);
+            }
+        }
+
+        frame
+    }
+
+    fn render_background_mode5(&self, base_addr: u32) -> Frame {
+        trace!("Rendering background mode 5 @ {:08x}", base_addr);
+
+        let mut frame = [[(0, 0, 0); SCREEN_WIDTH]; SCREEN_HEIGHT];
+
+        for y in 0..128 {
+            for x in 0..160 {
+                let addr = base_addr + ((y * SCREEN_WIDTH + x) as u32 * 2);
+                let rgb = self.read_u16(addr);
 
                 let (r, g, b) = (
                     ((rgb & 0b0000_0000_0001_1111) as u8),

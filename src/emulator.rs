@@ -6,7 +6,8 @@ use crate::frontend::dbg::widgets::disasm::DecodedInstruction;
 use crate::frontend::event::{RequestEvent, ResponseEvent};
 use crate::memory::mmio::Mmio;
 use crate::script::engine::ScriptEngine;
-use crate::video::Frame;
+use crate::video::registers::DispCnt;
+use crate::video::{Frame, FRAME_0_ADDRESS, FRAME_1_ADDRESS};
 use crossbeam_channel::{Receiver, Sender};
 use lazy_static::lazy_static;
 use spdlog::info;
@@ -188,6 +189,17 @@ impl Emulator {
                     for (key, pressed) in state {
                         self.cpu.mmio.joypad.set_key_state(key, pressed);
                     }
+                    EventResult::None
+                }
+                RequestEvent::UpdatePpu => {
+                    let _ = self.dbg_resp_tx.send(ResponseEvent::Ppu(Box::new([
+                        self.cpu.mmio.ppu.get_background_frame(3, FRAME_0_ADDRESS),
+                        self.cpu.mmio.ppu.get_background_frame(3, FRAME_1_ADDRESS),
+                        self.cpu.mmio.ppu.get_background_frame(4, FRAME_0_ADDRESS),
+                        self.cpu.mmio.ppu.get_background_frame(4, FRAME_1_ADDRESS),
+                        self.cpu.mmio.ppu.get_background_frame(5, FRAME_0_ADDRESS),
+                        self.cpu.mmio.ppu.get_background_frame(5, FRAME_1_ADDRESS),
+                    ])));
                     EventResult::None
                 }
             })

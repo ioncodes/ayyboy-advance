@@ -33,6 +33,7 @@ impl Renderer {
             backend_tx.clone(),
             backend_tx.clone(),
             backend_tx.clone(),
+            backend_tx.clone(),
             backend_rx.clone(),
         );
 
