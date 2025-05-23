@@ -97,6 +97,7 @@ impl Mmio {
             0x04000208..=0x04000209 => self.io_ime.read(addr),              // Interrupt Master Enable
             0x0400020A..=0x0400020B => self.internal_memory[addr as usize], // Unused
             0x04000301 => self.io_halt_cnt.read(),                          // HALTCNT
+            //0x04000300 => 1,
             0x04000000..=0x040003FE => {
                 error!("Unmapped I/O read: {:08x}", addr);
                 self.internal_memory[addr as usize]

@@ -6,7 +6,6 @@ use crate::frontend::dbg::widgets::disasm::DecodedInstruction;
 use crate::frontend::event::{RequestEvent, ResponseEvent};
 use crate::memory::mmio::Mmio;
 use crate::script::engine::ScriptEngine;
-use crate::video::registers::DispCnt;
 use crate::video::{Frame, FRAME_0_ADDRESS, FRAME_1_ADDRESS};
 use crossbeam_channel::{Receiver, Sender};
 use lazy_static::lazy_static;

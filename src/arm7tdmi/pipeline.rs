@@ -63,6 +63,10 @@ impl Pipeline {
             _ => None,
         }
     }
+
+    pub fn is_full(&self) -> bool {
+        self.fetch.is_some() && self.decode.is_some()
+    }
 }
 
 impl Display for Pipeline {

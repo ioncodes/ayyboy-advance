@@ -35,6 +35,15 @@ impl Cpu {
         let IoRegister(disp_stat) = self.mmio.ppu.disp_stat;
         let IoRegister(halt_cnt) = self.mmio.io_halt_cnt;
 
+        // TODO: 0x80 is STOP MODE, it should be handled differently
+        if halt_cnt == 0 {
+            trace!("CPU is halted");
+            return None;
+        }
+
+        self.pipeline.advance(self.get_pc(), self.is_thumb(), &mut self.mmio);
+        trace!("Pipeline: {}", self.pipeline);
+
         let vblank_available = self.mmio.io_if.contains_flags(Interrupt::VBLANK)
             && self.mmio.io_ie.contains_flags(Interrupt::VBLANK)
             && disp_stat.contains(DispStat::VBLANK_IRQ_ENABLE);
@@ -42,7 +51,14 @@ impl Cpu {
             && self.mmio.io_ie.contains_flags(Interrupt::HBLANK)
             && disp_stat.contains(DispStat::HBLANK_IRQ_ENABLE);
 
-        if ime_value != 0 && (vblank_available || hblank_available) && !self.registers.cpsr.contains(Psr::I) {
+        // we need to make sure the pipeline is full before we trigger an IRQ
+        // the IRQ always returns using subs pc, lr, #4, so if the pipeline has been flushed recently
+        // PC = current instruction, so on return we get current instruction - 4 which is behind the current instruction
+        if ime_value != 0
+            && (vblank_available || hblank_available)
+            && !self.registers.cpsr.contains(Psr::I)
+            && self.pipeline.is_full()
+        {
             trace!("IRQ available, switching to IRQ mode");
 
             // copy CPSR to SPSR and switch to IRQ mode
@@ -72,15 +88,6 @@ impl Cpu {
             return None;
         }
 
-        // TODO: 0x80 is STOP MODE, it should be handled differently
-        if halt_cnt == 0 {
-            trace!("CPU is halted");
-            return None;
-        }
-
-        self.pipeline.advance(self.get_pc(), self.is_thumb(), &mut self.mmio);
-        trace!("Pipeline: {}", self.pipeline);
-
         if self.is_thumb() {
             self.registers.r[15] += 2;
         } else {
@@ -105,7 +112,7 @@ impl Cpu {
 
             #[cfg(feature = "verbose_debug")]
             debug!(
-                "{:08x}: {: <30} [{}]",
+                "{:08x}: {: <40} [{}]",
                 state.pc,
                 format!("{}", instruction),
                 self.compact_registers()

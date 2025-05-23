@@ -1209,22 +1209,23 @@ impl Instruction {
             }
             // Long branch with link
             "1111_hiii_iiii_iiii" => {
-                let hi = i;
-                let lo = (opcode >> 16) & 0b0111_1111_1111;
+                // TODO: Atem — 12:01 AM
+                // treating thumb bl as one big 32-bit instr isn't exactly ideal either
+                // golden sun for instance just uses one half of it in some cases
 
-                let mut offset = ((hi as u32) << 11) | lo as u32;
-                offset <<= 1; // Thumb instructions are halfword aligned
+                let offset_hi = i as i32;
+                let offset_lo = ((opcode >> 16) & 0b111_1111_1111) as i32;
 
-                // Sign-extend the 23-bit offset to 32 bits
-                if offset & (1 << 22) != 0 {
-                    offset |= 0xFF800000; // Sign extend if the 23rd bit is set
+                let mut offset = (offset_hi << 12) | (offset_lo << 1); // bit 0 is always 0
+                if offset_hi & 0x400 != 0 {
+                    offset |= !0x3ffff; // sign-extend from bit 22
                 }
 
                 Ok(Instruction {
                     opcode: Opcode::Bl,
                     condition: Condition::Always,
                     set_psr_flags: false,
-                    operand1: Some(Operand::Offset(offset as i32)),
+                    operand1: Some(Operand::Offset(offset)),
                     ..Instruction::default()
                 })
             }
@@ -1500,15 +1501,15 @@ impl Display for Instruction {
 impl Display for Operand {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
-            Operand::Immediate(value, option) if option.is_none() => write!(f, "0x{:02x}", value),
+            Operand::Immediate(value, option) if option.is_none() => write!(f, "0x{:04x}", value),
             Operand::Immediate(value, Some(option)) => {
-                write!(f, "0x{:02x}, {}", value, option)
+                write!(f, "0x{:04x}, {}", value, option)
             }
             Operand::Register(register, option) if option.is_none() => write!(f, "{}", register),
             Operand::Register(register, Some(option)) => write!(f, "{}, {}", register, option),
-            Operand::Offset(value) if *value > 0 => write!(f, "+{}", value),
-            Operand::Offset(value) if *value < 0 => write!(f, "-{}", -1 * value),
-            Operand::Offset(value) => write!(f, "0x{:02x}", value),
+            Operand::Offset(value) if *value > 0 => write!(f, "+0x{:04x}", value),
+            Operand::Offset(value) if *value < 0 => write!(f, "-0x{:04x}", -1 * value),
+            Operand::Offset(value) => write!(f, "0x{:04x}", value),
             Operand::RegisterList(registers) => {
                 let output = registers
                     .iter()

@@ -115,10 +115,6 @@ where
         self.0 = self.0.difference(flags);
     }
 
-    pub fn toggle_flags(&mut self, flags: T) {
-        self.0 = self.0.symmetric_difference(flags);
-    }
-
     pub fn contains_flags(&self, flags: T) -> bool {
         self.0.contains(flags)
     }

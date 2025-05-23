@@ -14,11 +14,24 @@ fn dump_stack() {
     }
 }
 
+fn print_opcode() {
+    let dump = "";
+
+    for i in 0..4 {
+        let pc = 0x0801ad2a + i;
+        let value = mmio.read_u8(pc);
+        dump += `${hex8(value)}`;
+    }
+
+    println(`${dump}`);
+}
+
 fn setup() {
     let breakpoints = #{
-        "0x08008644": "dump_stack",
-        "0x0800865c": "dump_stack",
-        "0x08008588": "dump_stack",
+        // "0x08008644": "dump_stack",
+        // "0x0800865c": "dump_stack",
+        // "0x08008588": "dump_stack",
+        "0x0801ad2a": "print_opcode"
     };
     breakpoints
 }
