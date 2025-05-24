@@ -52,7 +52,7 @@ fn main() {
             } else if args.debug {
                 LevelFilter::Debug
             } else {
-                LevelFilter::Warn
+                LevelFilter::Info
             },
         )
         .init()
@@ -89,6 +89,4 @@ fn main() {
             )))
         }),
     );
-
-    // spdlog::default_logger().flush();
 }

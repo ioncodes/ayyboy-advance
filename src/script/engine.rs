@@ -1,11 +1,11 @@
 use crate::arm7tdmi::cpu::Cpu;
+use crate::arm7tdmi::decoder::Register;
+use crate::script::proxy::Proxy;
 use log::*;
 use rhai::{Dynamic, Engine, Map, Scope, AST};
 use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
-
-use super::proxy::{CpuProxy, MmioProxy};
 
 pub struct ScriptEngine {
     engine: Engine,
@@ -19,7 +19,7 @@ impl ScriptEngine {
         let mut engine = Engine::new();
 
         // Helper functions
-        engine.register_fn("println", |s: &str| info!("[Script] {}", s));
+        engine.register_fn("println", |s: &str| info!("[RHAI] {}", s));
         engine.register_fn("hex8", |value: i64| -> String { format!("{:02x}", value as u8) });
         engine.register_fn("hex16", |value: i64| -> String { format!("{:04x}", value as u16) });
         engine.register_fn("hex32", |value: i64| -> String { format!("{:08x}", value as u32) });
@@ -38,36 +38,33 @@ impl ScriptEngine {
             padded
         });
 
-        // MMIO proxy struct
-        engine.register_type::<MmioProxy>();
-        engine.register_fn("read_u8", |mmio: &mut MmioProxy, address: i64| -> i64 {
-            mmio.read_u8(address) as i64
+        // proxy struct
+        engine.register_type::<Proxy>();
+        engine.register_fn("read_u8", |proxy: &mut Proxy, address: i64| -> i64 {
+            proxy.read_u8(address) as i64
         });
-        engine.register_fn("read_u16", |mmio: &mut MmioProxy, address: i64| -> i64 {
-            mmio.read_u16(address) as i64
+        engine.register_fn("read_u16", |proxy: &mut Proxy, address: i64| -> i64 {
+            proxy.read_u16(address) as i64
         });
-        engine.register_fn("read_u32", |mmio: &mut MmioProxy, address: i64| -> i64 {
-            mmio.read_u32(address) as i64
+        engine.register_fn("read_u32", |proxy: &mut Proxy, address: i64| -> i64 {
+            proxy.read_u32(address) as i64
         });
-        engine.register_fn("write_u8", |mmio: &mut MmioProxy, address: i64, value: i64| {
-            mmio.write_u8(address, value);
+        engine.register_fn("write_u8", |proxy: &mut Proxy, address: i64, value: i64| {
+            proxy.write_u8(address, value);
         });
-        engine.register_fn("write_u16", |mmio: &mut MmioProxy, address: i64, value: i64| {
-            mmio.write_u16(address, value);
+        engine.register_fn("write_u16", |proxy: &mut Proxy, address: i64, value: i64| {
+            proxy.write_u16(address, value);
         });
-        engine.register_fn("write_u32", |mmio: &mut MmioProxy, address: i64, value: i64| {
-            mmio.write_u32(address, value);
+        engine.register_fn("write_u32", |proxy: &mut Proxy, address: i64, value: i64| {
+            proxy.write_u32(address, value);
         });
-
-        // CPU proxy struct
-        engine.register_type::<CpuProxy>();
-        engine.register_fn("read_register", |cpu: &mut CpuProxy, reg: &str| -> i64 {
-            cpu.read_register(reg) as i64
+        engine.register_fn("read_register", |proxy: &mut Proxy, reg: &str| -> i64 {
+            proxy.read_register(reg) as i64
         });
-        engine.register_fn("write_register", |cpu: &mut CpuProxy, reg: &str, value: i64| {
-            cpu.write_register(reg, value as u32);
+        engine.register_fn("write_register", |proxy: &mut Proxy, reg: &str, value: i64| {
+            proxy.write_register(reg, value as u32);
         });
-        engine.register_fn("read_cpsr", |cpu: &mut CpuProxy| -> i64 { cpu.read_cpsr() as i64 });
+        engine.register_fn("read_cpsr", |proxy: &mut Proxy| -> i64 { proxy.read_cpsr() as i64 });
 
         Self {
             engine,
@@ -139,12 +136,13 @@ impl ScriptEngine {
         if let Some(ast) = &self.script {
             let mut scope = Scope::new();
 
-            let (cpu, mmio) = (CpuProxy(cpu), MmioProxy(&mut cpu.mmio));
+            println!("{:08x}", cpu.read_register(&Register::R14));
+            let proxy = Proxy::new(cpu);
+            println!("{:08x}", proxy.read_register("lr"));
 
-            scope.push("cpu", cpu);
-            scope.push("mmio", mmio);
+            scope.push("emu", proxy);
 
-            // Call the handler
+            // call the handler
             match self.engine.call_fn::<()>(&mut scope, &ast, handler_name, ()) {
                 Ok(_) => {
                     debug!(

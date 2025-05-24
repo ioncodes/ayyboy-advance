@@ -1,45 +1,31 @@
 use crate::arm7tdmi::cpu::Cpu;
-use crate::memory::mmio::Mmio;
+use std::marker::PhantomData;
 
-#[derive(Clone)]
-pub struct MmioProxy(pub(super) *mut Mmio);
+pub struct Proxy {
+    cpu_ptr: *mut Cpu,
+    _marker: PhantomData<Cpu>,
+}
 
-unsafe impl Send for MmioProxy {}
-unsafe impl Sync for MmioProxy {}
+unsafe impl Send for Proxy {}
+unsafe impl Sync for Proxy {}
 
-impl MmioProxy {
-    pub fn read_u8(&mut self, address: i64) -> u8 {
-        unsafe { (*self.0).read(address as u32) }
-    }
-
-    pub fn read_u16(&mut self, address: i64) -> u16 {
-        unsafe { (*self.0).read_u16(address as u32) }
-    }
-
-    pub fn read_u32(&mut self, address: i64) -> u32 {
-        unsafe { (*self.0).read_u32(address as u32) }
-    }
-
-    pub fn write_u8(&mut self, address: i64, value: i64) {
-        unsafe { (*self.0).write(address as u32, value as u8) }
-    }
-
-    pub fn write_u16(&mut self, address: i64, value: i64) {
-        unsafe { (*self.0).write_u16(address as u32, value as u16) }
-    }
-
-    pub fn write_u32(&mut self, address: i64, value: i64) {
-        unsafe { (*self.0).write_u32(address as u32, value as u32) }
+impl Clone for Proxy {
+    fn clone(&self) -> Self {
+        Self {
+            cpu_ptr: self.cpu_ptr,
+            _marker: PhantomData,
+        }
     }
 }
 
-#[derive(Clone)]
-pub struct CpuProxy(pub(super) *mut Cpu);
+impl Proxy {
+    pub fn new(cpu: &mut Cpu) -> Self {
+        Self {
+            cpu_ptr: cpu as *mut Cpu,
+            _marker: PhantomData,
+        }
+    }
 
-unsafe impl Send for CpuProxy {}
-unsafe impl Sync for CpuProxy {}
-
-impl CpuProxy {
     fn register_name_to_index(register: &str) -> usize {
         match register {
             "r0" => 0,
@@ -62,17 +48,43 @@ impl CpuProxy {
         }
     }
 
-    pub fn read_register(&mut self, reg: &str) -> u32 {
-        let reg = Self::register_name_to_index(reg);
-        unsafe { (*self.0).registers.r[reg] }
+    pub fn read_register(&self, reg: &str) -> u32 {
+        let reg_index = Self::register_name_to_index(reg);
+        unsafe { (*self.cpu_ptr).registers.r[reg_index] }
     }
 
     pub fn write_register(&mut self, reg: &str, value: u32) {
-        let reg = Self::register_name_to_index(reg);
-        unsafe { (*self.0).registers.r[reg] = value }
+        let reg_index = Self::register_name_to_index(reg);
+        unsafe {
+            (*self.cpu_ptr).registers.r[reg_index] = value;
+        }
     }
 
-    pub fn read_cpsr(&mut self) -> u32 {
-        unsafe { (*self.0).read_from_current_spsr().bits() }
+    pub fn read_cpsr(&self) -> u32 {
+        unsafe { (*self.cpu_ptr).read_from_current_spsr().bits() }
+    }
+
+    pub fn read_u8(&self, address: i64) -> u8 {
+        unsafe { (*self.cpu_ptr).mmio.read(address as u32) }
+    }
+
+    pub fn read_u16(&self, address: i64) -> u16 {
+        unsafe { (*self.cpu_ptr).mmio.read_u16(address as u32) }
+    }
+
+    pub fn read_u32(&self, address: i64) -> u32 {
+        unsafe { (*self.cpu_ptr).mmio.read_u32(address as u32) }
+    }
+
+    pub fn write_u8(&mut self, address: i64, value: i64) {
+        unsafe { (*self.cpu_ptr).mmio.write(address as u32, value as u8) }
+    }
+
+    pub fn write_u16(&mut self, address: i64, value: i64) {
+        unsafe { (*self.cpu_ptr).mmio.write_u16(address as u32, value as u16) }
+    }
+
+    pub fn write_u32(&mut self, address: i64, value: i64) {
+        unsafe { (*self.cpu_ptr).mmio.write_u32(address as u32, value as u32) }
     }
 }
