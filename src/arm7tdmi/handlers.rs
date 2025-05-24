@@ -3,7 +3,7 @@ use super::decoder::{Condition, Instruction, Opcode, Operand, ShiftSource, Shift
 use super::registers::Psr;
 use crate::arm7tdmi::decoder::{Direction, Indexing, Register, TransferLength};
 use crate::arm7tdmi::mode::ProcessorMode;
-use spdlog::prelude::*;
+use log::*;
 
 macro_rules! check_condition {
     ($cpu:expr, $instr:expr) => {
@@ -421,7 +421,7 @@ impl Handlers {
                 match length {
                     TransferLength::Byte => {
                         let value = cpu_read_reg(src) as u8;
-                        cpu.mmio.write(address, value, TransferLength::Byte);
+                        cpu.mmio.write(address, value);
                         if *set_psr_flags {
                             cpu.update_flag(Psr::N, value & 0x80 != 0);
                             cpu.update_flag(Psr::Z, value == 0);
@@ -493,7 +493,7 @@ impl Handlers {
                 match length {
                     TransferLength::Byte => {
                         let value = cpu.read_register(src) as u8;
-                        cpu.mmio.write(aligned_addr, value, TransferLength::Byte);
+                        cpu.mmio.write(aligned_addr, value);
                     }
                     TransferLength::Word => {
                         let value = cpu.read_register(src);

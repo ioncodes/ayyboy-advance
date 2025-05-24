@@ -1,5 +1,5 @@
 use bitflags::Flags;
-use spdlog::trace;
+use log::trace;
 
 #[allow(dead_code)]
 pub trait Addressable {

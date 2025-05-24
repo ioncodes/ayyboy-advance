@@ -1,5 +1,5 @@
 use goblin::Object;
-use spdlog::{error, info};
+use log::{error, info};
 use std::collections::HashMap;
 
 pub struct Symbolizer {

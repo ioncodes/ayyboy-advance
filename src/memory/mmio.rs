@@ -6,7 +6,7 @@ use crate::audio::apu::Apu;
 use crate::input::joypad::Joypad;
 use crate::memory::registers::Interrupt;
 use crate::video::ppu::{Ppu, PpuEvent};
-use spdlog::prelude::*;
+use log::*;
 
 pub struct Mmio {
     pub internal_memory: Box<[u8; 0x04FFFFFF + 1]>,
@@ -20,6 +20,8 @@ pub struct Mmio {
     pub io_ie: IoRegister<Interrupt>, // IE
     pub io_if: IoRegister<Interrupt>, // IF
     pub io_halt_cnt: IoRegister<u8>,  // HALTCNT
+    // other
+    origin_rw_length: Option<TransferLength>, // cache this for cases like 8bit VRAM mirrored writes
 }
 
 impl Mmio {
@@ -38,6 +40,7 @@ impl Mmio {
             io_ie: IoRegister::default(),
             io_if: IoRegister::default(),
             io_halt_cnt: IoRegister(0xff),
+            origin_rw_length: None,
         }
     }
 
@@ -74,7 +77,7 @@ impl Mmio {
                 // transfer it at once
                 for i in 0..size {
                     let value = self.read(src + i as u32);
-                    self.write(dst + i as u32, value, TransferLength::Byte);
+                    self.write(dst + i as u32, value);
                 }
 
                 // disable the DMA channel
@@ -85,10 +88,14 @@ impl Mmio {
         }
     }
 
-    pub fn read(&self, addr: u32) -> u8 {
+    pub fn read(&mut self, addr: u32) -> u8 {
         trace!("Reading from {:08x}", addr);
 
-        match addr {
+        if self.origin_rw_length.is_none() {
+            self.origin_rw_length = Some(TransferLength::Byte);
+        }
+
+        let value = match addr {
             0x04000000..=0x04000056 => self.ppu.read(addr),                 // PPU I/O
             0x04000080..=0x0400008E => self.apu.read(addr),                 // APU I/O
             0x040000B0..=0x040000DF => self.dma.read(addr),                 // DMA I/O, 0x40000E0 = unused
@@ -113,14 +120,22 @@ impl Mmio {
                 error!("Reading from unmapped memory address: {:08x}", addr);
                 0x69
             }
-        }
+        };
+
+        self.origin_rw_length = None;
+
+        value
     }
 
-    pub fn read_u16(&self, addr: u32) -> u16 {
+    pub fn read_u16(&mut self, addr: u32) -> u16 {
+        self.origin_rw_length = Some(TransferLength::HalfWord);
+
         u16::from_le_bytes([self.read(addr), self.read(addr + 1)])
     }
 
-    pub fn read_u32(&self, addr: u32) -> u32 {
+    pub fn read_u32(&mut self, addr: u32) -> u32 {
+        self.origin_rw_length = Some(TransferLength::Word);
+
         u32::from_le_bytes([
             self.read(addr),
             self.read(addr + 1),
@@ -129,8 +144,12 @@ impl Mmio {
         ])
     }
 
-    pub fn write(&mut self, addr: u32, value: u8, transfer_length: TransferLength) {
+    pub fn write(&mut self, addr: u32, value: u8) {
         trace!("Writing {:02x} to {:08x}", value, addr);
+
+        if self.origin_rw_length.is_none() {
+            self.origin_rw_length = Some(TransferLength::Byte);
+        }
 
         match addr {
             0x00000000..=0x00003FFF => error!("Writing to BIOS: {:02x} to {:08x}", value, addr),
@@ -148,7 +167,7 @@ impl Mmio {
                 self.internal_memory[addr as usize] = value; // Unmapped I/O region
             }
             0x00000000..=0x04FFFFFF => self.internal_memory[addr as usize] = value,
-            0x06000000..=0x06017FFF if transfer_length == TransferLength::Byte => {
+            0x06000000..=0x06017FFF if self.origin_rw_length == Some(TransferLength::Byte) => {
                 // VRAM needs mirrored writes for 8bit
                 self.ppu.write(addr, value);
                 self.ppu.write(addr + 1, value);
@@ -162,20 +181,26 @@ impl Mmio {
                 error!("Writing to unmapped memory address: {:08x}", addr);
             }
         }
+
+        self.origin_rw_length = None;
     }
 
     pub fn write_u16(&mut self, addr: u32, value: u16) {
+        self.origin_rw_length = Some(TransferLength::HalfWord);
+
         let [a, b] = value.to_le_bytes();
-        self.write(addr, a, TransferLength::HalfWord);
-        self.write(addr + 1, b, TransferLength::HalfWord);
+        self.write(addr, a);
+        self.write(addr + 1, b);
     }
 
     pub fn write_u32(&mut self, addr: u32, value: u32) {
+        self.origin_rw_length = Some(TransferLength::Word);
+
         let [a, b, c, d] = value.to_le_bytes();
-        self.write(addr, a, TransferLength::Word);
-        self.write(addr + 1, b, TransferLength::Word);
-        self.write(addr + 2, c, TransferLength::Word);
-        self.write(addr + 3, d, TransferLength::Word);
+        self.write(addr, a);
+        self.write(addr + 1, b);
+        self.write(addr + 2, c);
+        self.write(addr + 3, d);
     }
 
     pub fn load(&mut self, addr: u32, data: &[u8]) {

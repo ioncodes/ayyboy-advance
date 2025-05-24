@@ -9,7 +9,7 @@ use crate::script::engine::ScriptEngine;
 use crate::video::{Frame, FRAME_0_ADDRESS, FRAME_1_ADDRESS};
 use crossbeam_channel::{Receiver, Sender};
 use lazy_static::lazy_static;
-use spdlog::info;
+use log::info;
 use std::fs::File;
 use std::io::Read;
 use std::path::Path;

@@ -7,7 +7,6 @@ mod audio;
 mod emulator;
 mod frontend;
 mod input;
-mod logging;
 mod memory;
 mod script;
 mod tests;
@@ -18,6 +17,8 @@ use crate::frontend::renderer::SCALE;
 use clap::Parser;
 use crossbeam_channel::{bounded, Receiver, Sender};
 use eframe::NativeOptions;
+use log::LevelFilter;
+use simple_logger::SimpleLogger;
 use video::{Frame, SCREEN_HEIGHT, SCREEN_WIDTH};
 
 #[derive(Parser, Debug)]
@@ -42,7 +43,20 @@ struct Args {
 fn main() {
     let args = Args::parse();
 
-    logging::enable_logger(&args);
+    SimpleLogger::new()
+        .with_level(LevelFilter::Off)
+        .with_module_level(
+            module_path!(),
+            if args.trace {
+                LevelFilter::Trace
+            } else if args.debug {
+                LevelFilter::Debug
+            } else {
+                LevelFilter::Warn
+            },
+        )
+        .init()
+        .unwrap();
 
     let (display_tx, display_rx): (Sender<Frame>, Receiver<Frame>) = bounded(1);
     let (dbg_req_tx, dbg_req_rx) = bounded(25);
@@ -76,5 +90,5 @@ fn main() {
         }),
     );
 
-    spdlog::default_logger().flush();
+    // spdlog::default_logger().flush();
 }

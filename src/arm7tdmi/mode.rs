@@ -1,6 +1,5 @@
+use log::error;
 use std::fmt::Display;
-
-use spdlog::error;
 
 #[derive(Debug, Clone, Copy, PartialEq, Hash, Eq)]
 pub enum ProcessorMode {

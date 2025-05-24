@@ -1,7 +1,7 @@
 use super::registers::{DispCnt, DispStat};
 use super::{Frame, SCREEN_HEIGHT, SCREEN_WIDTH};
 use crate::memory::device::{Addressable, IoRegister};
-use spdlog::prelude::*;
+use log::*;
 
 #[derive(PartialEq)]
 pub enum PpuEvent {

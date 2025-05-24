@@ -1,6 +1,6 @@
 use super::decoder::Instruction;
 use crate::memory::mmio::Mmio;
-use spdlog::prelude::*;
+use log::*;
 use std::fmt::Display;
 
 pub struct State {
@@ -26,7 +26,7 @@ impl Pipeline {
         }
     }
 
-    pub fn advance(&mut self, pc: u32, is_thumb: bool, mmio: &Mmio) {
+    pub fn advance(&mut self, pc: u32, is_thumb: bool, mmio: &mut Mmio) {
         self.decode = if let Some(Item::Data(opcode, state)) = self.fetch.take() {
             let instruction = match Instruction::decode(opcode, is_thumb) {
                 Ok(instr) => Some(instr),

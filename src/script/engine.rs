@@ -1,6 +1,6 @@
 use crate::arm7tdmi::cpu::Cpu;
+use log::*;
 use rhai::{Dynamic, Engine, Map, Scope, AST};
-use spdlog::prelude::*;
 use std::collections::HashMap;
 use std::fs;
 use std::path::Path;

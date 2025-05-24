@@ -6,3 +6,4 @@ external/gba_bios.bin
 .idea/
 external/commercial/
 Cargo.lock
+flamegraph.svg

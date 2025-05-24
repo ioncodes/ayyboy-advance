@@ -10,7 +10,7 @@ use crate::memory::mmio::Mmio;
 use crate::memory::registers::Interrupt;
 use crate::script::engine::ScriptEngine;
 use crate::video::registers::DispStat;
-use spdlog::prelude::*;
+use log::*;
 use std::fmt::Display;
 
 pub struct Cpu {

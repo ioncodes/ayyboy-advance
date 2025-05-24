@@ -1,5 +1,4 @@
 use crate::arm7tdmi::cpu::Cpu;
-use crate::arm7tdmi::decoder::TransferLength;
 use crate::memory::mmio::Mmio;
 
 #[derive(Clone)]
@@ -22,7 +21,7 @@ impl MmioProxy {
     }
 
     pub fn write_u8(&mut self, address: i64, value: i64) {
-        unsafe { (*self.0).write(address as u32, value as u8, TransferLength::Byte) }
+        unsafe { (*self.0).write(address as u32, value as u8) }
     }
 
     pub fn write_u16(&mut self, address: i64, value: i64) {
