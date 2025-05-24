@@ -421,7 +421,7 @@ impl Handlers {
                 match length {
                     TransferLength::Byte => {
                         let value = cpu_read_reg(src) as u8;
-                        cpu.mmio.write(address, value);
+                        cpu.mmio.write(address, value, TransferLength::Byte);
                         if *set_psr_flags {
                             cpu.update_flag(Psr::N, value & 0x80 != 0);
                             cpu.update_flag(Psr::Z, value == 0);
@@ -493,7 +493,7 @@ impl Handlers {
                 match length {
                     TransferLength::Byte => {
                         let value = cpu.read_register(src) as u8;
-                        cpu.mmio.write(aligned_addr, value);
+                        cpu.mmio.write(aligned_addr, value, TransferLength::Byte);
                     }
                     TransferLength::Word => {
                         let value = cpu.read_register(src);

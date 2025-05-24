@@ -221,7 +221,7 @@ impl Emulator {
 
         self.current_cycles += 1; // TODO: actually track it
 
-        if self.current_cycles > 5 {
+        if self.current_cycles > 1 {
             self.current_cycles = 0;
             self.cpu.mmio.tick_components();
         }

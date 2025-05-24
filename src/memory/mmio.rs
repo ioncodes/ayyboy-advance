@@ -1,6 +1,7 @@
 use super::device::{Addressable, IoRegister};
 use super::dma::Dma;
 use super::registers::DmaControl;
+use crate::arm7tdmi::decoder::TransferLength;
 use crate::audio::apu::Apu;
 use crate::input::joypad::Joypad;
 use crate::memory::registers::Interrupt;
@@ -73,7 +74,7 @@ impl Mmio {
                 // transfer it at once
                 for i in 0..size {
                     let value = self.read(src + i as u32);
-                    self.write(dst + i as u32, value);
+                    self.write(dst + i as u32, value, TransferLength::Byte);
                 }
 
                 // disable the DMA channel
@@ -97,7 +98,7 @@ impl Mmio {
             0x04000208..=0x04000209 => self.io_ime.read(addr),              // Interrupt Master Enable
             0x0400020A..=0x0400020B => self.internal_memory[addr as usize], // Unused
             0x04000301 => self.io_halt_cnt.read(),                          // HALTCNT
-            //0x04000300 => 1,
+            0x04000300 => 1,
             0x04000000..=0x040003FE => {
                 error!("Unmapped I/O read: {:08x}", addr);
                 self.internal_memory[addr as usize]
@@ -128,7 +129,7 @@ impl Mmio {
         ])
     }
 
-    pub fn write(&mut self, addr: u32, value: u8) {
+    pub fn write(&mut self, addr: u32, value: u8, transfer_length: TransferLength) {
         trace!("Writing {:02x} to {:08x}", value, addr);
 
         match addr {
@@ -147,6 +148,11 @@ impl Mmio {
                 self.internal_memory[addr as usize] = value; // Unmapped I/O region
             }
             0x00000000..=0x04FFFFFF => self.internal_memory[addr as usize] = value,
+            0x06000000..=0x06017FFF if transfer_length == TransferLength::Byte => {
+                // VRAM needs mirrored writes for 8bit
+                self.ppu.write(addr, value);
+                self.ppu.write(addr + 1, value);
+            }
             0x05000000..=0x07FFFFFF => self.ppu.write(addr, value),
             0x08000000..=0x09FFFFFF => self.external_memory[(addr - 0x08000000) as usize] = value,
             0x0A000000..=0x0BFFFFFF => self.external_memory[(addr - 0x0A000000) as usize] = value, // Mirror of 0x08000000..=0x09FFFFFF
@@ -160,16 +166,16 @@ impl Mmio {
 
     pub fn write_u16(&mut self, addr: u32, value: u16) {
         let [a, b] = value.to_le_bytes();
-        self.write(addr, a);
-        self.write(addr + 1, b);
+        self.write(addr, a, TransferLength::HalfWord);
+        self.write(addr + 1, b, TransferLength::HalfWord);
     }
 
     pub fn write_u32(&mut self, addr: u32, value: u32) {
         let [a, b, c, d] = value.to_le_bytes();
-        self.write(addr, a);
-        self.write(addr + 1, b);
-        self.write(addr + 2, c);
-        self.write(addr + 3, d);
+        self.write(addr, a, TransferLength::Word);
+        self.write(addr + 1, b, TransferLength::Word);
+        self.write(addr + 2, c, TransferLength::Word);
+        self.write(addr + 3, d, TransferLength::Word);
     }
 
     pub fn load(&mut self, addr: u32, data: &[u8]) {
