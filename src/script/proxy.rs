@@ -1,4 +1,5 @@
 use crate::arm7tdmi::cpu::Cpu;
+use crate::arm7tdmi::decoder::Register;
 use std::marker::PhantomData;
 
 pub struct Proxy {
@@ -26,37 +27,37 @@ impl Proxy {
         }
     }
 
-    fn register_name_to_index(register: &str) -> usize {
+    fn parse_register(register: &str) -> Register {
         match register {
-            "r0" => 0,
-            "r1" => 1,
-            "r2" => 2,
-            "r3" => 3,
-            "r4" => 4,
-            "r5" => 5,
-            "r6" => 6,
-            "r7" => 7,
-            "r8" => 8,
-            "r9" => 9,
-            "r10" => 10,
-            "r11" => 11,
-            "r12" => 12,
-            "sp" | "r13" => 13,
-            "lr" | "r14" => 14,
-            "pc" | "r15" => 15,
+            "r0" => Register::R0,
+            "r1" => Register::R1,
+            "r2" => Register::R2,
+            "r3" => Register::R3,
+            "r4" => Register::R4,
+            "r5" => Register::R5,
+            "r6" => Register::R6,
+            "r7" => Register::R7,
+            "r8" => Register::R8,
+            "r9" => Register::R9,
+            "r10" => Register::R10,
+            "r11" => Register::R11,
+            "r12" => Register::R12,
+            "sp" | "r13" => Register::R13,
+            "lr" | "r14" => Register::R14,
+            "pc" | "r15" => Register::R15,
             _ => panic!("Invalid register name: {}", register),
         }
     }
 
     pub fn read_register(&self, reg: &str) -> u32 {
-        let reg_index = Self::register_name_to_index(reg);
-        unsafe { (*self.cpu_ptr).registers.r[reg_index] }
+        let register = Self::parse_register(reg);
+        unsafe { (*self.cpu_ptr).read_register(&register) }
     }
 
     pub fn write_register(&mut self, reg: &str, value: u32) {
-        let reg_index = Self::register_name_to_index(reg);
+        let register = Self::parse_register(reg);
         unsafe {
-            (*self.cpu_ptr).registers.r[reg_index] = value;
+            (*self.cpu_ptr).write_register(&register, value);
         }
     }
 

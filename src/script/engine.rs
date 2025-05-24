@@ -1,5 +1,4 @@
 use crate::arm7tdmi::cpu::Cpu;
-use crate::arm7tdmi::decoder::Register;
 use crate::script::proxy::Proxy;
 use log::*;
 use rhai::{Dynamic, Engine, Map, Scope, AST};
@@ -135,12 +134,7 @@ impl ScriptEngine {
 
         if let Some(ast) = &self.script {
             let mut scope = Scope::new();
-
-            println!("{:08x}", cpu.read_register(&Register::R14));
-            let proxy = Proxy::new(cpu);
-            println!("{:08x}", proxy.read_register("lr"));
-
-            scope.push("emu", proxy);
+            scope.push("emu", Proxy::new(cpu));
 
             // call the handler
             match self.engine.call_fn::<()>(&mut scope, &ast, handler_name, ()) {
