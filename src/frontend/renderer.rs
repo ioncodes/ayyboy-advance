@@ -9,7 +9,7 @@ use eframe::{App, CreationContext};
 use egui::{Align2, Key, RichText, Window};
 use egui_extras::{Column, TableBuilder};
 
-pub const SCALE: usize = 4;
+pub const SCALE: usize = 8;
 
 pub struct Renderer {
     screen_texture: TextureHandle,
