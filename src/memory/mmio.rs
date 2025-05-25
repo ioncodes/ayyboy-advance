@@ -89,8 +89,6 @@ impl Mmio {
     }
 
     pub fn read(&mut self, addr: u32) -> u8 {
-        trace!("Reading from {:08x}", addr);
-
         if self.origin_rw_length.is_none() {
             self.origin_rw_length = Some(TransferLength::Byte);
         }
@@ -105,11 +103,12 @@ impl Mmio {
             0x04000208..=0x04000209 => self.io_ime.read(addr),              // Interrupt Master Enable
             0x0400020A..=0x0400020B => self.internal_memory[addr as usize], // Unused
             0x04000301 => self.io_halt_cnt.read(),                          // HALTCNT
-            0x04000300 => 1,
+            0x04000300 => 1, // "After initial reset, the GBA BIOS initializes the register to 01h"
             0x04000000..=0x040003FE => {
                 error!("Unmapped I/O read: {:08x}", addr);
                 self.internal_memory[addr as usize]
             }
+            0x03007FFC..=0x03007FFF => self.internal_memory[0x03FFFFFC + (addr - 0x03007FFC) as usize], // mirror of 0x03007FFC..=0x03007FFF
             0x00000000..=0x04FFFFFF => self.internal_memory[addr as usize],
             0x05000000..=0x07FFFFFF => self.ppu.read(addr),
             0x08000000..=0x09FFFFFF => self.external_memory[(addr - 0x08000000) as usize],
@@ -123,6 +122,8 @@ impl Mmio {
         };
 
         self.origin_rw_length = None;
+
+        trace!("Read {:02x} from {:08x}", value, addr);
 
         value
     }
@@ -165,6 +166,10 @@ impl Mmio {
             0x04000000..=0x040003FE => {
                 error!("Unmapped I/O write: {:02x} to {:08x}", value, addr);
                 self.internal_memory[addr as usize] = value; // Unmapped I/O region
+            }
+            0x03007FFC..=0x03007FFF => {
+                // Mirror of 0x03007FFC..=0x03007FFF
+                self.internal_memory[0x03FFFFFC + (addr - 0x03007FFC) as usize] = value;
             }
             0x00000000..=0x04FFFFFF => self.internal_memory[addr as usize] = value,
             0x06000000..=0x06017FFF if self.origin_rw_length == Some(TransferLength::Byte) => {
