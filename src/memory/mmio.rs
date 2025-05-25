@@ -6,6 +6,7 @@ use crate::audio::apu::Apu;
 use crate::input::joypad::Joypad;
 use crate::memory::registers::Interrupt;
 use crate::video::ppu::{Ppu, PpuEvent};
+use crate::video::registers::DispStat;
 use log::*;
 
 pub struct Mmio {
@@ -47,12 +48,12 @@ impl Mmio {
     pub fn tick_components(&mut self) {
         let events = self.ppu.tick();
 
-        if events.contains(&PpuEvent::VBlank) {
+        if events.contains(&PpuEvent::VBlank) && self.ppu.disp_stat.contains_flags(DispStat::VBLANK_IRQ_ENABLE) {
             self.io_if.set_flags(Interrupt::VBLANK);
             trace!("VBLANK interrupt raised");
         }
 
-        if events.contains(&PpuEvent::HBlank) {
+        if events.contains(&PpuEvent::HBlank) && self.ppu.disp_stat.contains_flags(DispStat::HBLANK_IRQ_ENABLE) {
             self.io_if.set_flags(Interrupt::HBLANK);
             trace!("HBLANK interrupt raised");
         }
@@ -107,6 +108,10 @@ impl Mmio {
             0x04000000..=0x040003FE => {
                 error!("Unmapped I/O read: {:08x}", addr);
                 self.internal_memory[addr as usize]
+            }
+            0x03007FF8..=0x03007FF9 => {
+                // Mirror of 0x03007FF8..=0x03007FF9
+                self.internal_memory[0x03FFFFF8 + (addr - 0x03007FF8) as usize]
             }
             0x03007FFC..=0x03007FFF => self.internal_memory[0x03FFFFFC + (addr - 0x03007FFC) as usize], // mirror of 0x03007FFC..=0x03007FFF
             0x00000000..=0x04FFFFFF => self.internal_memory[addr as usize],
@@ -166,6 +171,10 @@ impl Mmio {
             0x04000000..=0x040003FE => {
                 error!("Unmapped I/O write: {:02x} to {:08x}", value, addr);
                 self.internal_memory[addr as usize] = value; // Unmapped I/O region
+            }
+            0x03007FF8..=0x03007FF9 => {
+                // Mirror of 0x03007FF8..=0x03007FF9
+                self.internal_memory[0x03FFFFF8 + (addr - 0x03007FF8) as usize] = value;
             }
             0x03007FFC..=0x03007FFF => {
                 // Mirror of 0x03007FFC..=0x03007FFF

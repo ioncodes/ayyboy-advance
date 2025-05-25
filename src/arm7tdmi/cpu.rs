@@ -9,7 +9,6 @@ use crate::memory::device::IoRegister;
 use crate::memory::mmio::Mmio;
 use crate::memory::registers::Interrupt;
 use crate::script::engine::ScriptEngine;
-use crate::video::registers::DispStat;
 use log::*;
 use std::fmt::Display;
 
@@ -32,18 +31,15 @@ impl Cpu {
 
     pub fn tick(&mut self, script_engine: Option<&mut ScriptEngine>) -> Option<(Instruction, State)> {
         let IoRegister(ime_value) = self.mmio.io_ime;
-        let IoRegister(disp_stat) = self.mmio.ppu.disp_stat;
         let IoRegister(halt_cnt) = self.mmio.io_halt_cnt;
 
         self.pipeline.advance(self.get_pc(), self.is_thumb(), &mut self.mmio);
         trace!("Pipeline: {}", self.pipeline);
 
-        let vblank_available = self.mmio.io_if.contains_flags(Interrupt::VBLANK)
-            && self.mmio.io_ie.contains_flags(Interrupt::VBLANK)
-            && disp_stat.contains(DispStat::VBLANK_IRQ_ENABLE);
-        let hblank_available = self.mmio.io_if.contains_flags(Interrupt::HBLANK)
-            && self.mmio.io_ie.contains_flags(Interrupt::HBLANK)
-            && disp_stat.contains(DispStat::HBLANK_IRQ_ENABLE);
+        let vblank_available =
+            self.mmio.io_if.contains_flags(Interrupt::VBLANK) && self.mmio.io_ie.contains_flags(Interrupt::VBLANK);
+        let hblank_available =
+            self.mmio.io_if.contains_flags(Interrupt::HBLANK) && self.mmio.io_ie.contains_flags(Interrupt::HBLANK);
 
         // we need to make sure the pipeline is full before we trigger an IRQ
         // the IRQ always returns using subs pc, lr, #4, so if the pipeline has been flushed recently
