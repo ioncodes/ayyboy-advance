@@ -35,12 +35,6 @@ impl Cpu {
         let IoRegister(disp_stat) = self.mmio.ppu.disp_stat;
         let IoRegister(halt_cnt) = self.mmio.io_halt_cnt;
 
-        // TODO: 0x80 is STOP MODE, it should be handled differently
-        if halt_cnt == 0 {
-            trace!("CPU is halted");
-            return None;
-        }
-
         self.pipeline.advance(self.get_pc(), self.is_thumb(), &mut self.mmio);
         trace!("Pipeline: {}", self.pipeline);
 
@@ -85,6 +79,14 @@ impl Cpu {
             // allow cpu to continue
             self.mmio.io_halt_cnt.set(0xff);
 
+            return None;
+        }
+
+        // TODO: 0x80 is STOP MODE, it should be handled differently
+        // We need to check this AFTER the IRQ check, or else we will never enter
+        // another IRQ during halt
+        if halt_cnt == 0 {
+            trace!("CPU is halted");
             return None;
         }
 
