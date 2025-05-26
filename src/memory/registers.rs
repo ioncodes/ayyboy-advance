@@ -37,6 +37,18 @@ bitflags! {
     }
 }
 
+bitflags! {
+    #[derive(Default, PartialEq, Copy, Clone)]
+    pub struct TimerControl: u16 {
+        const PRESCALER_SELECTION = 0b0000_0000_0000_0011;
+        const COUNT_UP_TIMING     = 0b0000_0000_0000_0100;
+        const UNUSED0             = 0b0000_0000_0011_1000;
+        const IRQ_ON_OVERFLOW     = 0b0000_0000_0100_0000;
+        const ENABLE              = 0b0000_0000_1000_0000;
+        const UNUSED1             = 0b1111_1111_0000_0000;
+    }
+}
+
 #[derive(PartialEq, Clone, Copy)]
 pub struct MappedRegister32(u8, u8, u8, u8);
 

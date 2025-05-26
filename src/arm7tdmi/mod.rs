@@ -5,3 +5,4 @@ pub mod mode;
 mod pipeline;
 pub mod registers;
 mod symbolizer;
+pub mod timer;

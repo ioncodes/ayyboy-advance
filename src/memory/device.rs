@@ -44,6 +44,7 @@ pub trait Addressable {
     }
 }
 
+#[derive(PartialEq, Clone, Copy)]
 pub struct IoRegister<T = u16>(pub T);
 
 impl<T> IoRegister<T> {

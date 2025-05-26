@@ -2,6 +2,7 @@ use super::device::{Addressable, IoRegister};
 use super::dma::Dma;
 use super::registers::DmaControl;
 use crate::arm7tdmi::decoder::TransferLength;
+use crate::arm7tdmi::timer::Timers;
 use crate::audio::apu::Apu;
 use crate::input::joypad::Joypad;
 use crate::memory::registers::Interrupt;
@@ -19,6 +20,7 @@ pub struct Mmio {
     pub joypad: Joypad,
     pub apu: Apu,
     pub dma: Dma,
+    pub timers: Timers,
     // I/O registers
     pub io_ime: IoRegister,           // IME
     pub io_ie: IoRegister<Interrupt>, // IE
@@ -40,6 +42,7 @@ impl Mmio {
             joypad: Joypad::new(),
             apu: Apu::new(),
             dma: Dma::new(),
+            timers: Timers::new(),
             io_ime: IoRegister::default(),
             io_ie: IoRegister::default(),
             io_if: IoRegister::default(),
@@ -50,6 +53,7 @@ impl Mmio {
 
     pub fn tick_components(&mut self) {
         let events = self.ppu.tick();
+        self.timers.tick();
 
         if events.contains(&PpuEvent::VBlank) && self.ppu.disp_stat.contains_flags(DispStat::VBLANK_IRQ_ENABLE) {
             self.io_if.set_flags(Interrupt::VBLANK);
@@ -102,6 +106,7 @@ impl Mmio {
             0x04000000..=0x04000056 => self.ppu.read(addr),    // PPU I/O
             0x04000080..=0x0400008E => self.apu.read(addr),    // APU I/O
             0x040000B0..=0x040000DF => self.dma.read(addr),    // DMA I/O, 0x40000E0 = unused
+            0x04000100..=0x0400010F => self.timers.read(addr), // Timers I/O
             0x04000130..=0x04000133 => self.joypad.read(addr), // Joypad I/O
             0x04000200..=0x04000201 => self.io_ie.read(addr),  // Interrupt Enable
             0x04000202..=0x04000203 => self.io_if.read(addr),  // Interrupt Flag
@@ -171,6 +176,7 @@ impl Mmio {
             0x04000000..=0x04000056 => self.ppu.write(addr, value), // PPU I/O
             0x04000080..=0x0400008E => self.apu.write(addr, value), // APU I/O
             0x040000B0..=0x040000DF => self.dma.write(addr, value), // DMA I/O
+            0x04000100..=0x0400010F => self.timers.write(addr, value), // Timers I/O
             0x04000130..=0x04000133 => self.joypad.write(addr, value), // Joypad I/O
             0x04000200..=0x04000201 => self.io_ie.write(addr, value), // Interrupt Enable
             0x04000202..=0x04000203 => self.io_if.write(addr, value), // Interrupt Flag

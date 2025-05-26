@@ -1,7 +1,9 @@
 use crate::arm7tdmi::registers::Psr;
+use crate::arm7tdmi::timer::Timers;
 use crate::frontend::dbg::tracked_value::TrackedValue;
 use crate::frontend::event::RequestEvent;
 use crate::memory::dma::Dma;
+use crate::memory::registers::TimerControl;
 use crossbeam_channel::Sender;
 use egui::{Color32, ComboBox, Context, RichText, TextEdit, Window};
 
@@ -10,12 +12,14 @@ pub struct TrackedCpu {
     registers: [TrackedValue<u32>; 16],
     cpsr: TrackedValue<Psr>,
     dma: TrackedValue<Dma>,
+    timers: TrackedValue<Timers>,
 }
 
 pub struct Cpu {
     pub registers: [u32; 16],
     pub cpsr: Psr,
     pub dma: Dma,
+    pub timers: Timers,
 }
 
 pub struct CpuWidget {
@@ -45,6 +49,7 @@ impl CpuWidget {
         });
         self.cpu.cpsr.set(cpu.cpsr);
         self.cpu.dma.set(cpu.dma);
+        self.cpu.timers.set(cpu.timers);
     }
 
     pub fn render(&mut self, ctx: &Context) {
@@ -167,7 +172,7 @@ impl CpuWidget {
                 ui.horizontal(|ui| {
                     ui.label(
                         RichText::new(format!(
-                            "DMA{}: {:08x} -> {:08x}, {:04x} bytes",
+                            "DMA {}: {:08x} -> {:08x}, {:04x} bytes",
                             i,
                             self.cpu.dma.get().channels[i].src.value(),
                             self.cpu.dma.get().channels[i].dst.value(),
@@ -177,6 +182,29 @@ impl CpuWidget {
                     );
                     ui.checkbox(
                         &mut self.cpu.dma.get().channels[i].is_enabled(),
+                        RichText::new("Enabled").monospace(),
+                    );
+                });
+            }
+
+            ui.separator();
+
+            for i in 0..4 {
+                ui.horizontal(|ui| {
+                    ui.label(
+                        RichText::new(format!(
+                            "TIMER {}: {:08x} ({:08x})",
+                            i,
+                            self.cpu.timers.get().timers[i].counter.value(),
+                            self.cpu.timers.get().timers[i].reload.value(),
+                        ))
+                        .monospace(),
+                    );
+                    ui.checkbox(
+                        &mut self.cpu.timers.get().timers[i]
+                            .control
+                            .value()
+                            .contains(TimerControl::ENABLE),
                         RichText::new("Enabled").monospace(),
                     );
                 });

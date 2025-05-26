@@ -24,8 +24,8 @@ impl Cpu {
         Cpu {
             registers: Registers::default(),
             pipeline: Pipeline::new(),
-            symbolizer: Symbolizer::new(buffer),
             mmio,
+            symbolizer: Symbolizer::new(buffer),
         }
     }
 
