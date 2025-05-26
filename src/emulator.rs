@@ -11,9 +11,10 @@ use crossbeam_channel::{Receiver, Sender};
 use lazy_static::lazy_static;
 use log::info;
 use std::fs::File;
-use std::io::Read;
+use std::io::{Cursor, Read};
 use std::path::Path;
 use std::sync::Mutex;
+use zip::ZipArchive;
 
 lazy_static! {
     pub static ref BREAKPOINTS: Mutex<Vec<u32>> = Mutex::new(Vec::new());
@@ -40,6 +41,13 @@ impl Emulator {
         let mut rom_data = Vec::new();
         let mut rom_file = File::open(&rom_path).expect("Failed to open ROM file");
         rom_file.read_to_end(&mut rom_data).expect("Failed to read ROM file");
+
+        // If it's a ZIP file, extract the ROM
+        if rom_path.ends_with(".zip") {
+            rom_data = Self::unzip_archive(&rom_data);
+        }
+
+        // Load ROM into memory
         mmio.load(0x08000000, &rom_data);
 
         // Check for corresponding ELF file (for symbolizer)
@@ -228,6 +236,21 @@ impl Emulator {
         }
 
         executed_instr
+    }
+
+    fn unzip_archive(buffer: &[u8]) -> Vec<u8> {
+        let mut archive = ZipArchive::new(Cursor::new(buffer)).unwrap();
+
+        let mut file_indices = (0..archive.len()).filter(|&i| !archive.by_index(i).unwrap().is_dir());
+        let first_idx = file_indices.next().unwrap_or_else(|| {
+            panic!("ZIP archive is empty or contains only directories");
+        });
+
+        let mut file = archive.by_index(first_idx).unwrap();
+        let mut buffer = Vec::with_capacity(file.size() as usize);
+        let _ = file.read_to_end(&mut buffer).unwrap();
+
+        buffer
     }
 }
 

@@ -19,6 +19,7 @@ log = { version = "0.4", features = ["release_max_level_off"] }
 simple_logger = { version = "5.0.0", default-features = false, features = [
     "colors",
 ] }
+zip = { version = "4.0.0", default-features = false, features = ["deflate"] }
 
 [features]
 verbose_debug = []
