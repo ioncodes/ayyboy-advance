@@ -979,7 +979,7 @@ impl Instruction {
                     ),
                     (0b11, 0, 0) => (Opcode::Bx, Some(Operand::Register(Register::from(s)?, None)), None),
                     (0b11, 0, 1) => (Opcode::Bx, Some(Operand::Register(Register::from(8 + s)?, None)), None),
-                    _ => unreachable!(),
+                    _ => Err("Invalid opcode for Hi register operations")?,
                 };
 
                 // Note: In this group only CMP (Op = 01) sets the CPSR
