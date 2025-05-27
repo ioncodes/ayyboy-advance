@@ -8,3 +8,4 @@ external/commercial/
 Cargo.lock
 flamegraph.svg
 *.png
+rom-db/screenshots/
