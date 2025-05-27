@@ -33,6 +33,20 @@ bitflags! {
     }
 }
 
+bitflags! {
+    #[derive(Default, Copy, Clone)]
+    pub struct BgCnt: u16 {
+        const BG_PRIORITY         = 0b0000_0000_0000_0011;
+        const CHAR_BASE_ADDR      = 0b0000_0000_0000_1100;
+        const UNUSED0             = 0b0000_0000_0011_0000;
+        const MOSAIC              = 0b0000_0000_0100_0000;
+        const COLOR_256           = 0b0000_0000_1000_0000;
+        const SCREEN_BASE_ADDR    = 0b0001_1111_0000_0000;
+        const DISPLAY_OVERFLOW    = 0b0010_0000_0000_0000;
+        const SCREEN_SIZE         = 0b1100_0000_0000_0000;
+    }
+}
+
 impl DispCnt {
     pub fn bg_mode(&self) -> u8 {
         (self.bits() & DispCnt::BG_MODE.bits()) as u8
@@ -43,6 +57,25 @@ impl DispCnt {
             FRAME_0_ADDRESS
         } else {
             FRAME_1_ADDRESS
+        }
+    }
+}
+
+pub enum InternalScreenSize {
+    Size256x256,
+    Size512x256,
+    Size256x512,
+    Size512x512,
+}
+
+impl BgCnt {
+    pub fn screen_size(&self) -> InternalScreenSize {
+        match (*self & BgCnt::SCREEN_SIZE).bits() {
+            0b0000_0000_0000_0000 => InternalScreenSize::Size256x256,
+            0b0100_0000_0000_0000 => InternalScreenSize::Size512x256,
+            0b1000_0000_0000_0000 => InternalScreenSize::Size256x512,
+            0b1100_0000_0000_0000 => InternalScreenSize::Size512x512,
+            _ => unreachable!(),
         }
     }
 }

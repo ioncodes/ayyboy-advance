@@ -1,4 +1,4 @@
-use super::registers::{DispCnt, DispStat};
+use super::registers::{BgCnt, DispCnt, DispStat};
 use super::{Frame, Rgb, PALETTE_ADDR_END, PALETTE_ADDR_START, PALETTE_TOTAL_ENTRIES, SCREEN_HEIGHT, SCREEN_WIDTH};
 use crate::memory::device::{Addressable, IoRegister};
 use log::*;
@@ -18,6 +18,7 @@ pub struct Ppu {
     pub scanline: IoRegister,
     pub disp_stat: IoRegister<DispStat>,
     pub disp_cnt: IoRegister<DispCnt>,
+    pub bg_cnt: [IoRegister<BgCnt>; 4],
 }
 
 impl Ppu {
@@ -33,6 +34,7 @@ impl Ppu {
             scanline: IoRegister::default(),
             disp_stat: IoRegister::default(),
             disp_cnt: IoRegister::default(),
+            bg_cnt: [IoRegister::default(); 4],
         }
     }
 
@@ -198,6 +200,11 @@ impl Addressable for Ppu {
             0x04000000..=0x04000001 => self.disp_cnt.read(addr),  // DISPCNT
             0x04000004..=0x04000005 => self.disp_stat.read(addr), // DISPSTAT
             0x04000006..=0x04000007 => self.scanline.read(addr),  // VCOUNT
+            0x04000008..=0x0400000E => {
+                // BG0CNT, BG1CNT, BG2CNT, BG3CNT
+                let index = (addr - 0x04000008) as usize / 2;
+                self.bg_cnt[index].read(addr)
+            }
             // rest of the registers
             0x04000000..=0x04000056 => self.io[(addr - 0x04000000) as usize],
             0x05000000..=0x07FFFFFF => self.vram[(addr - 0x05000000) as usize],
@@ -210,6 +217,11 @@ impl Addressable for Ppu {
             0x04000000..=0x04000001 => self.disp_cnt.write(addr, value), // DISPCNT
             0x04000004..=0x04000005 => self.disp_stat.write(addr, value), // DISPSTAT
             0x04000006..=0x04000007 => self.scanline.write(addr, value), // VCOUNT
+            0x04000008..=0x0400000E => {
+                // BG0CNT, BG1CNT, BG2CNT, BG3CNT
+                let index = (addr - 0x04000008) as usize / 2;
+                self.bg_cnt[index].write(addr, value)
+            }
             // rest of the registers
             0x04000000..=0x04000056 => self.io[(addr - 0x04000000) as usize] = value,
             0x05000000..=0x07FFFFFF => {
