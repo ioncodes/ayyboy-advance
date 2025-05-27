@@ -1,5 +1,5 @@
-use crate::input::registers::KeyInput;
-use crate::video::Frame;
+use gba_core::input::registers::KeyInput;
+use gba_core::video::Frame;
 
 use super::dbg::widgets::cpu::Cpu;
 use super::dbg::widgets::disasm::DecodedInstruction;

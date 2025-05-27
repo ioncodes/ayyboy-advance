@@ -1,13 +1,13 @@
 use super::dbg::debugger::Debugger;
 use super::event::ResponseEvent;
-use crate::frontend::event::RequestEvent;
-use crate::input::registers::KeyInput;
-use crate::video::{Frame, SCREEN_HEIGHT, SCREEN_WIDTH};
+use crate::event::RequestEvent;
 use crossbeam_channel::{Receiver, Sender};
 use eframe::egui::{vec2, CentralPanel, Color32, ColorImage, Context, Image, TextureHandle, TextureOptions};
 use eframe::{App, CreationContext};
 use egui::{Align2, Key, RichText, Window};
 use egui_extras::{Column, TableBuilder};
+use gba_core::input::registers::KeyInput;
+use gba_core::video::{Frame, SCREEN_HEIGHT, SCREEN_WIDTH};
 
 pub const SCALE: usize = 8;
 

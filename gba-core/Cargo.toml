@@ -1,0 +1,17 @@
+[package]
+name = "gba-core"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+bitflags = "2.6.0"
+bitmatch = "0.1.1"
+goblin = "0.9.2"
+rhai = { version = "1.17.1", features = ["sync"] }
+log = { version = "0.4", features = ["release_max_level_off"] }
+simple_logger = { version = "5.0.0", default-features = false, features = [
+    "colors",
+] }
+
+[features]
+verbose_debug = []

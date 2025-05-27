@@ -1,11 +1,11 @@
-use crate::arm7tdmi::registers::Psr;
-use crate::arm7tdmi::timer::Timers;
-use crate::frontend::dbg::tracked_value::TrackedValue;
-use crate::frontend::event::RequestEvent;
-use crate::memory::dma::Dma;
-use crate::memory::registers::TimerControl;
+use crate::dbg::tracked_value::TrackedValue;
+use crate::event::RequestEvent;
 use crossbeam_channel::Sender;
 use egui::{Color32, ComboBox, Context, RichText, TextEdit, Window};
+use gba_core::arm7tdmi::registers::Psr;
+use gba_core::arm7tdmi::timer::Timers;
+use gba_core::memory::dma::Dma;
+use gba_core::memory::registers::TimerControl;
 
 #[derive(Default, Copy, Clone)]
 pub struct TrackedCpu {

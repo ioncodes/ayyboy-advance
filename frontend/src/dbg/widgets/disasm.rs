@@ -1,4 +1,4 @@
-use crate::frontend::event::RequestEvent;
+use crate::event::RequestEvent;
 use crossbeam_channel::Sender;
 use egui::{Color32, Context, RichText, ScrollArea, Window};
 

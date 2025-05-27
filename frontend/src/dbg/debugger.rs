@@ -2,7 +2,7 @@ use super::widgets::cpu::CpuWidget;
 use super::widgets::disasm::DisassemblyWidget;
 use super::widgets::memory::MemoryWidget;
 use super::widgets::ppu::PpuWidget;
-use crate::frontend::event::{RequestEvent, ResponseEvent};
+use crate::event::{RequestEvent, ResponseEvent};
 use crossbeam_channel::{Receiver, Sender};
 use egui::Context;
 

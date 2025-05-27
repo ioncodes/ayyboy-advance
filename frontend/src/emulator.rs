@@ -1,13 +1,10 @@
-use crate::arm7tdmi::cpu::Cpu;
-use crate::arm7tdmi::decoder::{Instruction, Register};
-use crate::arm7tdmi::mode::ProcessorMode;
-use crate::frontend::dbg::widgets;
-use crate::frontend::dbg::widgets::disasm::DecodedInstruction;
-use crate::frontend::event::{RequestEvent, ResponseEvent};
-use crate::memory::mmio::Mmio;
-use crate::script::engine::ScriptEngine;
-use crate::video::{Frame, FRAME_0_ADDRESS, FRAME_1_ADDRESS};
 use crossbeam_channel::{Receiver, Sender};
+use gba_core::arm7tdmi::cpu::Cpu;
+use gba_core::arm7tdmi::decoder::{Instruction, Register};
+use gba_core::arm7tdmi::mode::ProcessorMode;
+use gba_core::memory::mmio::Mmio;
+use gba_core::script::engine::ScriptEngine;
+use gba_core::video::{Frame, FRAME_0_ADDRESS, FRAME_1_ADDRESS};
 use lazy_static::lazy_static;
 use log::info;
 use std::fs::File;
@@ -15,6 +12,10 @@ use std::io::{Cursor, Read};
 use std::path::Path;
 use std::sync::Mutex;
 use zip::ZipArchive;
+
+use crate::dbg::widgets;
+use crate::dbg::widgets::disasm::DecodedInstruction;
+use crate::event::{RequestEvent, ResponseEvent};
 
 lazy_static! {
     pub static ref BREAKPOINTS: Mutex<Vec<u32>> = Mutex::new(Vec::new());
@@ -35,7 +36,7 @@ impl Emulator {
         script_path: Option<String>, rom_path: String,
     ) -> Self {
         let mut mmio = Mmio::new();
-        mmio.load(0x00000000, include_bytes!("../external/gba_bios.bin"));
+        mmio.load(0x00000000, include_bytes!("../../external/gba_bios.bin"));
 
         // Load ROM from file
         let mut rom_data = Vec::new();

@@ -1,25 +1,20 @@
 #![feature(new_zeroed_alloc)]
 #![feature(if_let_guard)]
-#![feature(let_chains)]
 
-mod arm7tdmi;
-mod audio;
+mod dbg;
 mod emulator;
-mod frontend;
-mod input;
-mod memory;
-mod script;
-mod tests;
-mod video;
+mod event;
+mod renderer;
 
 use crate::emulator::Emulator;
-use crate::frontend::renderer::SCALE;
+use crate::renderer::SCALE;
 use clap::Parser;
 use crossbeam_channel::{bounded, Receiver, Sender};
 use eframe::NativeOptions;
+use gba_core::video::{Frame, SCREEN_HEIGHT, SCREEN_WIDTH};
 use log::LevelFilter;
+use renderer::Renderer;
 use simple_logger::SimpleLogger;
-use video::{Frame, SCREEN_HEIGHT, SCREEN_WIDTH};
 
 #[derive(Parser, Debug)]
 struct Args {
@@ -80,13 +75,6 @@ fn main() {
     let _ = eframe::run_native(
         "ayyboy advance",
         native_options,
-        Box::new(move |cc| {
-            Ok(Box::new(frontend::renderer::Renderer::new(
-                cc,
-                display_rx,
-                dbg_req_tx,
-                dbg_resp_rx,
-            )))
-        }),
+        Box::new(move |cc| Ok(Box::new(Renderer::new(cc, display_rx, dbg_req_tx, dbg_resp_rx)))),
     );
 }

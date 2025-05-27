@@ -1,7 +1,7 @@
-use crate::frontend::event::RequestEvent;
-use crate::video::{Frame, SCREEN_HEIGHT, SCREEN_WIDTH};
+use crate::event::RequestEvent;
 use crossbeam_channel::Sender;
 use egui::{Color32, ColorImage, Context, TextureHandle, TextureOptions, Window};
+use gba_core::video::{Frame, SCREEN_HEIGHT, SCREEN_WIDTH};
 
 pub struct PpuWidget {
     pub frames: Box<[Frame; 6]>,

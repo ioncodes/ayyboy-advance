@@ -1,0 +1,19 @@
+[package]
+name = "ayyboy-advance"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+egui = "0.28.1"
+eframe = "0.28.1"
+crossbeam-channel = "0.5.13"
+lazy_static = "1.5.0"
+egui-phosphor = "0.6.0"
+egui_extras = "0.28.1"
+log = { version = "0.4", features = ["release_max_level_off"] }
+simple_logger = { version = "5.0.0", default-features = false, features = [
+    "colors",
+] }
+clap = { version = "4.5.38", features = ["derive"] }
+zip = { version = "4.0.0", default-features = false, features = ["deflate"] }
+gba-core = { path = "../gba-core" }
