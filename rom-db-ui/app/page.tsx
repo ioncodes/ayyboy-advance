@@ -29,11 +29,7 @@ async function getImagesInFolder(folderName: string) {
     try {
         const folderPath = path.resolve(process.cwd(), '../target/rom-db/', folderName);
         const entries = await fs.readdir(folderPath);
-        return entries.filter(file =>
-            file.toLowerCase().endsWith('.png') ||
-            file.toLowerCase().endsWith('.jpg') ||
-            file.toLowerCase().endsWith('.jpeg')
-        );
+        return entries.filter(file => file.toLowerCase().endsWith('.png'));
     } catch (error) {
         console.error(`Error reading images from folder ${folderName}:`, error);
         return [];
