@@ -101,7 +101,8 @@ impl Ppu {
 
     pub fn get_background_frame(&self, mode: usize, base_addr: u32) -> Frame {
         match mode {
-            0..=2 => [[(0, 0, 0); SCREEN_WIDTH]; SCREEN_HEIGHT],
+            0 => self.render_background_mode0(base_addr),
+            1..=2 => [[(0, 0, 0); SCREEN_WIDTH]; SCREEN_HEIGHT],
             3 => self.render_background_mode3(base_addr),
             4 => self.render_background_mode4(base_addr),
             5 => self.render_background_mode5(base_addr),

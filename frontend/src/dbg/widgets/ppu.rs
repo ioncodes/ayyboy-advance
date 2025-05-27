@@ -1,11 +1,20 @@
 use crate::event::RequestEvent;
 use crossbeam_channel::Sender;
 use egui::{CollapsingHeader, Color32, ColorImage, Context, RichText, TextureHandle, TextureOptions, Window};
+use gba_core::video::registers::{BgCnt, DispCnt, DispStat};
 use gba_core::video::{Frame, Rgb, PALETTE_TOTAL_ENTRIES, SCREEN_HEIGHT, SCREEN_WIDTH};
+
+#[derive(Default)]
+pub struct PpuRegisters {
+    pub disp_cnt: DispCnt,
+    pub disp_stat: DispStat,
+    pub bg_cnt: [BgCnt; 4],
+}
 
 pub struct PpuWidget {
     pub frames: Box<[Frame; 6]>,
     pub palette: Box<[Rgb; PALETTE_TOTAL_ENTRIES]>,
+    pub registers: PpuRegisters,
     bgmode3_frame0_texture: Option<TextureHandle>,
     bgmode3_frame1_texture: Option<TextureHandle>,
     bgmode4_frame0_texture: Option<TextureHandle>,
@@ -22,6 +31,7 @@ impl PpuWidget {
         PpuWidget {
             frames: Box::new([[[(0, 0, 0); SCREEN_WIDTH]; SCREEN_HEIGHT]; 6]),
             palette: Box::new([(0, 0, 0); PALETTE_TOTAL_ENTRIES]),
+            registers: PpuRegisters::default(),
             bgmode3_frame0_texture: None,
             bgmode3_frame1_texture: None,
             bgmode4_frame0_texture: None,
@@ -32,9 +42,12 @@ impl PpuWidget {
         }
     }
 
-    pub fn update(&mut self, frames: Box<[Frame; 6]>, palette: Box<[Rgb; PALETTE_TOTAL_ENTRIES]>) {
+    pub fn update(
+        &mut self, frames: Box<[Frame; 6]>, palette: Box<[Rgb; PALETTE_TOTAL_ENTRIES]>, registers: PpuRegisters,
+    ) {
         self.frames = frames;
         self.palette = palette;
+        self.registers = registers;
 
         let update_texture = |texture: &mut Option<TextureHandle>, frame: &Frame| {
             if let Some(texture) = texture {
@@ -109,7 +122,93 @@ impl PpuWidget {
         }
 
         Window::new("PPU").resizable(false).show(ctx, |ui| {
-            CollapsingHeader::new("Background Modes")
+            CollapsingHeader::new("Registers").default_open(true).show(ui, |ui| {
+                ui.label(RichText::new("Display Control (DISP_CNT):").monospace().strong());
+                ui.label(RichText::new(format!("Background Mode: {}", self.registers.disp_cnt.bg_mode())).monospace());
+                ui.label(
+                    RichText::new(format!(
+                        "Frame Address: {:08x}",
+                        self.registers.disp_cnt.frame_address()
+                    ))
+                    .monospace(),
+                );
+
+                ui.separator();
+
+                ui.label(RichText::new("Display Status (DISP_STAT):").monospace().strong());
+                ui.label(
+                    RichText::new(format!(
+                        "VBLANK IRQ Enabled: {}",
+                        self.registers.disp_stat.contains(DispStat::VBLANK_IRQ_ENABLE)
+                    ))
+                    .monospace(),
+                );
+                ui.label(
+                    RichText::new(format!(
+                        "HBLANK IRQ Enabled: {}",
+                        self.registers.disp_stat.contains(DispStat::HBLANK_IRQ_ENABLE)
+                    ))
+                    .monospace(),
+                );
+                ui.label(
+                    RichText::new(format!(
+                        "VBLANK: {}",
+                        self.registers.disp_stat.contains(DispStat::VBLANK_FLAG)
+                    ))
+                    .monospace(),
+                );
+                ui.label(
+                    RichText::new(format!(
+                        "HBLANK: {}",
+                        self.registers.disp_stat.contains(DispStat::HBLANK_FLAG)
+                    ))
+                    .monospace(),
+                );
+                ui.label(
+                    RichText::new(format!(
+                        "VCOUNT Enabled: {}",
+                        self.registers.disp_stat.contains(DispStat::V_COUNTER_ENABLE)
+                    ))
+                    .monospace(),
+                );
+
+                ui.separator();
+
+                ui.label(RichText::new("Background Control (BGxCNT):").monospace().strong());
+                for (i, bg_cnt) in self.registers.bg_cnt.iter().enumerate() {
+                    ui.label(RichText::new(format!("BG{}CNT Screen Size: {}", i, bg_cnt.screen_size())).monospace());
+                    ui.label(
+                        RichText::new(format!("BG{}CNT Char Base Address: {:08x}", i, bg_cnt.char_base_addr()))
+                            .monospace(),
+                    );
+                    ui.label(
+                        RichText::new(format!(
+                            "BG{}CNT Screen Base Address: {:08x}",
+                            i,
+                            bg_cnt.screen_base_addr()
+                        ))
+                        .monospace(),
+                    );
+                }
+            });
+
+            CollapsingHeader::new("Palette").default_open(true).show(ui, |ui| {
+                for (row_index, row) in self.palette.chunks(16).enumerate() {
+                    ui.horizontal(|ui| {
+                        for (col_index, color) in row.iter().enumerate() {
+                            let i = row_index * 16 + col_index;
+                            let color32 = Color32::from_rgb(color.0, color.1, color.2);
+                            ui.label(
+                                RichText::new(format!("{:04X}", i))
+                                    .background_color(color32)
+                                    .monospace(),
+                            );
+                        }
+                    });
+                }
+            });
+
+            CollapsingHeader::new("Internal Frames")
                 .default_open(false)
                 .show(ui, |ui| {
                     ui.label("Background Mode 3");
@@ -142,22 +241,6 @@ impl PpuWidget {
                         }
                     });
                 });
-
-            CollapsingHeader::new("Palette").default_open(true).show(ui, |ui| {
-                for (row_index, row) in self.palette.chunks(16).enumerate() {
-                    ui.horizontal(|ui| {
-                        for (col_index, color) in row.iter().enumerate() {
-                            let i = row_index * 16 + col_index;
-                            let color32 = Color32::from_rgb(color.0, color.1, color.2);
-                            ui.label(
-                                RichText::new(format!("{:04X}", i))
-                                    .background_color(color32)
-                                    .monospace(),
-                            );
-                        }
-                    });
-                }
-            });
         });
     }
 }

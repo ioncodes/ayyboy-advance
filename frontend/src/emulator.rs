@@ -15,6 +15,7 @@ use zip::ZipArchive;
 
 use crate::dbg::widgets;
 use crate::dbg::widgets::disasm::DecodedInstruction;
+use crate::dbg::widgets::ppu::PpuRegisters;
 use crate::event::{RequestEvent, ResponseEvent};
 
 lazy_static! {
@@ -211,6 +212,11 @@ impl Emulator {
                             self.cpu.mmio.ppu.get_background_frame(5, FRAME_1_ADDRESS),
                         ]),
                         Box::new(self.cpu.mmio.ppu.fetch_palette()),
+                        PpuRegisters {
+                            disp_cnt: *self.cpu.mmio.ppu.disp_cnt.value(),
+                            disp_stat: *self.cpu.mmio.ppu.disp_stat.value(),
+                            bg_cnt: self.cpu.mmio.ppu.bg_cnt.map(|bg| *bg.value()),
+                        },
                     ));
                     EventResult::None
                 }

@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use bitflags::bitflags;
 
 use super::{FRAME_0_ADDRESS, FRAME_1_ADDRESS};
@@ -68,6 +70,17 @@ pub enum InternalScreenSize {
     Size512x512,
 }
 
+impl Display for InternalScreenSize {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            InternalScreenSize::Size256x256 => write!(f, "256x256"),
+            InternalScreenSize::Size512x256 => write!(f, "512x256"),
+            InternalScreenSize::Size256x512 => write!(f, "256x512"),
+            InternalScreenSize::Size512x512 => write!(f, "512x512"),
+        }
+    }
+}
+
 impl BgCnt {
     pub fn screen_size(&self) -> InternalScreenSize {
         match (*self & BgCnt::SCREEN_SIZE).bits() {
@@ -77,5 +90,15 @@ impl BgCnt {
             0b1100_0000_0000_0000 => InternalScreenSize::Size512x512,
             _ => unreachable!(),
         }
+    }
+
+    pub fn char_base_addr(&self) -> u32 {
+        let addr = ((*self & BgCnt::CHAR_BASE_ADDR).bits() >> 2) as u32;
+        addr * 0x400
+    }
+
+    pub fn screen_base_addr(&self) -> u32 {
+        let addr = ((*self & BgCnt::SCREEN_BASE_ADDR).bits() >> 8) as u32;
+        addr * 0x800
     }
 }
