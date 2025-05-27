@@ -41,11 +41,6 @@ fn extract_file_stem(entry: &DirEntry) -> String {
 }
 
 fn emulate_rom(rom_path: String, output_path: String, filename: String) {
-    if fs::exists(&output_path).unwrap() {
-        println!("Skipping {}: already exists", filename);
-        return;
-    }
-
     fs::create_dir_all(&output_path).expect("Failed to create output directory");
 
     let mut emulator = Emulator::new(rom_path);
