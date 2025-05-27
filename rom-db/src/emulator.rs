@@ -54,7 +54,7 @@ impl Emulator {
     pub fn run_to_frame(&mut self) -> Option<Frame> {
         let mut i = 0;
         loop {
-            if i > 100_000_000_000usize {
+            if i > 100_000_000 {
                 // bail in case smth goes wrong
                 println!("Emulation took too long, bailing.");
                 return None;
