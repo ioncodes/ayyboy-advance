@@ -64,7 +64,7 @@ fn main() {
     });
 
     const OUTPUT_FOLDER: &str = "rom-db/screenshots";
-    const MAX_THREADS: usize = 25;
+    const MAX_THREADS: usize = 100;
 
     fs::create_dir_all(OUTPUT_FOLDER).expect("Failed to create output directory");
 

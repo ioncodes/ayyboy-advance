@@ -2,6 +2,7 @@ use gba_core::arm7tdmi::cpu::Cpu;
 use gba_core::arm7tdmi::decoder::Register;
 use gba_core::arm7tdmi::error::CpuError;
 use gba_core::arm7tdmi::mode::ProcessorMode;
+use gba_core::input::registers::KeyInput;
 use gba_core::memory::mmio::Mmio;
 use gba_core::video::Frame;
 use std::fs::File;
@@ -30,6 +31,10 @@ impl Emulator {
 
         // Load ROM into memory
         mmio.load(0x08000000, &rom_data);
+
+        // Press some buttons to (hopefully) progress into something
+        mmio.joypad.set_key_state(KeyInput::A, true);
+        mmio.joypad.set_key_state(KeyInput::START, true);
 
         let mut cpu = Cpu::new(&[], mmio);
 
