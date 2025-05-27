@@ -22,7 +22,12 @@ fn extract_files_from_path(path: &str) -> Vec<DirEntry> {
     fs::read_dir(path)
         .expect("Failed to read ROM directory")
         .filter_map(Result::ok)
-        .filter(|entry| entry.path().extension().map_or(false, |ext| ext == "zip"))
+        .filter(|entry| {
+            entry
+                .path()
+                .extension()
+                .map_or(false, |ext| ext == "zip" || ext == "gba")
+        })
         .collect::<Vec<_>>()
 }
 
