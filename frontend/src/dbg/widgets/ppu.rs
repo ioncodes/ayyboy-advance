@@ -1,10 +1,11 @@
 use crate::event::RequestEvent;
 use crossbeam_channel::Sender;
-use egui::{Color32, ColorImage, Context, TextureHandle, TextureOptions, Window};
-use gba_core::video::{Frame, SCREEN_HEIGHT, SCREEN_WIDTH};
+use egui::{CollapsingHeader, Color32, ColorImage, Context, RichText, TextureHandle, TextureOptions, Window};
+use gba_core::video::{Frame, Rgb, PALETTE_TOTAL_ENTRIES, SCREEN_HEIGHT, SCREEN_WIDTH};
 
 pub struct PpuWidget {
     pub frames: Box<[Frame; 6]>,
+    pub palette: Box<[Rgb; PALETTE_TOTAL_ENTRIES]>,
     bgmode3_frame0_texture: Option<TextureHandle>,
     bgmode3_frame1_texture: Option<TextureHandle>,
     bgmode4_frame0_texture: Option<TextureHandle>,
@@ -20,6 +21,7 @@ impl PpuWidget {
 
         PpuWidget {
             frames: Box::new([[[(0, 0, 0); SCREEN_WIDTH]; SCREEN_HEIGHT]; 6]),
+            palette: Box::new([(0, 0, 0); PALETTE_TOTAL_ENTRIES]),
             bgmode3_frame0_texture: None,
             bgmode3_frame1_texture: None,
             bgmode4_frame0_texture: None,
@@ -30,8 +32,9 @@ impl PpuWidget {
         }
     }
 
-    pub fn update(&mut self, frames: Box<[Frame; 6]>) {
+    pub fn update(&mut self, frames: Box<[Frame; 6]>, palette: Box<[Rgb; PALETTE_TOTAL_ENTRIES]>) {
         self.frames = frames;
+        self.palette = palette;
 
         let update_texture = |texture: &mut Option<TextureHandle>, frame: &Frame| {
             if let Some(texture) = texture {
@@ -106,33 +109,53 @@ impl PpuWidget {
         }
 
         Window::new("PPU").resizable(false).show(ctx, |ui| {
-            ui.label("Background Mode 3");
-            ui.horizontal(|ui| {
-                if let Some(texture) = &self.bgmode3_frame0_texture {
-                    ui.image(texture);
-                }
-                if let Some(texture) = &self.bgmode3_frame1_texture {
-                    ui.image(texture);
-                }
-            });
+            CollapsingHeader::new("Background Modes")
+                .default_open(false)
+                .show(ui, |ui| {
+                    ui.label("Background Mode 3");
+                    ui.horizontal(|ui| {
+                        if let Some(texture) = &self.bgmode3_frame0_texture {
+                            ui.image(texture);
+                        }
+                        if let Some(texture) = &self.bgmode3_frame1_texture {
+                            ui.image(texture);
+                        }
+                    });
 
-            ui.label("Background Mode 4");
-            ui.horizontal(|ui| {
-                if let Some(texture) = &self.bgmode4_frame0_texture {
-                    ui.image(texture);
-                }
-                if let Some(texture) = &self.bgmode4_frame1_texture {
-                    ui.image(texture);
-                }
-            });
+                    ui.label("Background Mode 4");
+                    ui.horizontal(|ui| {
+                        if let Some(texture) = &self.bgmode4_frame0_texture {
+                            ui.image(texture);
+                        }
+                        if let Some(texture) = &self.bgmode4_frame1_texture {
+                            ui.image(texture);
+                        }
+                    });
 
-            ui.label("Background Mode 5");
-            ui.horizontal(|ui| {
-                if let Some(texture) = &self.bgmode5_frame0_texture {
-                    ui.image(texture);
-                }
-                if let Some(texture) = &self.bgmode5_frame1_texture {
-                    ui.image(texture);
+                    ui.label("Background Mode 5");
+                    ui.horizontal(|ui| {
+                        if let Some(texture) = &self.bgmode5_frame0_texture {
+                            ui.image(texture);
+                        }
+                        if let Some(texture) = &self.bgmode5_frame1_texture {
+                            ui.image(texture);
+                        }
+                    });
+                });
+
+            CollapsingHeader::new("Palette").default_open(true).show(ui, |ui| {
+                for (row_index, row) in self.palette.chunks(16).enumerate() {
+                    ui.horizontal(|ui| {
+                        for (col_index, color) in row.iter().enumerate() {
+                            let i = row_index * 16 + col_index;
+                            let color32 = Color32::from_rgb(color.0, color.1, color.2);
+                            ui.label(
+                                RichText::new(format!("{:04X}", i))
+                                    .background_color(color32)
+                                    .monospace(),
+                            );
+                        }
+                    });
                 }
             });
         });

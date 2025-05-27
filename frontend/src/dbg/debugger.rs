@@ -39,7 +39,7 @@ impl Debugger {
             Ok(ResponseEvent::Cpu(cpu)) => self.cpu_widget.update(cpu),
             Ok(ResponseEvent::Memory(memory)) => self.memory_widget.update(memory),
             Ok(ResponseEvent::Disassembly(pc, r15, disassembly)) => self.disasm_widget.update(disassembly, pc, r15),
-            Ok(ResponseEvent::Ppu(frames)) => self.ppu_widget.update(frames),
+            Ok(ResponseEvent::Ppu(frames, palette)) => self.ppu_widget.update(frames, palette),
             _ => (),
         }
 

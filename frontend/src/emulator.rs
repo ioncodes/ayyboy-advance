@@ -201,14 +201,17 @@ impl Emulator {
                     EventResult::None
                 }
                 RequestEvent::UpdatePpu => {
-                    let _ = self.dbg_resp_tx.send(ResponseEvent::Ppu(Box::new([
-                        self.cpu.mmio.ppu.get_background_frame(3, FRAME_0_ADDRESS),
-                        self.cpu.mmio.ppu.get_background_frame(3, FRAME_1_ADDRESS),
-                        self.cpu.mmio.ppu.get_background_frame(4, FRAME_0_ADDRESS),
-                        self.cpu.mmio.ppu.get_background_frame(4, FRAME_1_ADDRESS),
-                        self.cpu.mmio.ppu.get_background_frame(5, FRAME_0_ADDRESS),
-                        self.cpu.mmio.ppu.get_background_frame(5, FRAME_1_ADDRESS),
-                    ])));
+                    let _ = self.dbg_resp_tx.send(ResponseEvent::Ppu(
+                        Box::new([
+                            self.cpu.mmio.ppu.get_background_frame(3, FRAME_0_ADDRESS),
+                            self.cpu.mmio.ppu.get_background_frame(3, FRAME_1_ADDRESS),
+                            self.cpu.mmio.ppu.get_background_frame(4, FRAME_0_ADDRESS),
+                            self.cpu.mmio.ppu.get_background_frame(4, FRAME_1_ADDRESS),
+                            self.cpu.mmio.ppu.get_background_frame(5, FRAME_0_ADDRESS),
+                            self.cpu.mmio.ppu.get_background_frame(5, FRAME_1_ADDRESS),
+                        ]),
+                        Box::new(self.cpu.mmio.ppu.fetch_palette()),
+                    ));
                     EventResult::None
                 }
             })

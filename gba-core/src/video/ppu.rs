@@ -1,5 +1,5 @@
 use super::registers::{DispCnt, DispStat};
-use super::{Frame, SCREEN_HEIGHT, SCREEN_WIDTH};
+use super::{Frame, Rgb, PALETTE_ADDR_END, PALETTE_ADDR_START, PALETTE_TOTAL_ENTRIES, SCREEN_HEIGHT, SCREEN_WIDTH};
 use crate::memory::device::{Addressable, IoRegister};
 use log::*;
 
@@ -107,6 +107,34 @@ impl Ppu {
         }
     }
 
+    pub fn fetch_palette(&self) -> [Rgb; PALETTE_TOTAL_ENTRIES] {
+        let mut palette = [(0u8, 0u8, 0u8); PALETTE_TOTAL_ENTRIES];
+
+        for addr in (PALETTE_ADDR_START..=PALETTE_ADDR_END).step_by(2) {
+            let rgb = self.read_u16(addr);
+            let index = (addr - PALETTE_ADDR_START) as usize / 2;
+            palette[index] = Self::extract_rgb(rgb);
+        }
+
+        palette
+    }
+
+    fn render_background_mode0(&self, base_addr: u32) -> Frame {
+        trace!("Rendering background mode 0 @ {:08x}", base_addr);
+
+        let mut frame = [[(0, 0, 0); SCREEN_WIDTH]; SCREEN_HEIGHT];
+
+        for y in 0..SCREEN_HEIGHT {
+            for x in 0..SCREEN_WIDTH {
+                let addr = base_addr + ((y * SCREEN_WIDTH + x) as u32 * 2);
+                let rgb = self.read_u16(addr);
+                frame[y][x] = Self::extract_rgb(rgb);
+            }
+        }
+
+        frame
+    }
+
     fn render_background_mode3(&self, base_addr: u32) -> Frame {
         trace!("Rendering background mode 3 @ {:08x}", base_addr);
 
@@ -116,14 +144,7 @@ impl Ppu {
             for x in 0..SCREEN_WIDTH {
                 let addr = base_addr + ((y * SCREEN_WIDTH + x) as u32 * 2);
                 let rgb = self.read_u16(addr);
-
-                let (r, g, b) = (
-                    ((rgb & 0b0000_0000_0001_1111) as u8),
-                    (((rgb & 0b0000_0011_1110_0000) >> 5) as u8),
-                    (((rgb & 0b0111_1100_0000_0000) >> 10) as u8),
-                );
-
-                frame[y][x] = (r << 3, g << 3, b << 3);
+                frame[y][x] = Self::extract_rgb(rgb);
             }
         }
 
@@ -140,14 +161,7 @@ impl Ppu {
                 let addr = base_addr + (y * SCREEN_WIDTH + x) as u32;
                 let idx = self.read(addr) as u32;
                 let rgb = self.read_u16(0x05000000 + (idx * 2));
-
-                let (r, g, b) = (
-                    ((rgb & 0b0000_0000_0001_1111) as u8),
-                    (((rgb & 0b0000_0011_1110_0000) >> 5) as u8),
-                    (((rgb & 0b0111_1100_0000_0000) >> 10) as u8),
-                );
-
-                frame[y][x] = (r << 3, g << 3, b << 3);
+                frame[y][x] = Self::extract_rgb(rgb);
             }
         }
 
@@ -163,18 +177,18 @@ impl Ppu {
             for x in 0..160 {
                 let addr = base_addr + ((y * SCREEN_WIDTH + x) as u32 * 2);
                 let rgb = self.read_u16(addr);
-
-                let (r, g, b) = (
-                    ((rgb & 0b0000_0000_0001_1111) as u8),
-                    (((rgb & 0b0000_0011_1110_0000) >> 5) as u8),
-                    (((rgb & 0b0111_1100_0000_0000) >> 10) as u8),
-                );
-
-                frame[y][x] = (r << 3, g << 3, b << 3);
+                frame[y][x] = Self::extract_rgb(rgb);
             }
         }
 
         frame
+    }
+
+    fn extract_rgb(rgb: u16) -> (u8, u8, u8) {
+        let r = ((rgb & 0b0000_0000_0001_1111) as u8) << 3;
+        let g = (((rgb & 0b0000_0011_1110_0000) >> 5) as u8) << 3;
+        let b = (((rgb & 0b0111_1100_0000_0000) >> 10) as u8) << 3;
+        (r, g, b)
     }
 }
 
