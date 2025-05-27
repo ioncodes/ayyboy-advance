@@ -12,6 +12,9 @@ use log::*;
 
 const EWRAM_SIZE: u32 = 0x40000; // 256 KiB
 const IWRAM_SIZE: u32 = 0x8000; // 32 KiB
+const PALETTE_SIZE: u32 = 0x400; // 1 KiB
+const VRAM_SIZE: u32 = 0x18000; // 128 KiB
+const OAM_SIZE: u32 = 0x400; // 1 KiB
 
 pub struct Mmio {
     pub internal_memory: Box<[u8; 0x04FFFFFF + 1]>,
@@ -27,7 +30,7 @@ pub struct Mmio {
     pub io_if: IoRegister<Interrupt>, // IF
     pub io_halt_cnt: IoRegister<u8>,  // HALTCNT
     // other
-    origin_rw_length: Option<TransferLength>, // cache this for cases like 8bit VRAM mirrored writes
+    origin_write_length: Option<TransferLength>, // cache this for cases like 8bit VRAM mirrored writes
 }
 
 impl Mmio {
@@ -47,7 +50,7 @@ impl Mmio {
             io_ie: IoRegister::default(),
             io_if: IoRegister::default(),
             io_halt_cnt: IoRegister(0xff),
-            origin_rw_length: None,
+            origin_write_length: None,
         }
     }
 
@@ -97,10 +100,6 @@ impl Mmio {
     }
 
     pub fn read(&mut self, addr: u32) -> u8 {
-        if self.origin_rw_length.is_none() {
-            self.origin_rw_length = Some(TransferLength::Byte);
-        }
-
         let value = match addr {
             // I/O Registers & Hooks
             0x04000000..=0x04000056 => self.ppu.read(addr),    // PPU I/O
@@ -129,7 +128,18 @@ impl Mmio {
                 };
                 self.internal_memory[addr as usize]
             }
-            0x05000000..=0x07FFFFFF => self.ppu.read(addr), // VRAM, OAM, and Palette RAM
+            0x05000000..=0x07FFFFFF => {
+                let addr = match addr {
+                    // Pallete RAM – mirrors every 1 KiB in 0x05000000‑0x050003FF
+                    0x05000000..=0x05FFFFFF => 0x05000000 + ((addr - 0x05000000) % PALETTE_SIZE),
+                    // VRAM – mirrors every 32 KiB in 0x06000000‑06017FFF
+                    0x06000000..=0x06FFFFFF => 0x06000000 + ((addr - 0x06000000) % VRAM_SIZE),
+                    // OAM – mirrors every 1 KiB in 0x07000000‑0x070003FF
+                    0x07000000..=0x07FFFFFF => 0x07000000 + ((addr - 0x07000000) % OAM_SIZE),
+                    _ => addr,
+                };
+                self.ppu.read(addr)
+            }
             0x08000000..=0x09FFFFFF => self.external_memory[(addr - 0x08000000) as usize],
             0x0A000000..=0x0BFFFFFF => self.external_memory[(addr - 0x0A000000) as usize], // Mirror of 0x08000000..=0x09FFFFFF
             0x0C000000..=0x0DFFFFFF => self.external_memory[(addr - 0x0C000000) as usize], // Mirror of 0x08000000..=0x09FFFFFF
@@ -140,7 +150,7 @@ impl Mmio {
             }
         };
 
-        self.origin_rw_length = None;
+        self.origin_write_length = None;
 
         trace!("Read {:02x} from {:08x}", value, addr);
 
@@ -148,14 +158,10 @@ impl Mmio {
     }
 
     pub fn read_u16(&mut self, addr: u32) -> u16 {
-        self.origin_rw_length = Some(TransferLength::HalfWord);
-
         u16::from_le_bytes([self.read(addr), self.read(addr + 1)])
     }
 
     pub fn read_u32(&mut self, addr: u32) -> u32 {
-        self.origin_rw_length = Some(TransferLength::Word);
-
         u32::from_le_bytes([
             self.read(addr),
             self.read(addr + 1),
@@ -166,10 +172,6 @@ impl Mmio {
 
     pub fn write(&mut self, addr: u32, value: u8) {
         trace!("Writing {:02x} to {:08x}", value, addr);
-
-        if self.origin_rw_length.is_none() {
-            self.origin_rw_length = Some(TransferLength::Byte);
-        }
 
         match addr {
             0x00000000..=0x00003FFF => error!("Writing to BIOS: {:02x} to {:08x}", value, addr),
@@ -195,14 +197,33 @@ impl Mmio {
                     0x03000000..=0x03FFFFFF => 0x03000000 + ((addr - 0x03000000) % IWRAM_SIZE),
                     _ => addr,
                 };
-                self.internal_memory[addr as usize] = value
+                self.internal_memory[addr as usize] = value;
             }
-            0x06000000..=0x06017FFF if self.origin_rw_length == Some(TransferLength::Byte) => {
-                // VRAM needs mirrored writes for 8bit
-                self.ppu.write(addr, value);
-                self.ppu.write(addr + 1, value);
+            0x05000000..=0x07FFFFFF => {
+                let addr = match addr {
+                    // Pallete RAM – mirrors every 1 KiB in 0x05000000‑0x050003FF
+                    0x05000000..=0x05FFFFFF => 0x05000000 + ((addr - 0x05000000) % PALETTE_SIZE),
+                    // VRAM – mirrors every 32 KiB in 0x06000000‑06017FFF
+                    0x06000000..=0x06FFFFFF => 0x06000000 + ((addr - 0x06000000) % VRAM_SIZE),
+                    // OAM – mirrors every 1 KiB in 0x07000000‑0x070003FF
+                    0x07000000..=0x07FFFFFF => 0x07000000 + ((addr - 0x07000000) % OAM_SIZE),
+                    _ => addr,
+                };
+
+                // self.origin_write_length == None implies 8bit write
+                match addr {
+                    0x06000000..=0x06017FFF if self.origin_write_length == None => {
+                        // 8bit write to VRAM mirrors to full halfword
+                        let addr = addr & !1; // align to halfword
+                        self.ppu.write(addr, value);
+                        self.ppu.write(addr + 1, value);
+                    }
+                    // Atem — 12:06 AM
+                    // 8-bit writes to OBJ VRAM and OAM are ignored
+                    0x07000000..=0x070003FF if self.origin_write_length == None => {}
+                    _ => self.ppu.write(addr, value),
+                }
             }
-            0x05000000..=0x07FFFFFF => self.ppu.write(addr, value),
             0x08000000..=0x09FFFFFF => self.external_memory[(addr - 0x08000000) as usize] = value,
             0x0A000000..=0x0BFFFFFF => self.external_memory[(addr - 0x0A000000) as usize] = value, // Mirror of 0x08000000..=0x09FFFFFF
             0x0C000000..=0x0DFFFFFF => self.external_memory[(addr - 0x0C000000) as usize] = value, // Mirror of 0x08000000..=0x09FFFFFF
@@ -211,26 +232,28 @@ impl Mmio {
                 error!("Writing to unmapped memory address: {:08x}", addr);
             }
         }
-
-        self.origin_rw_length = None;
     }
 
     pub fn write_u16(&mut self, addr: u32, value: u16) {
-        self.origin_rw_length = Some(TransferLength::HalfWord);
+        self.origin_write_length = Some(TransferLength::HalfWord);
 
         let [a, b] = value.to_le_bytes();
         self.write(addr, a);
         self.write(addr + 1, b);
+
+        self.origin_write_length = None; // reset after writing
     }
 
     pub fn write_u32(&mut self, addr: u32, value: u32) {
-        self.origin_rw_length = Some(TransferLength::Word);
+        self.origin_write_length = Some(TransferLength::Word);
 
         let [a, b, c, d] = value.to_le_bytes();
         self.write(addr, a);
         self.write(addr + 1, b);
         self.write(addr + 2, c);
         self.write(addr + 3, d);
+
+        self.origin_write_length = None; // reset after writing
     }
 
     pub fn load(&mut self, addr: u32, data: &[u8]) {

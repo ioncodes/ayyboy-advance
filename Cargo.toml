@@ -2,5 +2,8 @@
 members = ["gba-core", "frontend", "rom-db"]
 resolver = "3"
 
+[profile.release]
+debug = true
+
 [profile.dev]
 opt-level = 3
