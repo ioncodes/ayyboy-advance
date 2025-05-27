@@ -1,4 +1,3 @@
-use crossbeam_channel::Sender;
 use gba_core::arm7tdmi::cpu::Cpu;
 use gba_core::arm7tdmi::decoder::Register;
 use gba_core::arm7tdmi::error::CpuError;
@@ -11,12 +10,11 @@ use zip::ZipArchive;
 
 pub struct Emulator {
     pub cpu: Cpu,
-    pub display_tx: Sender<Frame>,
-    current_cycles: usize,
+    frame_rendered: bool,
 }
 
 impl Emulator {
-    pub fn new(display_tx: Sender<Frame>, rom_path: String) -> Self {
+    pub fn new(rom_path: String) -> Self {
         let mut mmio = Mmio::new();
         mmio.load(0x00000000, include_bytes!("../../external/gba_bios.bin"));
 
@@ -49,32 +47,22 @@ impl Emulator {
 
         Self {
             cpu,
-            display_tx,
-            current_cycles: 0,
+            frame_rendered: false,
         }
     }
 
-    pub fn run(&mut self) {
-        let mut frame_rendered = false;
-
+    pub fn run_to_frame(&mut self) -> Option<Frame> {
         loop {
             match self.cpu.tick(None) {
-                Err(CpuError::FailedToDecode) => break,
+                Err(CpuError::FailedToDecode) => return None,
                 _ => {}
             }
+            self.cpu.mmio.tick_components();
 
-            self.current_cycles += 1; // TODO: actually track it
-
-            if self.current_cycles > 1 {
-                self.current_cycles = 0;
-                self.cpu.mmio.tick_components();
-            }
-
-            if self.cpu.mmio.ppu.scanline.0 == 160 && !frame_rendered {
-                let _ = self.display_tx.send(self.cpu.mmio.ppu.get_frame());
-                frame_rendered = true;
-            } else if self.cpu.mmio.ppu.scanline.0 == 0 && frame_rendered {
-                frame_rendered = false;
+            if self.cpu.mmio.ppu.scanline.0 == 160 && !self.frame_rendered {
+                return Some(self.cpu.mmio.ppu.get_frame());
+            } else if self.cpu.mmio.ppu.scanline.0 == 0 && self.frame_rendered {
+                self.frame_rendered = false;
             }
         }
     }

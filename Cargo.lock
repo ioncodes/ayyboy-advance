@@ -2970,7 +2970,6 @@ dependencies = [
 name = "rom-db"
 version = "0.1.0"
 dependencies = [
- "crossbeam-channel",
  "gba-core",
  "image",
  "zip",

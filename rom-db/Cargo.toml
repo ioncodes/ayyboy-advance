@@ -5,6 +5,5 @@ edition = "2024"
 
 [dependencies]
 zip = { version = "4.0.0", default-features = false, features = ["deflate"] }
-crossbeam-channel = "0.5.13"
 gba-core = { path = "../gba-core" }
 image = { version = "0.25.6", default-features = false, features = ["png"] }
