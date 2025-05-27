@@ -1,0 +1,96 @@
+use crossbeam_channel::Sender;
+use gba_core::arm7tdmi::cpu::Cpu;
+use gba_core::arm7tdmi::decoder::Register;
+use gba_core::arm7tdmi::error::CpuError;
+use gba_core::arm7tdmi::mode::ProcessorMode;
+use gba_core::memory::mmio::Mmio;
+use gba_core::video::Frame;
+use std::fs::File;
+use std::io::{Cursor, Read};
+use zip::ZipArchive;
+
+pub struct Emulator {
+    pub cpu: Cpu,
+    pub display_tx: Sender<Frame>,
+    current_cycles: usize,
+}
+
+impl Emulator {
+    pub fn new(display_tx: Sender<Frame>, rom_path: String) -> Self {
+        let mut mmio = Mmio::new();
+        mmio.load(0x00000000, include_bytes!("../../external/gba_bios.bin"));
+
+        // Load ROM from file
+        let mut rom_data = Vec::new();
+        let mut rom_file = File::open(&rom_path).expect("Failed to open ROM file");
+        rom_file.read_to_end(&mut rom_data).expect("Failed to read ROM file");
+
+        // If it's a ZIP file, extract the ROM
+        if rom_path.ends_with(".zip") {
+            rom_data = Self::unzip_archive(&rom_data);
+        }
+
+        // Load ROM into memory
+        mmio.load(0x08000000, &rom_data);
+
+        let mut cpu = Cpu::new(&[], mmio);
+
+        // Initialize CPU state (post BIOS)
+        cpu.set_processor_mode(ProcessorMode::Irq);
+        cpu.write_register(&Register::R13, 0x03007fa0);
+        cpu.set_processor_mode(ProcessorMode::Supervisor);
+        cpu.write_register(&Register::R13, 0x03007fe0);
+        cpu.set_processor_mode(ProcessorMode::User);
+        cpu.write_register(&Register::R13, 0x03007f00);
+        cpu.set_processor_mode(ProcessorMode::System);
+        cpu.write_register(&Register::R13, 0x03007f00);
+        cpu.write_register(&Register::R14, 0x08000000);
+        cpu.write_register(&Register::R15, 0x08000000);
+
+        Self {
+            cpu,
+            display_tx,
+            current_cycles: 0,
+        }
+    }
+
+    pub fn run(&mut self) {
+        let mut frame_rendered = false;
+
+        loop {
+            match self.cpu.tick(None) {
+                Err(CpuError::FailedToDecode) => break,
+                _ => {}
+            }
+
+            self.current_cycles += 1; // TODO: actually track it
+
+            if self.current_cycles > 1 {
+                self.current_cycles = 0;
+                self.cpu.mmio.tick_components();
+            }
+
+            if self.cpu.mmio.ppu.scanline.0 == 160 && !frame_rendered {
+                let _ = self.display_tx.send(self.cpu.mmio.ppu.get_frame());
+                frame_rendered = true;
+            } else if self.cpu.mmio.ppu.scanline.0 == 0 && frame_rendered {
+                frame_rendered = false;
+            }
+        }
+    }
+
+    fn unzip_archive(buffer: &[u8]) -> Vec<u8> {
+        let mut archive = ZipArchive::new(Cursor::new(buffer)).unwrap();
+
+        let mut file_indices = (0..archive.len()).filter(|&i| !archive.by_index(i).unwrap().is_dir());
+        let first_idx = file_indices.next().unwrap_or_else(|| {
+            panic!("ZIP archive is empty or contains only directories");
+        });
+
+        let mut file = archive.by_index(first_idx).unwrap();
+        let mut buffer = Vec::with_capacity(file.size() as usize);
+        let _ = file.read_to_end(&mut buffer).unwrap();
+
+        buffer
+    }
+}

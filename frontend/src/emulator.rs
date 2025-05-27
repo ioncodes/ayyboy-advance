@@ -218,7 +218,7 @@ impl Emulator {
     fn do_tick(&mut self, tick: &mut bool) -> Option<Instruction> {
         let mut executed_instr: Option<Instruction> = None;
 
-        if let Some((instr, state)) = self.cpu.tick(Some(&mut self.script_engine)) {
+        if let Ok((instr, state)) = self.cpu.tick(Some(&mut self.script_engine)) {
             if BREAKPOINTS
                 .lock()
                 .unwrap()

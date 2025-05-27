@@ -22,7 +22,7 @@ mod tests {
         let mut trace: Vec<(u32, Instruction)> = Vec::new();
 
         loop {
-            if let Some((instr, state)) = cpu.tick(None) {
+            if let Ok((instr, state)) = cpu.tick(None) {
                 trace.push((state.pc, instr));
             }
             cpu.mmio.tick_components();

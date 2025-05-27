@@ -4,6 +4,7 @@ use super::pipeline::{Pipeline, State};
 use super::registers::{Psr, Registers};
 use super::symbolizer::Symbolizer;
 use crate::arm7tdmi::decoder::Opcode;
+use crate::arm7tdmi::error::CpuError;
 use crate::arm7tdmi::handlers::Handlers;
 use crate::memory::device::IoRegister;
 use crate::memory::mmio::Mmio;
@@ -29,7 +30,7 @@ impl Cpu {
         }
     }
 
-    pub fn tick(&mut self, script_engine: Option<&mut ScriptEngine>) -> Option<(Instruction, State)> {
+    pub fn tick(&mut self, script_engine: Option<&mut ScriptEngine>) -> Result<(Instruction, State), CpuError> {
         let IoRegister(ime_value) = self.mmio.io_ime;
         let IoRegister(halt_cnt) = self.mmio.io_halt_cnt;
 
@@ -75,7 +76,7 @@ impl Cpu {
             // allow cpu to continue
             self.mmio.io_halt_cnt.set(0xff);
 
-            return None;
+            return Err(CpuError::InterruptTriggered);
         }
 
         // TODO: 0x80 is STOP MODE, it should be handled differently
@@ -83,7 +84,7 @@ impl Cpu {
         // another IRQ during halt
         if halt_cnt == 0 {
             trace!("CPU is halted");
-            return None;
+            return Err(CpuError::CpuPaused);
         }
 
         if self.is_thumb() {
@@ -157,10 +158,10 @@ impl Cpu {
 
             trace!("\n{}", self);
 
-            return Some((instruction, state));
+            return Ok((instruction, state));
         }
 
-        None
+        Err(CpuError::NothingToDo)
     }
 
     #[cfg(feature = "verbose_debug")]
