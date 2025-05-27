@@ -52,7 +52,16 @@ impl Emulator {
     }
 
     pub fn run_to_frame(&mut self) -> Option<Frame> {
+        let mut i = 0;
         loop {
+            if i > 100_000_000_000usize {
+                // bail in case smth goes wrong
+                println!("Emulation took too long, bailing.");
+                return None;
+            }
+
+            i += 1;
+
             match self.cpu.tick(None) {
                 Err(CpuError::FailedToDecode) => return None,
                 _ => {}
