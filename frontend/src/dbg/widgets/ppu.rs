@@ -106,7 +106,6 @@ impl PpuWidget {
         }
 
         Window::new("PPU").resizable(false).show(ctx, |ui| {
-            // tabs
             ui.label("Background Mode 3");
             ui.horizontal(|ui| {
                 if let Some(texture) = &self.bgmode3_frame0_texture {

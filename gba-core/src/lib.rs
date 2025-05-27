@@ -7,3 +7,6 @@ pub mod input;
 pub mod memory;
 pub mod script;
 pub mod video;
+
+#[cfg(test)]
+mod tests;

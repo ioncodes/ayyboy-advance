@@ -9,7 +9,7 @@ mod renderer;
 use crate::emulator::Emulator;
 use crate::renderer::SCALE;
 use clap::Parser;
-use crossbeam_channel::{bounded, Receiver, Sender};
+use crossbeam_channel::{self, Receiver, Sender};
 use eframe::NativeOptions;
 use gba_core::video::{Frame, SCREEN_HEIGHT, SCREEN_WIDTH};
 use log::LevelFilter;
@@ -53,9 +53,9 @@ fn main() {
         .init()
         .unwrap();
 
-    let (display_tx, display_rx): (Sender<Frame>, Receiver<Frame>) = bounded(1);
-    let (dbg_req_tx, dbg_req_rx) = bounded(25);
-    let (dbg_resp_tx, dbg_resp_rx) = bounded(25);
+    let (display_tx, display_rx): (Sender<Frame>, Receiver<Frame>) = crossbeam_channel::bounded(1);
+    let (dbg_req_tx, dbg_req_rx) = crossbeam_channel::bounded(25);
+    let (dbg_resp_tx, dbg_resp_rx) = crossbeam_channel::bounded(25);
 
     let mut emulator = Emulator::new(display_tx, dbg_req_rx, dbg_resp_tx, args.script, args.rom);
 

@@ -5,8 +5,8 @@ mod tests {
     use crate::arm7tdmi::mode::ProcessorMode;
     use crate::memory::mmio::Mmio;
 
-    const BIOS: &[u8] = include_bytes!("../external/gba_bios.bin");
-    const ARM_TEST: &[u8] = include_bytes!("../external/gba-tests/arm/arm.gba");
+    const BIOS: &[u8] = include_bytes!("../../external/gba_bios.bin");
+    const ARM_TEST: &[u8] = include_bytes!("../../external/gba-tests/arm/arm.gba");
 
     #[test]
     fn run_arm_gba() {
