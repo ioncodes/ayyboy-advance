@@ -1,5 +1,6 @@
 import { promises as fs } from 'fs';
 import path from 'path';
+import SearchComponent from './SearchComponent';
 
 async function getScreenshotFolders() {
     try {
@@ -51,33 +52,7 @@ export default async function ScreenshotsPage() {
 
     return (
         <div className="space-y-8 p-4">
-            {folders.length === 0 ? (
-                <p>No screenshot folders found. Try running the ROM emulator first.</p>
-            ) : (
-                <div>
-                    {folderImages.map(({ folder, images }) => (
-                        <div key={folder} className="mb-6">
-                            <h2 className="text-xl font-bold mb-2">{folder}</h2>
-
-                            {images.length === 0 ? (
-                                <p className="text-gray-500">No images found in this folder</p>
-                            ) : (
-                                <div className="flex flex-wrap gap-4">
-                                    {images.map((image) => (
-                                        <div key={image} className="border rounded overflow-hidden">
-                                            <img
-                                                src={`/api/image?folder=${encodeURIComponent(folder)}&image=${encodeURIComponent(image)}`}
-                                                alt={`Screenshot from ${folder}`}
-                                                className="max-h-48 object-contain"
-                                            />
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-                    ))}
-                </div>
-            )}
+            <SearchComponent folderData={folderImages} />
         </div>
     );
 }
