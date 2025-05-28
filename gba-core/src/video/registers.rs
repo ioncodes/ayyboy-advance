@@ -2,7 +2,7 @@ use std::fmt::Display;
 
 use bitflags::bitflags;
 
-use super::{FRAME_0_ADDRESS, FRAME_1_ADDRESS};
+use super::{FRAME_0_ADDRESS, FRAME_1_ADDRESS, TILEMAP_ENTRY_SIZE, TILESET_ENTRY_SIZE};
 
 bitflags! {
     #[derive(Default, Copy, Clone)]
@@ -81,6 +81,11 @@ impl Display for InternalScreenSize {
     }
 }
 
+pub enum ColorDepth {
+    Bpp4,
+    Bpp8,
+}
+
 impl BgCnt {
     pub fn screen_size(&self) -> InternalScreenSize {
         match (*self & BgCnt::SCREEN_SIZE).bits() {
@@ -92,13 +97,21 @@ impl BgCnt {
         }
     }
 
-    pub fn char_base_addr(&self) -> u32 {
+    pub fn tileset_addr(&self) -> u32 {
         let addr = ((*self & BgCnt::CHAR_BASE_ADDR).bits() >> 2) as u32;
-        0x6000000 + (addr * 0x4000)
+        0x6000000 + (addr * TILESET_ENTRY_SIZE as u32)
     }
 
-    pub fn screen_base_addr(&self) -> u32 {
+    pub fn tilemap_addr(&self) -> u32 {
         let addr = ((*self & BgCnt::SCREEN_BASE_ADDR).bits() >> 8) as u32;
-        0x6000000 + (addr * 0x800)
+        0x6000000 + (addr * TILEMAP_ENTRY_SIZE as u32)
+    }
+
+    pub fn bpp(&self) -> ColorDepth {
+        if self.contains(BgCnt::COLOR_256) {
+            ColorDepth::Bpp8
+        } else {
+            ColorDepth::Bpp4
+        }
     }
 }

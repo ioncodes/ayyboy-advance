@@ -211,6 +211,7 @@ impl Emulator {
                             self.cpu.mmio.ppu.get_background_frame(5, FRAME_0_ADDRESS),
                             self.cpu.mmio.ppu.get_background_frame(5, FRAME_1_ADDRESS),
                         ]),
+                        self.cpu.mmio.ppu.render_tileset(),
                         Box::new(self.cpu.mmio.ppu.fetch_palette()),
                         PpuRegisters {
                             disp_cnt: *self.cpu.mmio.ppu.disp_cnt.value(),

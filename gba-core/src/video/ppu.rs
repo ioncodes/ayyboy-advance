@@ -1,6 +1,9 @@
-use super::registers::{BgCnt, DispCnt, DispStat};
+use super::registers::{BgCnt, ColorDepth, DispCnt, DispStat};
+use super::tile::Tile;
 use super::{Frame, Rgb, PALETTE_ADDR_END, PALETTE_ADDR_START, PALETTE_TOTAL_ENTRIES, SCREEN_HEIGHT, SCREEN_WIDTH};
 use crate::memory::device::{Addressable, IoRegister};
+use crate::video::registers::InternalScreenSize;
+use crate::video::{tile, TILEMAP_ENTRY_SIZE};
 use log::*;
 
 #[derive(PartialEq)]
@@ -41,11 +44,11 @@ impl Ppu {
     pub fn tick(&mut self) -> Vec<PpuEvent> {
         let mut events = Vec::new();
 
-        self.h_counter += 1;
-
         if self.h_counter == 0 {
             self.disp_stat.clear_flags(DispStat::HBLANK_FLAG);
         }
+
+        self.h_counter += 1;
 
         if self.h_counter == 240 {
             self.h_counter = 0;
@@ -82,7 +85,8 @@ impl Ppu {
         };
 
         match lcd_control.bg_mode() {
-            0..=2 => {
+            0 => self.render_background_mode0(),
+            1..=2 => {
                 trace!(
                     "Background layers: BG0({}), BG1({}), BG2({}), BG3({})",
                     parse_bg_layer_view(DispCnt::BG0_ON),
@@ -101,7 +105,7 @@ impl Ppu {
 
     pub fn get_background_frame(&self, mode: usize, base_addr: u32) -> Frame {
         match mode {
-            0 => self.render_background_mode0(base_addr),
+            0 => self.render_background_mode0(),
             1..=2 => [[(0, 0, 0); SCREEN_WIDTH]; SCREEN_HEIGHT],
             3 => self.render_background_mode3(base_addr),
             4 => self.render_background_mode4(base_addr),
@@ -122,16 +126,131 @@ impl Ppu {
         palette
     }
 
-    fn render_background_mode0(&self, base_addr: u32) -> Frame {
-        trace!("Rendering background mode 0 @ {:08x}", base_addr);
+    pub fn render_tileset(&self) -> Vec<Rgb> {
+        let tileset_addr = self.bg_cnt[0].value().tileset_addr() as usize;
+        let tile_size = match self.bg_cnt[0].value().bpp() {
+            ColorDepth::Bpp4 => 0x20,
+            ColorDepth::Bpp8 => 0x40,
+        };
+        let tile_count = match tile_size {
+            0x20 => 1024,
+            0x40 => 512,
+            _ => unreachable!(),
+        };
+        let palettes = self.fetch_palette();
+        let bank_size = if tile_size == 0x20 { 16 } else { 256 };
+        let palette_bank0 = &palettes[0..bank_size];
+
+        let mut tileset = vec![Tile::default(); tile_count]; // 64 pixels per tile
+
+        for tile_id in 0..tile_count {
+            let tile_addr = tileset_addr + (tile_id * tile_size);
+            let tile_data = {
+                let mut tile_data = vec![0u8; tile_size];
+                for i in 0..tile_size {
+                    tile_data[i] = self.read((tile_addr + i) as u32);
+                }
+                tile_data
+            };
+
+            let tile = Tile::from_bytes(&tile_data, palette_bank0);
+            tileset[tile_id] = tile;
+        }
+
+        const TILE_WIDTH: usize = 8;
+        const TILES_PER_ROW: usize = 16;
+        let rows = tile_count / TILES_PER_ROW; // total rows
+        let w_px = TILES_PER_ROW * TILE_WIDTH; // atlas width  in px (128)
+        let h_px = rows * TILE_WIDTH; // atlas height in px (rows*8)
+
+        let mut out = vec![(0, 0, 0); w_px * h_px];
+
+        for (idx, tile) in tileset.iter().enumerate() {
+            let gx = idx % TILES_PER_ROW; // tile X in grid
+            let gy = idx / TILES_PER_ROW; // tile Y in grid
+            let dst_x0 = gx * TILE_WIDTH;
+            let dst_y0 = gy * TILE_WIDTH;
+
+            for py in 0..TILE_WIDTH {
+                for px in 0..TILE_WIDTH {
+                    out[(dst_y0 + py) * w_px + dst_x0 + px] = tile.pixels[py * TILE_WIDTH + px];
+                }
+            }
+        }
+
+        out
+    }
+
+    fn render_background_mode0(&self) -> Frame {
+        trace!("Rendering background mode");
+
+        let palette = self.fetch_palette();
+
+        let tileset_addr = self.bg_cnt[0].value().tileset_addr() as usize; // cbb
+        let tilemap_addr = self.bg_cnt[0].value().tilemap_addr() as usize; // sbb
+
+        let (map_w, map_h, tiles_x, tiles_y) = match self.bg_cnt[0].value().screen_size() {
+            InternalScreenSize::Size256x256 => (256, 256, 32, 32),
+            InternalScreenSize::Size512x256 => (512, 256, 64, 32),
+            InternalScreenSize::Size256x512 => (256, 512, 32, 64),
+            InternalScreenSize::Size512x512 => (512, 512, 64, 64),
+        };
 
         let mut frame = [[(0, 0, 0); SCREEN_WIDTH]; SCREEN_HEIGHT];
+        let mut internal_frame = vec![(0, 0, 0); map_w * map_h];
+
+        for ty in 0..tiles_y {
+            for tx in 0..tiles_x {
+                let (block_row, block_col) = (ty / 32, tx / 32);
+                let local_row = ty % 32;
+                let local_col = tx % 32;
+
+                let block_index = match self.bg_cnt[0].value().screen_size() {
+                    InternalScreenSize::Size256x256 => 0,
+                    InternalScreenSize::Size512x256 => block_col, // two side-by-side
+                    InternalScreenSize::Size256x512 => block_row * 2, // two stacked
+                    InternalScreenSize::Size512x512 => block_row * 2 + block_col, // quad
+                };
+
+                let se_addr = tilemap_addr as u32
+                    + (block_index * 0x800  // 2 KiB per 32 × 32 map
+                      + (local_row * 32 + local_col) * 2) as u32;
+                let se = self.read_u16(se_addr);
+
+                // ---------- 2. decode entry ----------
+                let tile_id = (se & 0x03FF) as usize;
+                let hflip = se & 0x0400 != 0;
+                let vflip = se & 0x0800 != 0;
+                let pal_bank = ((se >> 12) & 0x0F) as usize;
+
+                let tile_base = tileset_addr as usize + tile_id * 32; // 4-bpp ⇒ 32 B per tile
+
+                // ---------- 3. blit the 8×8 tile into internal buffer ----------
+                for py in 0..8 {
+                    let src_y = if vflip { 7 - py } else { py };
+                    let row_addr = tile_base + src_y * 4;
+
+                    for px in 0..8 {
+                        let src_x = if hflip { 7 - px } else { px };
+                        let byte = self.read((row_addr + (src_x >> 1)) as u32);
+                        let nibble = if (src_x & 1) == 0 { byte & 0x0F } else { byte >> 4 };
+                        if nibble == 0 {
+                            continue;
+                        } // colour 0 = transparent
+
+                        let colour = palette[pal_bank * 16 + nibble as usize];
+
+                        let dst_x = tx * 8 + px;
+                        let dst_y = ty * 8 + py;
+                        internal_frame[dst_y * map_w + dst_x] = colour;
+                    }
+                }
+            }
+        }
 
         for y in 0..SCREEN_HEIGHT {
             for x in 0..SCREEN_WIDTH {
-                let addr = base_addr + ((y * SCREEN_WIDTH + x) as u32 * 2);
-                let rgb = self.read_u16(addr);
-                frame[y][x] = Self::extract_rgb(rgb);
+                frame[y][x] = internal_frame[y * map_w + x];
             }
         }
 

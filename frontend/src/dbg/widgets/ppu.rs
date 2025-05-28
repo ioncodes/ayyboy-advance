@@ -1,6 +1,8 @@
 use crate::event::RequestEvent;
 use crossbeam_channel::Sender;
-use egui::{CollapsingHeader, Color32, ColorImage, Context, RichText, TextureHandle, TextureOptions, Window};
+use egui::{
+    vec2, CollapsingHeader, Color32, ColorImage, Context, RichText, ScrollArea, TextureHandle, TextureOptions, Window,
+};
 use gba_core::video::registers::{BgCnt, DispCnt, DispStat};
 use gba_core::video::{Frame, Rgb, PALETTE_TOTAL_ENTRIES, SCREEN_HEIGHT, SCREEN_WIDTH};
 
@@ -13,8 +15,10 @@ pub struct PpuRegisters {
 
 pub struct PpuWidget {
     pub frames: Box<[Frame; 6]>,
+    pub tileset: Vec<Rgb>,
     pub palette: Box<[Rgb; PALETTE_TOTAL_ENTRIES]>,
     pub registers: PpuRegisters,
+    tileset_texture: Option<TextureHandle>,
     bgmode3_frame0_texture: Option<TextureHandle>,
     bgmode3_frame1_texture: Option<TextureHandle>,
     bgmode4_frame0_texture: Option<TextureHandle>,
@@ -30,8 +34,10 @@ impl PpuWidget {
 
         PpuWidget {
             frames: Box::new([[[(0, 0, 0); SCREEN_WIDTH]; SCREEN_HEIGHT]; 6]),
+            tileset: Vec::new(),
             palette: Box::new([(0, 0, 0); PALETTE_TOTAL_ENTRIES]),
             registers: PpuRegisters::default(),
+            tileset_texture: None,
             bgmode3_frame0_texture: None,
             bgmode3_frame1_texture: None,
             bgmode4_frame0_texture: None,
@@ -43,9 +49,11 @@ impl PpuWidget {
     }
 
     pub fn update(
-        &mut self, frames: Box<[Frame; 6]>, palette: Box<[Rgb; PALETTE_TOTAL_ENTRIES]>, registers: PpuRegisters,
+        &mut self, frames: Box<[Frame; 6]>, tileset: Vec<Rgb>, palette: Box<[Rgb; PALETTE_TOTAL_ENTRIES]>,
+        registers: PpuRegisters,
     ) {
         self.frames = frames;
+        self.tileset = tileset;
         self.palette = palette;
         self.registers = registers;
 
@@ -74,10 +82,29 @@ impl PpuWidget {
         update_texture(&mut self.bgmode5_frame0_texture, &self.frames[4]);
         update_texture(&mut self.bgmode5_frame1_texture, &self.frames[5]);
 
+        if let Some(tileset_texture) = &mut self.tileset_texture {
+            let mut pixels = vec![Color32::BLACK; self.tileset.len()];
+            for (i, color) in self.tileset.iter().enumerate() {
+                pixels[i] = Color32::from_rgb(color.0, color.1, color.2);
+            }
+            let image = ColorImage {
+                size: [16 * 8, 64 * 8],
+                pixels,
+            };
+            tileset_texture.set(image, TextureOptions::NEAREST);
+        }
+
         let _ = self.event_tx.send(RequestEvent::UpdatePpu);
     }
 
     pub fn render(&mut self, ctx: &Context) {
+        if self.tileset_texture.is_none() {
+            self.tileset_texture = Some(ctx.load_texture(
+                "tileset",
+                ColorImage::new([16 * 8, 64 * 8], Color32::BLACK),
+                TextureOptions::default(),
+            ));
+        }
         if self.bgmode3_frame0_texture.is_none() {
             self.bgmode3_frame0_texture = Some(ctx.load_texture(
                 "bgmode3_frame0",
@@ -178,34 +205,40 @@ impl PpuWidget {
                 for (i, bg_cnt) in self.registers.bg_cnt.iter().enumerate() {
                     ui.label(RichText::new(format!("BG{}CNT Screen Size: {}", i, bg_cnt.screen_size())).monospace());
                     ui.label(
-                        RichText::new(format!("BG{}CNT Char Base Address: {:08x}", i, bg_cnt.char_base_addr()))
+                        RichText::new(format!("BG{}CNT Char Base Address: {:08x}", i, bg_cnt.tileset_addr()))
                             .monospace(),
                     );
                     ui.label(
-                        RichText::new(format!(
-                            "BG{}CNT Screen Base Address: {:08x}",
-                            i,
-                            bg_cnt.screen_base_addr()
-                        ))
-                        .monospace(),
+                        RichText::new(format!("BG{}CNT Screen Base Address: {:08x}", i, bg_cnt.tilemap_addr()))
+                            .monospace(),
                     );
                 }
             });
 
             CollapsingHeader::new("Palette").default_open(true).show(ui, |ui| {
-                for (row_index, row) in self.palette.chunks(16).enumerate() {
-                    ui.horizontal(|ui| {
-                        for (col_index, color) in row.iter().enumerate() {
-                            let i = row_index * 16 + col_index;
-                            let color32 = Color32::from_rgb(color.0, color.1, color.2);
-                            ui.label(
-                                RichText::new(format!("{:04X}", i))
-                                    .background_color(color32)
-                                    .monospace(),
-                            );
-                        }
-                    });
-                }
+                ScrollArea::vertical().max_height(300.0).show(ui, |ui| {
+                    for (row_index, row) in self.palette.chunks(16).enumerate() {
+                        ui.horizontal(|ui| {
+                            for (col_index, color) in row.iter().enumerate() {
+                                let i = row_index * 16 + col_index;
+                                let color32 = Color32::from_rgb(color.0, color.1, color.2);
+                                ui.label(
+                                    RichText::new(format!("{:04X}", i))
+                                        .background_color(color32)
+                                        .monospace(),
+                                );
+                            }
+                        });
+                    }
+                });
+            });
+
+            CollapsingHeader::new("Tileset").default_open(false).show(ui, |ui| {
+                ScrollArea::vertical().max_height(300.0).show(ui, |ui| {
+                    if let Some(texture) = &self.tileset_texture {
+                        ui.image((texture.id(), vec2(16.0 * 8.0 * 4.0, 64.0 * 8.0 * 4.0)));
+                    }
+                });
             });
 
             CollapsingHeader::new("Internal Frames")
