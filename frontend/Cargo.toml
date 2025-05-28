@@ -16,4 +16,4 @@ simple_logger = { version = "5.0.0", default-features = false, features = [
 ] }
 clap = { version = "4.5.38", features = ["derive"] }
 zip = { version = "4.0.0", default-features = false, features = ["deflate"] }
-gba-core = { path = "../gba-core" }
+gba-core = { path = "../gba-core", features = ["verbose_debug"] }

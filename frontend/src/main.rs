@@ -41,7 +41,7 @@ fn main() {
     SimpleLogger::new()
         .with_level(LevelFilter::Off)
         .with_module_level(
-            module_path!(),
+            "gba_core",
             if args.trace {
                 LevelFilter::Trace
             } else if args.debug {
