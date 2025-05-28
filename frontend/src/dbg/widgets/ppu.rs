@@ -1,7 +1,7 @@
 use crate::event::RequestEvent;
 use crossbeam_channel::Sender;
 use egui::{
-    vec2, CollapsingHeader, Color32, ColorImage, Context, RichText, ScrollArea, TextureHandle, TextureOptions, Window,
+    CollapsingHeader, Color32, ColorImage, Context, RichText, ScrollArea, TextureHandle, TextureOptions, Window,
 };
 use gba_core::video::registers::{BgCnt, DispCnt, DispStat, InternalScreenSize};
 use gba_core::video::{Frame, Rgb, PALETTE_TOTAL_ENTRIES, SCREEN_HEIGHT, SCREEN_WIDTH};
@@ -160,21 +160,21 @@ impl PpuWidget {
         if self.tilemap1_texture.is_none() {
             self.tilemap1_texture = Some(ctx.load_texture(
                 "tilemap1",
-                ColorImage::new([512, 512], Color32::BLACK),
+                ColorImage::new([256, 256], Color32::BLACK),
                 TextureOptions::default(),
             ));
         }
         if self.tilemap2_texture.is_none() {
             self.tilemap2_texture = Some(ctx.load_texture(
                 "tilemap2",
-                ColorImage::new([256, 512], Color32::BLACK),
+                ColorImage::new([256, 256], Color32::BLACK),
                 TextureOptions::default(),
             ));
         }
         if self.tilemap3_texture.is_none() {
             self.tilemap3_texture = Some(ctx.load_texture(
                 "tilemap3",
-                ColorImage::new([512, 256], Color32::BLACK),
+                ColorImage::new([256, 256], Color32::BLACK),
                 TextureOptions::default(),
             ));
         }
@@ -289,53 +289,52 @@ impl PpuWidget {
             });
 
             CollapsingHeader::new("Palette").default_open(true).show(ui, |ui| {
-                ScrollArea::vertical().max_height(300.0).show(ui, |ui| {
-                    for (row_index, row) in self.palette.chunks(16).enumerate() {
-                        ui.horizontal(|ui| {
-                            for (col_index, color) in row.iter().enumerate() {
-                                let i = row_index * 16 + col_index;
-                                let color32 = Color32::from_rgb(color.0, color.1, color.2);
-                                ui.label(
-                                    RichText::new(format!("{:04X}", i))
-                                        .background_color(color32)
-                                        .monospace(),
-                                );
-                            }
-                        });
+                for (row_index, row) in self.palette.chunks(16).enumerate() {
+                    ui.horizontal(|ui| {
+                        for (col_index, color) in row.iter().enumerate() {
+                            let i = row_index * 16 + col_index;
+                            let color32 = Color32::from_rgb(color.0, color.1, color.2);
+                            ui.label(
+                                RichText::new(format!("{:04X}", i))
+                                    .background_color(color32)
+                                    .monospace(),
+                            );
+                        }
+                    });
+                }
+            });
+        });
+
+        Window::new("PPU Textures").resizable(false).show(ctx, |ui| {
+            CollapsingHeader::new("Tilemaps").default_open(true).show(ui, |ui| {
+                ui.horizontal(|ui| {
+                    if let Some(texture) = &self.tilemap0_texture {
+                        ui.image(texture);
+                    }
+
+                    if let Some(texture) = &self.tilemap1_texture {
+                        ui.image(texture);
+                    }
+
+                    if let Some(texture) = &self.tilemap2_texture {
+                        ui.image(texture);
+                    }
+
+                    if let Some(texture) = &self.tilemap3_texture {
+                        ui.image(texture);
                     }
                 });
             });
 
             CollapsingHeader::new("Tileset").default_open(false).show(ui, |ui| {
-                ScrollArea::vertical().max_height(300.0).show(ui, |ui| {
-                    if let Some(texture) = &self.tileset_texture {
-                        ui.image((texture.id(), vec2(16.0 * 8.0 * 2.0, 64.0 * 8.0 * 2.0)));
-                    }
-                });
-            });
-
-            CollapsingHeader::new("Tilemaps").default_open(false).show(ui, |ui| {
-                ScrollArea::vertical().max_height(300.0).show(ui, |ui| {
-                    ui.label("Background 0");
-                    if let Some(texture) = &self.tilemap0_texture {
-                        ui.image(texture);
-                    }
-
-                    ui.label("Background 1");
-                    if let Some(texture) = &self.tilemap1_texture {
-                        ui.image(texture);
-                    }
-
-                    ui.label("Background 2");
-                    if let Some(texture) = &self.tilemap2_texture {
-                        ui.image(texture);
-                    }
-
-                    ui.label("Background 3");
-                    if let Some(texture) = &self.tilemap3_texture {
-                        ui.image(texture);
-                    }
-                });
+                ScrollArea::vertical()
+                    .auto_shrink([false, true])
+                    .max_height(64.0 * 8.0 * 4.0)
+                    .show(ui, |ui| {
+                        if let Some(texture) = &self.tileset_texture {
+                            ui.image(texture);
+                        }
+                    });
             });
 
             CollapsingHeader::new("Internal Frames")
