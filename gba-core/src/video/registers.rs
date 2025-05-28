@@ -63,6 +63,7 @@ impl DispCnt {
     }
 }
 
+#[derive(Copy, Clone)]
 pub enum InternalScreenSize {
     Size256x256,
     Size512x256,

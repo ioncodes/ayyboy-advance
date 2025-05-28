@@ -186,30 +186,24 @@ impl Ppu {
         out
     }
 
-    fn render_background_mode0(&self) -> Frame {
-        trace!("Rendering background mode 0");
-
+    pub fn render_tilemap(&self, bg_cnt: &BgCnt) -> (InternalScreenSize, Vec<Rgb>) {
         let palette = self.fetch_palette();
 
-        let tileset_addr = self.bg_cnt[0].value().tileset_addr() as usize; // cbb
-        let tilemap_addr = self.bg_cnt[0].value().tilemap_addr() as usize; // sbb
+        let tileset_addr = bg_cnt.tileset_addr() as usize; // cbb
+        let tilemap_addr = bg_cnt.tilemap_addr() as usize; // sbb
 
-        let tile_size = match self.bg_cnt[0].value().bpp() {
+        let tile_size = match bg_cnt.bpp() {
             ColorDepth::Bpp4 => 0x20,
             ColorDepth::Bpp8 => 0x40,
         };
 
-        let vertical_offset = self.bg_vofs[0].value().offset();
-        let horizontal_offset = self.bg_hofs[0].value().offset();
-
-        let (map_w, map_h, tiles_x, tiles_y) = match self.bg_cnt[0].value().screen_size() {
+        let (map_w, map_h, tiles_x, tiles_y) = match bg_cnt.screen_size() {
             InternalScreenSize::Size256x256 => (256, 256, 32, 32),
             InternalScreenSize::Size512x256 => (512, 256, 64, 32),
             InternalScreenSize::Size256x512 => (256, 512, 32, 64),
             InternalScreenSize::Size512x512 => (512, 512, 64, 64),
         };
 
-        let mut frame = [[(0, 0, 0); SCREEN_WIDTH]; SCREEN_HEIGHT];
         let mut internal_frame = vec![(0, 0, 0); map_w * map_h];
 
         for ty in 0..tiles_y {
@@ -217,7 +211,7 @@ impl Ppu {
                 let (block_col, block_row) = (tx / 32, ty / 32); // which 32×32 map
                 let (local_col, local_row) = (tx & 31, ty & 31); // pos inside that map
 
-                let block_index = match self.bg_cnt[0].value().screen_size() {
+                let block_index = match bg_cnt.screen_size() {
                     InternalScreenSize::Size256x256 => 0,
                     InternalScreenSize::Size512x256 => block_col, // 0‥1
                     InternalScreenSize::Size256x512 => block_row, // 0‥1 (stacked)
@@ -272,14 +266,34 @@ impl Ppu {
             }
         }
 
+        (bg_cnt.screen_size(), internal_frame)
+    }
+
+    fn render_background_mode0(&self) -> Frame {
+        trace!("Rendering background mode 0");
+
+        let (map_w, map_h) = match self.bg_cnt[0].value().screen_size() {
+            InternalScreenSize::Size256x256 => (256, 256),
+            InternalScreenSize::Size512x256 => (512, 256),
+            InternalScreenSize::Size256x512 => (256, 512),
+            InternalScreenSize::Size512x512 => (512, 512),
+        };
+
+        let vertical_offset = self.bg_vofs[0].value().offset();
+        let horizontal_offset = self.bg_hofs[0].value().offset();
+
         let hoff = horizontal_offset % map_w;
         let voff = vertical_offset % map_h;
+
+        let (_, tilemap) = self.render_tilemap(self.bg_cnt[0].value());
+
+        let mut frame = [[(0, 0, 0); SCREEN_WIDTH]; SCREEN_HEIGHT];
 
         for y in 0..SCREEN_HEIGHT {
             let src_y = (y + voff) % map_h;
             for x in 0..SCREEN_WIDTH {
                 let src_x = (x + hoff) % map_w;
-                frame[y][x] = internal_frame[src_y * map_w + src_x];
+                frame[y][x] = tilemap[src_y * map_w + src_x];
             }
         }
 

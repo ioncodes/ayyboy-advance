@@ -3,7 +3,7 @@ use crossbeam_channel::Sender;
 use egui::{
     vec2, CollapsingHeader, Color32, ColorImage, Context, RichText, ScrollArea, TextureHandle, TextureOptions, Window,
 };
-use gba_core::video::registers::{BgCnt, DispCnt, DispStat};
+use gba_core::video::registers::{BgCnt, DispCnt, DispStat, InternalScreenSize};
 use gba_core::video::{Frame, Rgb, PALETTE_TOTAL_ENTRIES, SCREEN_HEIGHT, SCREEN_WIDTH};
 
 #[derive(Default)]
@@ -16,9 +16,14 @@ pub struct PpuRegisters {
 pub struct PpuWidget {
     pub frames: Box<[Frame; 6]>,
     pub tileset: Vec<Rgb>,
+    pub tilemaps: [(InternalScreenSize, Vec<Rgb>); 4],
     pub palette: Box<[Rgb; PALETTE_TOTAL_ENTRIES]>,
     pub registers: PpuRegisters,
     tileset_texture: Option<TextureHandle>,
+    tilemap0_texture: Option<TextureHandle>,
+    tilemap1_texture: Option<TextureHandle>,
+    tilemap2_texture: Option<TextureHandle>,
+    tilemap3_texture: Option<TextureHandle>,
     bgmode3_frame0_texture: Option<TextureHandle>,
     bgmode3_frame1_texture: Option<TextureHandle>,
     bgmode4_frame0_texture: Option<TextureHandle>,
@@ -35,9 +40,19 @@ impl PpuWidget {
         PpuWidget {
             frames: Box::new([[[(0, 0, 0); SCREEN_WIDTH]; SCREEN_HEIGHT]; 6]),
             tileset: Vec::new(),
+            tilemaps: [
+                (InternalScreenSize::Size256x256, Vec::new()),
+                (InternalScreenSize::Size512x512, Vec::new()),
+                (InternalScreenSize::Size256x256, Vec::new()),
+                (InternalScreenSize::Size512x512, Vec::new()),
+            ],
             palette: Box::new([(0, 0, 0); PALETTE_TOTAL_ENTRIES]),
             registers: PpuRegisters::default(),
             tileset_texture: None,
+            tilemap0_texture: None,
+            tilemap1_texture: None,
+            tilemap2_texture: None,
+            tilemap3_texture: None,
             bgmode3_frame0_texture: None,
             bgmode3_frame1_texture: None,
             bgmode4_frame0_texture: None,
@@ -49,11 +64,12 @@ impl PpuWidget {
     }
 
     pub fn update(
-        &mut self, frames: Box<[Frame; 6]>, tileset: Vec<Rgb>, palette: Box<[Rgb; PALETTE_TOTAL_ENTRIES]>,
-        registers: PpuRegisters,
+        &mut self, frames: Box<[Frame; 6]>, tileset: Vec<Rgb>, tilemaps: [(InternalScreenSize, Vec<Rgb>); 4],
+        palette: Box<[Rgb; PALETTE_TOTAL_ENTRIES]>, registers: PpuRegisters,
     ) {
         self.frames = frames;
         self.tileset = tileset;
+        self.tilemaps = tilemaps;
         self.palette = palette;
         self.registers = registers;
 
@@ -94,6 +110,35 @@ impl PpuWidget {
             tileset_texture.set(image, TextureOptions::NEAREST);
         }
 
+        let update_tilemap_texture = |texture: &mut Option<TextureHandle>, size: InternalScreenSize, colors: &[Rgb]| {
+            if let Some(texture) = texture {
+                let mut pixels = vec![Color32::BLACK; colors.len()];
+                for (i, color) in colors.iter().enumerate() {
+                    pixels[i] = Color32::from_rgb(color.0, color.1, color.2);
+                }
+
+                let dimensions = match size {
+                    InternalScreenSize::Size256x256 => [256, 256],
+                    InternalScreenSize::Size512x512 => [512, 512],
+                    InternalScreenSize::Size256x512 => [256, 512],
+                    InternalScreenSize::Size512x256 => [512, 256],
+                };
+
+                texture.set(
+                    ColorImage {
+                        size: dimensions,
+                        pixels,
+                    },
+                    TextureOptions::NEAREST,
+                );
+            }
+        };
+
+        update_tilemap_texture(&mut self.tilemap0_texture, self.tilemaps[0].0, &self.tilemaps[0].1);
+        update_tilemap_texture(&mut self.tilemap1_texture, self.tilemaps[1].0, &self.tilemaps[1].1);
+        update_tilemap_texture(&mut self.tilemap2_texture, self.tilemaps[2].0, &self.tilemaps[2].1);
+        update_tilemap_texture(&mut self.tilemap3_texture, self.tilemaps[3].0, &self.tilemaps[3].1);
+
         let _ = self.event_tx.send(RequestEvent::UpdatePpu);
     }
 
@@ -102,6 +147,34 @@ impl PpuWidget {
             self.tileset_texture = Some(ctx.load_texture(
                 "tileset",
                 ColorImage::new([16 * 8, 64 * 8], Color32::BLACK),
+                TextureOptions::default(),
+            ));
+        }
+        if self.tilemap0_texture.is_none() {
+            self.tilemap0_texture = Some(ctx.load_texture(
+                "tilemap0",
+                ColorImage::new([256, 256], Color32::BLACK),
+                TextureOptions::default(),
+            ));
+        }
+        if self.tilemap1_texture.is_none() {
+            self.tilemap1_texture = Some(ctx.load_texture(
+                "tilemap1",
+                ColorImage::new([512, 512], Color32::BLACK),
+                TextureOptions::default(),
+            ));
+        }
+        if self.tilemap2_texture.is_none() {
+            self.tilemap2_texture = Some(ctx.load_texture(
+                "tilemap2",
+                ColorImage::new([256, 512], Color32::BLACK),
+                TextureOptions::default(),
+            ));
+        }
+        if self.tilemap3_texture.is_none() {
+            self.tilemap3_texture = Some(ctx.load_texture(
+                "tilemap3",
+                ColorImage::new([512, 256], Color32::BLACK),
                 TextureOptions::default(),
             ));
         }
@@ -236,7 +309,31 @@ impl PpuWidget {
             CollapsingHeader::new("Tileset").default_open(false).show(ui, |ui| {
                 ScrollArea::vertical().max_height(300.0).show(ui, |ui| {
                     if let Some(texture) = &self.tileset_texture {
-                        ui.image((texture.id(), vec2(16.0 * 8.0 * 4.0, 64.0 * 8.0 * 4.0)));
+                        ui.image((texture.id(), vec2(16.0 * 8.0 * 2.0, 64.0 * 8.0 * 2.0)));
+                    }
+                });
+            });
+
+            CollapsingHeader::new("Tilemaps").default_open(false).show(ui, |ui| {
+                ScrollArea::vertical().max_height(300.0).show(ui, |ui| {
+                    ui.label("Background 0");
+                    if let Some(texture) = &self.tilemap0_texture {
+                        ui.image(texture);
+                    }
+
+                    ui.label("Background 1");
+                    if let Some(texture) = &self.tilemap1_texture {
+                        ui.image(texture);
+                    }
+
+                    ui.label("Background 2");
+                    if let Some(texture) = &self.tilemap2_texture {
+                        ui.image(texture);
+                    }
+
+                    ui.label("Background 3");
+                    if let Some(texture) = &self.tilemap3_texture {
+                        ui.image(texture);
                     }
                 });
             });

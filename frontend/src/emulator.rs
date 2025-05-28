@@ -212,6 +212,12 @@ impl Emulator {
                             self.cpu.mmio.ppu.get_background_frame(5, FRAME_1_ADDRESS),
                         ]),
                         self.cpu.mmio.ppu.render_tileset(),
+                        [
+                            self.cpu.mmio.ppu.render_tilemap(self.cpu.mmio.ppu.bg_cnt[0].value()),
+                            self.cpu.mmio.ppu.render_tilemap(self.cpu.mmio.ppu.bg_cnt[1].value()),
+                            self.cpu.mmio.ppu.render_tilemap(self.cpu.mmio.ppu.bg_cnt[2].value()),
+                            self.cpu.mmio.ppu.render_tilemap(self.cpu.mmio.ppu.bg_cnt[3].value()),
+                        ],
                         Box::new(self.cpu.mmio.ppu.fetch_palette()),
                         PpuRegisters {
                             disp_cnt: *self.cpu.mmio.ppu.disp_cnt.value(),

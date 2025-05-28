@@ -1,4 +1,5 @@
 use gba_core::input::registers::KeyInput;
+use gba_core::video::registers::InternalScreenSize;
 use gba_core::video::{Frame, Rgb, PALETTE_TOTAL_ENTRIES};
 
 use crate::dbg::widgets::ppu::PpuRegisters;
@@ -27,6 +28,7 @@ pub enum ResponseEvent {
     Ppu(
         Box<[Frame; 6]>,
         Vec<Rgb>,
+        [(InternalScreenSize, Vec<Rgb>); 4],
         Box<[Rgb; PALETTE_TOTAL_ENTRIES]>,
         PpuRegisters,
     ), // TODO: BG Mode 3,4,5 each frame 0 and 1
