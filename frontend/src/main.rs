@@ -57,7 +57,7 @@ fn main() {
     let (dbg_req_tx, dbg_req_rx) = crossbeam_channel::bounded(25);
     let (dbg_resp_tx, dbg_resp_rx) = crossbeam_channel::bounded(25);
 
-    let mut emulator = Emulator::new(display_tx, dbg_req_rx, dbg_resp_tx, args.script, args.rom);
+    let mut emulator = Emulator::new(display_tx, dbg_req_rx, dbg_resp_tx, args.script, args.rom.clone());
 
     std::thread::spawn(move || {
         emulator.run();
@@ -73,7 +73,7 @@ fn main() {
     };
 
     let _ = eframe::run_native(
-        "ayyboy advance",
+        &format!("ayyboy advance - {}", args.rom),
         native_options,
         Box::new(move |cc| Ok(Box::new(Renderer::new(cc, display_rx, dbg_req_tx, dbg_resp_rx)))),
     );

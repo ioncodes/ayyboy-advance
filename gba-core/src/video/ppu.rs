@@ -3,6 +3,7 @@ use super::tile::Tile;
 use super::{Frame, Rgb, PALETTE_ADDR_END, PALETTE_ADDR_START, PALETTE_TOTAL_ENTRIES, SCREEN_HEIGHT, SCREEN_WIDTH};
 use crate::memory::device::{Addressable, IoRegister};
 use crate::video::registers::InternalScreenSize;
+use crate::video::tile::TileInfo;
 use crate::video::{tile, TILEMAP_ENTRY_SIZE};
 use log::*;
 
@@ -189,6 +190,12 @@ impl Ppu {
         let tileset_addr = self.bg_cnt[0].value().tileset_addr() as usize; // cbb
         let tilemap_addr = self.bg_cnt[0].value().tilemap_addr() as usize; // sbb
 
+        let tile_size = match self.bg_cnt[0].value().bpp() {
+            ColorDepth::Bpp4 => 0x20,
+            ColorDepth::Bpp8 => 0x40,
+        };
+        let palette_bank_size = if tile_size == 0x20 { 16 } else { 256 };
+
         let (map_w, map_h, tiles_x, tiles_y) = match self.bg_cnt[0].value().screen_size() {
             InternalScreenSize::Size256x256 => (256, 256, 32, 32),
             InternalScreenSize::Size512x256 => (512, 256, 64, 32),
@@ -201,48 +208,57 @@ impl Ppu {
 
         for ty in 0..tiles_y {
             for tx in 0..tiles_x {
-                let (block_row, block_col) = (ty / 32, tx / 32);
-                let local_row = ty % 32;
-                let local_col = tx % 32;
+                let (block_col, block_row) = (tx / 32, ty / 32); // which 32×32 map
+                let (local_col, local_row) = (tx & 31, ty & 31); // pos inside that map
 
                 let block_index = match self.bg_cnt[0].value().screen_size() {
                     InternalScreenSize::Size256x256 => 0,
-                    InternalScreenSize::Size512x256 => block_col, // two side-by-side
-                    InternalScreenSize::Size256x512 => block_row * 2, // two stacked
-                    InternalScreenSize::Size512x512 => block_row * 2 + block_col, // quad
+                    InternalScreenSize::Size512x256 => block_col,     // 0‥1
+                    InternalScreenSize::Size256x512 => block_row * 2, // 0‥1 (stacked)
+                    InternalScreenSize::Size512x512 => block_row * 2 + block_col, // 0‥3 (quad)
                 };
 
-                let se_addr = tilemap_addr as u32
-                    + (block_index * 0x800  // 2 KiB per 32 × 32 map
-                      + (local_row * 32 + local_col) * 2) as u32;
-                let se = self.read_u16(se_addr);
+                // fetch the tile from the tilemap
+                let addr = tilemap_addr as u32
+                    + (block_index * TILEMAP_ENTRY_SIZE) as u32
+                    + (local_row * 32 + local_col) as u32 * 2; // 2 bytes per tile index
+                let tile_info = TileInfo::from_bits_truncate(self.read_u16(addr));
 
-                // ---------- 2. decode entry ----------
-                let tile_id = (se & 0x03FF) as usize;
-                let hflip = se & 0x0400 != 0;
-                let vflip = se & 0x0800 != 0;
-                let pal_bank = ((se >> 12) & 0x0F) as usize;
+                // fetch the tile data from the tileset
+                let tile_addr = tileset_addr as usize + tile_info.tile_id() * 32; // 4-bpp ⇒ 32 B per tile
+                let tile_data = {
+                    let mut tile_data = vec![0u8; tile_size];
+                    for i in 0..tile_size {
+                        tile_data[i] = self.read((tile_addr + i) as u32);
+                    }
+                    tile_data
+                };
 
-                let tile_base = tileset_addr as usize + tile_id * 32; // 4-bpp ⇒ 32 B per tile
+                // extract the tile pixels using the given palette bank
+                let palette_bank = palette
+                    [tile_info.palette() * palette_bank_size..(tile_info.palette() + 1) * palette_bank_size]
+                    .to_vec();
+                let mut tile = Tile::from_bytes(&tile_data, &palette_bank);
 
-                // ---------- 3. blit the 8×8 tile into internal buffer ----------
-                for py in 0..8 {
-                    let src_y = if vflip { 7 - py } else { py };
-                    let row_addr = tile_base + src_y * 4;
+                // flip the tile if needed
+                if tile_info.contains(tile::TileInfo::FLIP_X) {
+                    tile.flip_x();
+                }
 
-                    for px in 0..8 {
-                        let src_x = if hflip { 7 - px } else { px };
-                        let byte = self.read((row_addr + (src_x >> 1)) as u32);
-                        let nibble = if (src_x & 1) == 0 { byte & 0x0F } else { byte >> 4 };
-                        if nibble == 0 {
-                            continue;
-                        } // colour 0 = transparent
+                if tile_info.contains(tile::TileInfo::FLIP_Y) {
+                    tile.flip_y();
+                }
 
-                        let colour = palette[pal_bank * 16 + nibble as usize];
+                // render the tile to the internal frame buffer
+                for y in 0..8 {
+                    for x in 0..8 {
+                        let pixel_x = tx * 8 + x;
+                        let pixel_y = ty * 8 + y;
 
-                        let dst_x = tx * 8 + px;
-                        let dst_y = ty * 8 + py;
-                        internal_frame[dst_y * map_w + dst_x] = colour;
+                        if pixel_x < map_w && pixel_y < map_h {
+                            let pixel_color = tile.pixels[y * 8 + x];
+                            internal_frame[pixel_y * map_w + pixel_x] = pixel_color;
+                        }
                     }
                 }
             }
