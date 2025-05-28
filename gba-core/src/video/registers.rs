@@ -94,11 +94,11 @@ impl BgCnt {
 
     pub fn char_base_addr(&self) -> u32 {
         let addr = ((*self & BgCnt::CHAR_BASE_ADDR).bits() >> 2) as u32;
-        addr * 0x400
+        0x6000000 + (addr * 0x4000)
     }
 
     pub fn screen_base_addr(&self) -> u32 {
         let addr = ((*self & BgCnt::SCREEN_BASE_ADDR).bits() >> 8) as u32;
-        addr * 0x800
+        0x6000000 + (addr * 0x800)
     }
 }

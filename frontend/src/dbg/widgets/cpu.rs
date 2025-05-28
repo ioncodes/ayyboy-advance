@@ -50,6 +50,8 @@ impl CpuWidget {
         self.cpu.cpsr.set(cpu.cpsr);
         self.cpu.dma.set(cpu.dma);
         self.cpu.timers.set(cpu.timers);
+
+        let _ = self.event_tx.send(RequestEvent::UpdateCpu); // request update after processing
     }
 
     pub fn render(&mut self, ctx: &Context) {

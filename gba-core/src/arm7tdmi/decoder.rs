@@ -554,7 +554,7 @@ impl Instruction {
                         (0, 1) => Some(TransferLength::HalfWord), // unsigned
                         (1, 0) => Some(TransferLength::Byte),     // signed
                         (1, 1) => Some(TransferLength::HalfWord), // signed
-                        _ => unreachable!(),
+                        _ => return Err("Invalid transfer length for LDRH/STRH".to_string()),
                     },
                     signed_transfer: s == 1,
                     offset_direction: if u == 1 {
@@ -625,7 +625,7 @@ impl Instruction {
                                 (1, 1, 1) => Register::SpsrFlagControl,
                                 (0, 1, 1) => Register::CpsrFlagControl,
                                 (0, 0, 0) => Register::PsrNone,
-                                _ => unreachable!(),
+                                _ => Err(format!("Invalid PSR transfer destination: d={}, f={}, x={}", d, f, x))?,
                             };
 
                             let operand2 = if i == 1 {
@@ -844,7 +844,7 @@ impl Instruction {
                     0b00 => Opcode::Lsl,
                     0b01 => Opcode::Lsr,
                     0b10 => Opcode::Asr,
-                    _ => unreachable!(),
+                    _ => return Err("Invalid shift type for move shifted register".to_string()),
                 };
                 let operand1 = Register::from(d)?;
                 let operand2 = Register::from(s)?;
@@ -866,7 +866,7 @@ impl Instruction {
                     0b01 => Opcode::Cmp,
                     0b10 => Opcode::Add,
                     0b11 => Opcode::Sub,
-                    _ => unreachable!(),
+                    _ => Err("Invalid opcode for move/compare/add/subtract immediate")?,
                 };
                 let operand1 = Register::from(r)?;
                 let operand2 = Operand::Immediate(i, None);
@@ -1058,7 +1058,7 @@ impl Instruction {
                         (0, 1) => Some(TransferLength::HalfWord),
                         (1, 0) => Some(TransferLength::Byte),
                         (1, 1) => Some(TransferLength::HalfWord),
-                        _ => unreachable!(),
+                        _ => Err("Invalid transfer length for load/store sign-extended byte/halfword")?,
                     },
                     offset_direction: Some(Direction::Up),
                     indexing: Some(Indexing::Pre),
@@ -1148,7 +1148,7 @@ impl Instruction {
                         registers.push(Register::R15);
                         Opcode::Pop
                     }
-                    _ => unreachable!(),
+                    _ => Err("Invalid opcode for Push/Pop")?,
                 };
 
                 Ok(Instruction {
