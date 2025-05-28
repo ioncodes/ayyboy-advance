@@ -47,8 +47,8 @@ impl Tile {
         let mut pixels = [(0, 0, 0); 64];
 
         for i in 0..32 {
-            let left_pixel = (bytes[i] & 0xF0) >> 4;
-            let right_pixel = bytes[i] & 0x0F;
+            let left_pixel = bytes[i] & 0x0F;
+            let right_pixel = (bytes[i] & 0xF0) >> 4;
 
             let idx = i * 2;
             if left_pixel != 0 {
