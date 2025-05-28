@@ -115,6 +115,10 @@ impl BgCnt {
             ColorDepth::Bpp4
         }
     }
+
+    pub fn priority(&self) -> u8 {
+        (self.bits() & BgCnt::BG_PRIORITY.bits()) as u8
+    }
 }
 
 bitflags! {

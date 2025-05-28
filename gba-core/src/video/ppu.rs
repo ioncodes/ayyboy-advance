@@ -4,7 +4,7 @@ use super::{Frame, Rgb, PALETTE_ADDR_END, PALETTE_ADDR_START, PALETTE_TOTAL_ENTR
 use crate::memory::device::{Addressable, IoRegister};
 use crate::video::registers::InternalScreenSize;
 use crate::video::tile::TileInfo;
-use crate::video::{tile, TILEMAP_ENTRY_SIZE};
+use crate::video::TILEMAP_ENTRY_SIZE;
 use log::*;
 
 #[derive(PartialEq)]
@@ -243,11 +243,11 @@ impl Ppu {
                 let mut tile = Tile::from_bytes(&tile_data, palette_bank);
 
                 // flip the tile if needed
-                if tile_info.contains(tile::TileInfo::FLIP_X) {
+                if tile_info.contains(TileInfo::FLIP_X) {
                     tile.flip_x();
                 }
 
-                if tile_info.contains(tile::TileInfo::FLIP_Y) {
+                if tile_info.contains(TileInfo::FLIP_Y) {
                     tile.flip_y();
                 }
 
@@ -272,28 +272,37 @@ impl Ppu {
     fn render_background_mode0(&self) -> Frame {
         trace!("Rendering background mode 0");
 
-        let (map_w, map_h) = match self.bg_cnt[0].value().screen_size() {
-            InternalScreenSize::Size256x256 => (256, 256),
-            InternalScreenSize::Size512x256 => (512, 256),
-            InternalScreenSize::Size256x512 => (256, 512),
-            InternalScreenSize::Size512x512 => (512, 512),
-        };
-
-        let vertical_offset = self.bg_vofs[0].value().offset();
-        let horizontal_offset = self.bg_hofs[0].value().offset();
-
-        let hoff = horizontal_offset % map_w;
-        let voff = vertical_offset % map_h;
-
-        let (_, tilemap) = self.render_tilemap(self.bg_cnt[0].value());
-
         let mut frame = [[(0, 0, 0); SCREEN_WIDTH]; SCREEN_HEIGHT];
 
-        for y in 0..SCREEN_HEIGHT {
-            let src_y = (y + voff) % map_h;
-            for x in 0..SCREEN_WIDTH {
-                let src_x = (x + hoff) % map_w;
-                frame[y][x] = tilemap[src_y * map_w + src_x];
+        // this list is sorted by priority
+        let bg_cnts = self.effective_backgrounds();
+
+        for bg_cnt in bg_cnts {
+            let (map_w, map_h) = match bg_cnt.screen_size() {
+                InternalScreenSize::Size256x256 => (256, 256),
+                InternalScreenSize::Size512x256 => (512, 256),
+                InternalScreenSize::Size256x512 => (256, 512),
+                InternalScreenSize::Size512x512 => (512, 512),
+            };
+
+            let vertical_offset = self.bg_vofs[0].value().offset();
+            let horizontal_offset = self.bg_hofs[0].value().offset();
+
+            let hoff = horizontal_offset % map_w;
+            let voff = vertical_offset % map_h;
+
+            let (_, tilemap) = self.render_tilemap(&bg_cnt);
+
+            for y in 0..SCREEN_HEIGHT {
+                let src_y = (y + voff) % map_h;
+                for x in 0..SCREEN_WIDTH {
+                    let src_x = (x + hoff) % map_w;
+                    let color = tilemap[src_y * map_w + src_x];
+                    if color != (0, 0, 0) {
+                        // TODO: ACTUALLY CHECK FOR TRANSPARENCY
+                        frame[y][x] = color;
+                    }
+                }
             }
         }
 
@@ -349,7 +358,33 @@ impl Ppu {
         frame
     }
 
-    fn extract_rgb(rgb: u16) -> (u8, u8, u8) {
+    fn effective_backgrounds(&self) -> Vec<BgCnt> {
+        let mut bg_cnts = vec![];
+
+        // check which backgrounds are enabled
+        if self.disp_cnt.contains_flags(DispCnt::BG0_ON) {
+            bg_cnts.push(*self.bg_cnt[0].value());
+        }
+
+        if self.disp_cnt.contains_flags(DispCnt::BG1_ON) {
+            bg_cnts.push(*self.bg_cnt[1].value());
+        }
+
+        if self.disp_cnt.contains_flags(DispCnt::BG2_ON) {
+            bg_cnts.push(*self.bg_cnt[2].value());
+        }
+
+        if self.disp_cnt.contains_flags(DispCnt::BG3_ON) {
+            bg_cnts.push(*self.bg_cnt[3].value());
+        }
+
+        // sort by the provided priority
+        bg_cnts.sort_by(|a, b| a.priority().cmp(&b.priority()));
+
+        bg_cnts
+    }
+
+    fn extract_rgb(rgb: u16) -> Rgb {
         let r = ((rgb & 0b0000_0000_0001_1111) as u8) << 3;
         let g = (((rgb & 0b0000_0011_1110_0000) >> 5) as u8) << 3;
         let b = (((rgb & 0b0111_1100_0000_0000) >> 10) as u8) << 3;

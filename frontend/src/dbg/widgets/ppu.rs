@@ -221,91 +221,135 @@ impl PpuWidget {
             ));
         }
 
-        Window::new("PPU").resizable(false).show(ctx, |ui| {
-            CollapsingHeader::new("Registers").default_open(true).show(ui, |ui| {
-                ui.label(RichText::new("Display Control (DISP_CNT):").monospace().strong());
-                ui.label(RichText::new(format!("Background Mode: {}", self.registers.disp_cnt.bg_mode())).monospace());
-                ui.label(
-                    RichText::new(format!(
-                        "Frame Address: {:08x}",
-                        self.registers.disp_cnt.frame_address()
-                    ))
-                    .monospace(),
-                );
-
-                ui.separator();
-
-                ui.label(RichText::new("Display Status (DISP_STAT):").monospace().strong());
-                ui.label(
-                    RichText::new(format!(
-                        "VBLANK IRQ Enabled: {}",
-                        self.registers.disp_stat.contains(DispStat::VBLANK_IRQ_ENABLE)
-                    ))
-                    .monospace(),
-                );
-                ui.label(
-                    RichText::new(format!(
-                        "HBLANK IRQ Enabled: {}",
-                        self.registers.disp_stat.contains(DispStat::HBLANK_IRQ_ENABLE)
-                    ))
-                    .monospace(),
-                );
-                ui.label(
-                    RichText::new(format!(
-                        "VBLANK: {}",
-                        self.registers.disp_stat.contains(DispStat::VBLANK_FLAG)
-                    ))
-                    .monospace(),
-                );
-                ui.label(
-                    RichText::new(format!(
-                        "HBLANK: {}",
-                        self.registers.disp_stat.contains(DispStat::HBLANK_FLAG)
-                    ))
-                    .monospace(),
-                );
-                ui.label(
-                    RichText::new(format!(
-                        "VCOUNT Enabled: {}",
-                        self.registers.disp_stat.contains(DispStat::V_COUNTER_ENABLE)
-                    ))
-                    .monospace(),
-                );
-
-                ui.separator();
-
-                ui.label(RichText::new("Background Control (BGxCNT):").monospace().strong());
-                for (i, bg_cnt) in self.registers.bg_cnt.iter().enumerate() {
-                    ui.label(RichText::new(format!("BG{}CNT Screen Size: {}", i, bg_cnt.screen_size())).monospace());
+        Window::new("PPU Registers").resizable(false).show(ctx, |ui| {
+            CollapsingHeader::new("Display Control (DISP_CNT)")
+                .default_open(true)
+                .show(ui, |ui| {
                     ui.label(
-                        RichText::new(format!("BG{}CNT Char Base Address: {:08x}", i, bg_cnt.tileset_addr()))
-                            .monospace(),
+                        RichText::new(format!("Background Mode: {}", self.registers.disp_cnt.bg_mode())).monospace(),
                     );
                     ui.label(
-                        RichText::new(format!("BG{}CNT Screen Base Address: {:08x}", i, bg_cnt.tilemap_addr()))
-                            .monospace(),
+                        RichText::new(format!(
+                            "Frame Address: {:08x}",
+                            self.registers.disp_cnt.frame_address()
+                        ))
+                        .monospace(),
                     );
-                }
-            });
+                    ui.label(
+                        RichText::new(format!(
+                            "BG 0 Enabled: {}",
+                            self.registers.disp_cnt.contains(DispCnt::BG0_ON)
+                        ))
+                        .monospace(),
+                    );
+                    ui.label(
+                        RichText::new(format!(
+                            "BG 1 Enabled: {}",
+                            self.registers.disp_cnt.contains(DispCnt::BG1_ON)
+                        ))
+                        .monospace(),
+                    );
+                    ui.label(
+                        RichText::new(format!(
+                            "BG 2 Enabled: {}",
+                            self.registers.disp_cnt.contains(DispCnt::BG2_ON)
+                        ))
+                        .monospace(),
+                    );
+                    ui.label(
+                        RichText::new(format!(
+                            "BG 3 Enabled: {}",
+                            self.registers.disp_cnt.contains(DispCnt::BG3_ON)
+                        ))
+                        .monospace(),
+                    );
+                    ui.label(
+                        RichText::new(format!(
+                            "OBJ Enabled: {}",
+                            self.registers.disp_cnt.contains(DispCnt::OBJ_ON)
+                        ))
+                        .monospace(),
+                    );
+                    ui.label(
+                        RichText::new(format!(
+                            "WIN 0 Enabled: {}",
+                            self.registers.disp_cnt.contains(DispCnt::WIN0_ON)
+                        ))
+                        .monospace(),
+                    );
+                    ui.label(
+                        RichText::new(format!(
+                            "WIN 1 Enabled: {}",
+                            self.registers.disp_cnt.contains(DispCnt::WIN1_ON)
+                        ))
+                        .monospace(),
+                    );
+                });
 
-            CollapsingHeader::new("Palette").default_open(true).show(ui, |ui| {
-                for (row_index, row) in self.palette.chunks(16).enumerate() {
-                    ui.horizontal(|ui| {
-                        for (col_index, color) in row.iter().enumerate() {
-                            let i = row_index * 16 + col_index;
-                            let color32 = Color32::from_rgb(color.0, color.1, color.2);
-                            ui.label(
-                                RichText::new(format!("{:04X}", i))
-                                    .background_color(color32)
-                                    .monospace(),
-                            );
+            CollapsingHeader::new("Display Status (DISP_STAT)")
+                .default_open(true)
+                .show(ui, |ui| {
+                    ui.label(
+                        RichText::new(format!(
+                            "VBLANK IRQ Enabled: {}",
+                            self.registers.disp_stat.contains(DispStat::VBLANK_IRQ_ENABLE)
+                        ))
+                        .monospace(),
+                    );
+                    ui.label(
+                        RichText::new(format!(
+                            "HBLANK IRQ Enabled: {}",
+                            self.registers.disp_stat.contains(DispStat::HBLANK_IRQ_ENABLE)
+                        ))
+                        .monospace(),
+                    );
+                    ui.label(
+                        RichText::new(format!(
+                            "VBLANK: {}",
+                            self.registers.disp_stat.contains(DispStat::VBLANK_FLAG)
+                        ))
+                        .monospace(),
+                    );
+                    ui.label(
+                        RichText::new(format!(
+                            "HBLANK: {}",
+                            self.registers.disp_stat.contains(DispStat::HBLANK_FLAG)
+                        ))
+                        .monospace(),
+                    );
+                    ui.label(
+                        RichText::new(format!(
+                            "VCOUNT Enabled: {}",
+                            self.registers.disp_stat.contains(DispStat::V_COUNTER_ENABLE)
+                        ))
+                        .monospace(),
+                    );
+                });
+
+            CollapsingHeader::new("Background Control (BGxCNT)")
+                .default_open(true)
+                .show(ui, |ui| {
+                    for (i, bg_cnt) in self.registers.bg_cnt.iter().enumerate() {
+                        ui.label(
+                            RichText::new(format!("BG{}CNT Screen Size: {}", i, bg_cnt.screen_size())).monospace(),
+                        );
+                        ui.label(
+                            RichText::new(format!("BG{}CNT Char Base Address: {:08x}", i, bg_cnt.tileset_addr()))
+                                .monospace(),
+                        );
+                        ui.label(
+                            RichText::new(format!("BG{}CNT Screen Base Address: {:08x}", i, bg_cnt.tilemap_addr()))
+                                .monospace(),
+                        );
+                        ui.label(RichText::new(format!("BG{}CNT Priority: {}", i, bg_cnt.priority())).monospace());
+                        if i != 3 {
+                            ui.separator();
                         }
-                    });
-                }
-            });
+                    }
+                });
         });
 
-        Window::new("PPU Textures").resizable(false).show(ctx, |ui| {
+        Window::new("PPU Video").resizable(false).show(ctx, |ui| {
             CollapsingHeader::new("Tilemaps").default_open(true).show(ui, |ui| {
                 ui.horizontal(|ui| {
                     if let Some(texture) = &self.tilemap0_texture {
@@ -324,6 +368,22 @@ impl PpuWidget {
                         ui.image(texture);
                     }
                 });
+            });
+
+            CollapsingHeader::new("Palette").default_open(true).show(ui, |ui| {
+                for (row_index, row) in self.palette.chunks(16).enumerate() {
+                    ui.horizontal(|ui| {
+                        for (col_index, color) in row.iter().enumerate() {
+                            let i = row_index * 16 + col_index;
+                            let color32 = Color32::from_rgb(color.0, color.1, color.2);
+                            ui.label(
+                                RichText::new(format!("{:04X}", i))
+                                    .background_color(color32)
+                                    .monospace(),
+                            );
+                        }
+                    });
+                }
             });
 
             CollapsingHeader::new("Tileset").default_open(false).show(ui, |ui| {
