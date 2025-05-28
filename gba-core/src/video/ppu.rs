@@ -1,4 +1,4 @@
-use super::registers::{BgCnt, ColorDepth, DispCnt, DispStat};
+use super::registers::{BgCnt, BgOffset, ColorDepth, DispCnt, DispStat};
 use super::tile::Tile;
 use super::{Frame, Rgb, PALETTE_ADDR_END, PALETTE_ADDR_START, PALETTE_TOTAL_ENTRIES, SCREEN_HEIGHT, SCREEN_WIDTH};
 use crate::memory::device::{Addressable, IoRegister};
@@ -23,6 +23,8 @@ pub struct Ppu {
     pub disp_stat: IoRegister<DispStat>,
     pub disp_cnt: IoRegister<DispCnt>,
     pub bg_cnt: [IoRegister<BgCnt>; 4],
+    pub bg_hofs: [IoRegister<BgOffset>; 4],
+    pub bg_vofs: [IoRegister<BgOffset>; 4],
 }
 
 impl Ppu {
@@ -39,6 +41,8 @@ impl Ppu {
             disp_stat: IoRegister::default(),
             disp_cnt: IoRegister::default(),
             bg_cnt: [IoRegister::default(); 4],
+            bg_hofs: [IoRegister::default(); 4],
+            bg_vofs: [IoRegister::default(); 4],
         }
     }
 
@@ -183,7 +187,7 @@ impl Ppu {
     }
 
     fn render_background_mode0(&self) -> Frame {
-        trace!("Rendering background mode");
+        trace!("Rendering background mode 0");
 
         let palette = self.fetch_palette();
 
@@ -194,7 +198,9 @@ impl Ppu {
             ColorDepth::Bpp4 => 0x20,
             ColorDepth::Bpp8 => 0x40,
         };
-        let palette_bank_size = if tile_size == 0x20 { 16 } else { 256 };
+
+        let vertical_offset = self.bg_vofs[0].value().offset();
+        let horizontal_offset = self.bg_hofs[0].value().offset();
 
         let (map_w, map_h, tiles_x, tiles_y) = match self.bg_cnt[0].value().screen_size() {
             InternalScreenSize::Size256x256 => (256, 256, 32, 32),
@@ -213,8 +219,8 @@ impl Ppu {
 
                 let block_index = match self.bg_cnt[0].value().screen_size() {
                     InternalScreenSize::Size256x256 => 0,
-                    InternalScreenSize::Size512x256 => block_col,     // 0‥1
-                    InternalScreenSize::Size256x512 => block_row * 2, // 0‥1 (stacked)
+                    InternalScreenSize::Size512x256 => block_col, // 0‥1
+                    InternalScreenSize::Size256x512 => block_row, // 0‥1 (stacked)
                     InternalScreenSize::Size512x512 => block_row * 2 + block_col, // 0‥3 (quad)
                 };
 
@@ -225,7 +231,7 @@ impl Ppu {
                 let tile_info = TileInfo::from_bits_truncate(self.read_u16(addr));
 
                 // fetch the tile data from the tileset
-                let tile_addr = tileset_addr as usize + tile_info.tile_id() * 32; // 4-bpp ⇒ 32 B per tile
+                let tile_addr = tileset_addr as usize + tile_info.tile_id() * tile_size;
                 let tile_data = {
                     let mut tile_data = vec![0u8; tile_size];
                     for i in 0..tile_size {
@@ -235,10 +241,12 @@ impl Ppu {
                 };
 
                 // extract the tile pixels using the given palette bank
-                let palette_bank = palette
-                    [tile_info.palette() * palette_bank_size..(tile_info.palette() + 1) * palette_bank_size]
-                    .to_vec();
-                let mut tile = Tile::from_bytes(&tile_data, &palette_bank);
+                let palette_bank = if tile_size == 0x20 {
+                    &palette[tile_info.palette() as usize * 16..][..16]
+                } else {
+                    &palette[..256]
+                };
+                let mut tile = Tile::from_bytes(&tile_data, palette_bank);
 
                 // flip the tile if needed
                 if tile_info.contains(tile::TileInfo::FLIP_X) {
@@ -264,9 +272,14 @@ impl Ppu {
             }
         }
 
+        let hoff = horizontal_offset % map_w;
+        let voff = vertical_offset % map_h;
+
         for y in 0..SCREEN_HEIGHT {
+            let src_y = (y + voff) % map_h;
             for x in 0..SCREEN_WIDTH {
-                frame[y][x] = internal_frame[y * map_w + x];
+                let src_x = (x + hoff) % map_w;
+                frame[y][x] = internal_frame[src_y * map_w + src_x];
             }
         }
 
@@ -341,6 +354,14 @@ impl Addressable for Ppu {
                 let index = (addr - 0x04000008) as usize / 2;
                 self.bg_cnt[index].read(addr)
             }
+            0x04000010..=0x04000011 => self.bg_hofs[0].read(addr), // BG0HOFS
+            0x04000012..=0x04000013 => self.bg_vofs[0].read(addr), // BG0VOFS
+            0x04000014..=0x04000015 => self.bg_hofs[1].read(addr), // BG1HOFS
+            0x04000016..=0x04000017 => self.bg_vofs[1].read(addr), // BG1VOFS
+            0x04000018..=0x04000019 => self.bg_hofs[2].read(addr), // BG2HOFS
+            0x0400001A..=0x0400001B => self.bg_vofs[2].read(addr), // BG2VOFS
+            0x0400001C..=0x0400001D => self.bg_hofs[3].read(addr), // BG3HOFS
+            0x0400001E..=0x0400001F => self.bg_vofs[3].read(addr), // BG3VOFS
             // rest of the registers
             0x04000000..=0x04000056 => self.io[(addr - 0x04000000) as usize],
             0x05000000..=0x07FFFFFF => self.vram[(addr - 0x05000000) as usize],
@@ -358,6 +379,14 @@ impl Addressable for Ppu {
                 let index = (addr - 0x04000008) as usize / 2;
                 self.bg_cnt[index].write(addr, value)
             }
+            0x04000010..=0x04000011 => self.bg_hofs[0].write(addr, value), // BG0HOFS
+            0x04000012..=0x04000013 => self.bg_vofs[0].write(addr, value), // BG0VOFS
+            0x04000014..=0x04000015 => self.bg_hofs[1].write(addr, value), // BG1HOFS
+            0x04000016..=0x04000017 => self.bg_vofs[1].write(addr, value), // BG1VOFS
+            0x04000018..=0x04000019 => self.bg_hofs[2].write(addr, value), // BG2HOFS
+            0x0400001A..=0x0400001B => self.bg_vofs[2].write(addr, value), // BG2VOFS
+            0x0400001C..=0x0400001D => self.bg_hofs[3].write(addr, value), // BG3HOFS
+            0x0400001E..=0x0400001F => self.bg_vofs[3].write(addr, value), // BG3VOFS
             // rest of the registers
             0x04000000..=0x04000056 => self.io[(addr - 0x04000000) as usize] = value,
             0x05000000..=0x07FFFFFF => {

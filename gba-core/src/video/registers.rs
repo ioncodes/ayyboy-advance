@@ -115,3 +115,17 @@ impl BgCnt {
         }
     }
 }
+
+bitflags! {
+    #[derive(Default, Copy, Clone)]
+    pub struct BgOffset: u16 {
+        const OFFSET = 0b0000_0000_1111_1111;
+        const UNUSED = 0b1111_1111_0000_0000;
+    }
+}
+
+impl BgOffset {
+    pub fn offset(&self) -> usize {
+        (self.bits() & BgOffset::OFFSET.bits()) as usize
+    }
+}
