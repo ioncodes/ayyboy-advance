@@ -64,8 +64,9 @@ impl PpuWidget {
     }
 
     pub fn update(
-        &mut self, frames: Box<[Frame; 6]>, tileset: Vec<Rgb>, tilemaps: [(InternalScreenSize, Vec<Rgb>); 4],
-        palette: Box<[Rgb; PALETTE_TOTAL_ENTRIES]>, registers: PpuRegisters,
+        &mut self, ctx: &Context, frames: Box<[Frame; 6]>, tileset: Vec<Rgb>,
+        tilemaps: [(InternalScreenSize, Vec<Rgb>); 4], palette: Box<[Rgb; PALETTE_TOTAL_ENTRIES]>,
+        registers: PpuRegisters,
     ) {
         self.frames = frames;
         self.tileset = tileset;
@@ -124,6 +125,12 @@ impl PpuWidget {
                     InternalScreenSize::Size512x256 => [512, 256],
                 };
 
+                *texture = ctx.load_texture(
+                    texture.name(),
+                    ColorImage::new(dimensions, Color32::BLACK),
+                    TextureOptions::default(),
+                );
+
                 texture.set(
                     ColorImage {
                         size: dimensions,
@@ -139,10 +146,6 @@ impl PpuWidget {
         update_tilemap_texture(&mut self.tilemap2_texture, self.tilemaps[2].0, &self.tilemaps[2].1);
         update_tilemap_texture(&mut self.tilemap3_texture, self.tilemaps[3].0, &self.tilemaps[3].1);
 
-        let _ = self.event_tx.send(RequestEvent::UpdatePpu);
-    }
-
-    pub fn render(&mut self, ctx: &Context) {
         if self.tileset_texture.is_none() {
             self.tileset_texture = Some(ctx.load_texture(
                 "tileset",
@@ -221,6 +224,10 @@ impl PpuWidget {
             ));
         }
 
+        let _ = self.event_tx.send(RequestEvent::UpdatePpu);
+    }
+
+    pub fn render(&mut self, ctx: &Context) {
         Window::new("PPU Registers").resizable(false).show(ctx, |ui| {
             CollapsingHeader::new("Display Control (DISP_CNT)")
                 .default_open(true)

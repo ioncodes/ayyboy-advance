@@ -378,8 +378,9 @@ impl Ppu {
             bg_cnts.push(*self.bg_cnt[3].value());
         }
 
-        // sort by the provided priority
+        // sort by the provided priority, 0 is highest priority
         bg_cnts.sort_by(|a, b| a.priority().cmp(&b.priority()));
+        bg_cnts.reverse(); // reverse to have the highest priority first
 
         bg_cnts
     }
