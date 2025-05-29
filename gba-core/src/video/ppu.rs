@@ -344,7 +344,9 @@ impl Ppu {
 
         let obj_dimension = self.disp_cnt.value().dimension();
 
-        for obj_id in 0..128 {
+        // lower OAM entry = higher priority
+        // quick hack is to go through the OAM backwards
+        for obj_id in (0..128).into_iter().rev() {
             let attr0 = ObjAttribute0::from_bits_truncate(self.read_u16(OAM_BASE + obj_id * 8 + 0));
             let attr1 = ObjAttribute1::from_bits_truncate(self.read_u16(OAM_BASE + obj_id * 8 + 2));
             let attr2 = ObjAttribute2::from_bits_truncate(self.read_u16(OAM_BASE + obj_id * 8 + 4));
