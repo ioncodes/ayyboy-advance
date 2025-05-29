@@ -1,5 +1,5 @@
 [workspace]
-members = ["gba-core", "frontend", "rom-db"]
+members = ["gba-core", "debugger", "rom-db"]
 resolver = "3"
 
 [profile.release]
