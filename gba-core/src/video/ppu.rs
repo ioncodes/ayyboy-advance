@@ -277,7 +277,7 @@ impl Ppu {
         // this list is sorted by priority
         let bg_cnts = self.effective_backgrounds();
 
-        for (i, bg_cnt) in bg_cnts.iter().enumerate() {
+        for (id, bg_cnt) in bg_cnts {
             let (map_w, map_h) = match bg_cnt.screen_size() {
                 InternalScreenSize::Size256x256 => (256, 256),
                 InternalScreenSize::Size512x256 => (512, 256),
@@ -285,8 +285,8 @@ impl Ppu {
                 InternalScreenSize::Size512x512 => (512, 512),
             };
 
-            let vertical_offset = self.bg_vofs[i].value().offset();
-            let horizontal_offset = self.bg_hofs[i].value().offset();
+            let vertical_offset = self.bg_vofs[id].value().offset();
+            let horizontal_offset = self.bg_hofs[id].value().offset();
 
             let hoff = horizontal_offset % map_w;
             let voff = vertical_offset % map_h;
@@ -358,28 +358,31 @@ impl Ppu {
         frame
     }
 
-    fn effective_backgrounds(&self) -> Vec<BgCnt> {
+    fn effective_backgrounds(&self) -> Vec<(usize, BgCnt)> {
+        // we need to return a list of (index, BgCnt), or else we wont know which BGxCNT is which
+        // this is important for later once we access the scroll registers as well
+        // we also sort this list by priority, so that we can render the backgrounds in the correct order
         let mut bg_cnts = vec![];
 
         // check which backgrounds are enabled
         if self.disp_cnt.contains_flags(DispCnt::BG0_ON) {
-            bg_cnts.push(*self.bg_cnt[0].value());
+            bg_cnts.push((0, *self.bg_cnt[0].value()));
         }
 
         if self.disp_cnt.contains_flags(DispCnt::BG1_ON) {
-            bg_cnts.push(*self.bg_cnt[1].value());
+            bg_cnts.push((1, *self.bg_cnt[1].value()));
         }
 
         if self.disp_cnt.contains_flags(DispCnt::BG2_ON) {
-            bg_cnts.push(*self.bg_cnt[2].value());
+            bg_cnts.push((2, *self.bg_cnt[2].value()));
         }
 
         if self.disp_cnt.contains_flags(DispCnt::BG3_ON) {
-            bg_cnts.push(*self.bg_cnt[3].value());
+            bg_cnts.push((3, *self.bg_cnt[3].value()));
         }
 
         // sort by the provided priority, 0 is highest priority
-        bg_cnts.sort_by(|a, b| a.priority().cmp(&b.priority()));
+        bg_cnts.sort_by(|a, b| a.1.priority().cmp(&b.1.priority()));
         bg_cnts.reverse(); // reverse to have the highest priority first
 
         bg_cnts
