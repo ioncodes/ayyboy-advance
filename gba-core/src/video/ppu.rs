@@ -1,6 +1,6 @@
 use super::registers::{BgCnt, BgOffset, ColorDepth, DispCnt, DispStat, ObjShape};
 use super::tile::Tile;
-use super::{Frame, Rgb, PALETTE_ADDR_END, PALETTE_ADDR_START, PALETTE_TOTAL_ENTRIES, SCREEN_HEIGHT, SCREEN_WIDTH};
+use super::{Frame, Pixel, PALETTE_ADDR_END, PALETTE_ADDR_START, PALETTE_TOTAL_ENTRIES, SCREEN_HEIGHT, SCREEN_WIDTH};
 use crate::memory::device::{Addressable, IoRegister};
 use crate::video::registers::{Dimension, InternalScreenSize, ObjAttribute0, ObjAttribute1, ObjAttribute2, ObjSize};
 use crate::video::tile::TileInfo;
@@ -99,7 +99,7 @@ impl Ppu {
                     parse_bg_layer_view(DispCnt::BG2_ON),
                     parse_bg_layer_view(DispCnt::BG3_ON)
                 );
-                [[(0, 0, 0); SCREEN_WIDTH]; SCREEN_HEIGHT]
+                [[Pixel::Transparent; SCREEN_WIDTH]; SCREEN_HEIGHT]
             }
             3 => self.render_background_mode3(lcd_control.frame_address()),
             4 => self.render_background_mode4(lcd_control.frame_address()),
@@ -115,7 +115,7 @@ impl Ppu {
     pub fn get_background_frame(&self, mode: usize, base_addr: u32) -> Frame {
         match mode {
             0 => self.render_background_mode0(),
-            1..=2 => [[(0, 0, 0); SCREEN_WIDTH]; SCREEN_HEIGHT],
+            1..=2 => [[Pixel::Transparent; SCREEN_WIDTH]; SCREEN_HEIGHT],
             3 => self.render_background_mode3(base_addr),
             4 => self.render_background_mode4(base_addr),
             5 => self.render_background_mode5(base_addr),
@@ -123,8 +123,8 @@ impl Ppu {
         }
     }
 
-    pub fn fetch_palette(&self) -> [Rgb; PALETTE_TOTAL_ENTRIES] {
-        let mut palette = [(0u8, 0u8, 0u8); PALETTE_TOTAL_ENTRIES];
+    pub fn fetch_palette(&self) -> [Pixel; PALETTE_TOTAL_ENTRIES] {
+        let mut palette = [Pixel::Transparent; PALETTE_TOTAL_ENTRIES];
 
         for addr in (PALETTE_ADDR_START..=PALETTE_ADDR_END).step_by(2) {
             let rgb = self.read_u16(addr);
@@ -135,7 +135,7 @@ impl Ppu {
         palette
     }
 
-    pub fn render_tileset(&self) -> (usize, Vec<Rgb>) {
+    pub fn render_tileset(&self) -> (usize, Vec<Pixel>) {
         let tileset_addr = self.bg_cnt[0].value().tileset_addr() as usize;
         let tile_size = match self.bg_cnt[0].value().bpp() {
             ColorDepth::Bpp4 => 0x20,
@@ -172,7 +172,7 @@ impl Ppu {
         let w_px = TILES_PER_ROW * TILE_WIDTH; // atlas width  in px (128)
         let h_px = rows * TILE_WIDTH; // atlas height in px (rows*8)
 
-        let mut out = vec![(0, 0, 0); w_px * h_px];
+        let mut out = vec![Pixel::Transparent; w_px * h_px];
 
         for (idx, tile) in tileset.iter().enumerate() {
             let gx = idx % TILES_PER_ROW; // tile X in grid
@@ -197,7 +197,7 @@ impl Ppu {
         (tile_count, out)
     }
 
-    pub fn render_tilemap(&self, bg_cnt: &BgCnt) -> (InternalScreenSize, Vec<Rgb>) {
+    pub fn render_tilemap(&self, bg_cnt: &BgCnt) -> (InternalScreenSize, Vec<Pixel>) {
         let palette = self.fetch_palette();
 
         let tileset_addr = bg_cnt.tileset_addr() as usize; // cbb
@@ -215,7 +215,7 @@ impl Ppu {
             InternalScreenSize::Size512x512 => (512, 512, 64, 64),
         };
 
-        let mut internal_frame = vec![(0, 0, 0); map_w * map_h];
+        let mut internal_frame = vec![Pixel::Transparent; map_w * map_h];
 
         for ty in 0..tiles_y {
             for tx in 0..tiles_x {
@@ -335,7 +335,7 @@ impl Ppu {
         dims
     }
 
-    fn render_sprites(&self, frame: &mut Frame) {
+    fn render_sprites(&self, frame: &mut [[Pixel; SCREEN_WIDTH]; SCREEN_HEIGHT]) {
         const OAM_BASE: u32 = 0x0700_0000;
         const OBJ_BASE: u32 = 0x0601_0000;
 
@@ -346,7 +346,7 @@ impl Ppu {
 
         // lower OAM entry = higher priority
         // quick hack is to go through the OAM backwards
-        for obj_id in (0..128).into_iter().rev() {
+        for obj_id in (0..128).rev() {
             let attr0 = ObjAttribute0::from_bits_truncate(self.read_u16(OAM_BASE + obj_id * 8 + 0));
             let attr1 = ObjAttribute1::from_bits_truncate(self.read_u16(OAM_BASE + obj_id * 8 + 2));
             let attr2 = ObjAttribute2::from_bits_truncate(self.read_u16(OAM_BASE + obj_id * 8 + 4));
@@ -442,8 +442,8 @@ impl Ppu {
                             }
 
                             let c = tile.pixels[py * 8 + px];
-                            if c != (0, 0, 0) {
-                                // colour 0 = transparent
+                            // Instead of checking (0,0,0) for transparency:
+                            if c != Pixel::Transparent {
                                 frame[sy as usize][sx as usize] = c;
                             }
                         }
@@ -456,7 +456,7 @@ impl Ppu {
     fn render_background_mode0(&self) -> Frame {
         trace!("Rendering background mode 0");
 
-        let mut frame = [[(0, 0, 0); SCREEN_WIDTH]; SCREEN_HEIGHT];
+        let mut frame = [[Pixel::Transparent; SCREEN_WIDTH]; SCREEN_HEIGHT];
 
         // this list is sorted by priority
         let bg_cnts = self.effective_backgrounds();
@@ -482,8 +482,8 @@ impl Ppu {
                 for x in 0..SCREEN_WIDTH {
                     let src_x = (x + hoff) % map_w;
                     let color = tilemap[src_y * map_w + src_x];
-                    if color != (0, 0, 0) {
-                        // TODO: ACTUALLY CHECK FOR TRANSPARENCY
+                    // Instead of checking (0,0,0), we rely on whether color is Transparent.
+                    if color != Pixel::Transparent {
                         frame[y][x] = color;
                     }
                 }
@@ -496,7 +496,7 @@ impl Ppu {
     fn render_background_mode3(&self, base_addr: u32) -> Frame {
         trace!("Rendering background mode 3 @ {:08x}", base_addr);
 
-        let mut frame = [[(0, 0, 0); SCREEN_WIDTH]; SCREEN_HEIGHT];
+        let mut frame = [[Pixel::Transparent; SCREEN_WIDTH]; SCREEN_HEIGHT];
 
         for y in 0..SCREEN_HEIGHT {
             for x in 0..SCREEN_WIDTH {
@@ -512,7 +512,7 @@ impl Ppu {
     fn render_background_mode4(&self, base_addr: u32) -> Frame {
         trace!("Rendering background mode 4 @ {:08x}", base_addr);
 
-        let mut frame = [[(0, 0, 0); SCREEN_WIDTH]; SCREEN_HEIGHT];
+        let mut frame = [[Pixel::Transparent; SCREEN_WIDTH]; SCREEN_HEIGHT];
 
         for y in 0..SCREEN_HEIGHT {
             for x in 0..SCREEN_WIDTH {
@@ -529,7 +529,7 @@ impl Ppu {
     fn render_background_mode5(&self, base_addr: u32) -> Frame {
         trace!("Rendering background mode 5 @ {:08x}", base_addr);
 
-        let mut frame = [[(0, 0, 0); SCREEN_WIDTH]; SCREEN_HEIGHT];
+        let mut frame = [[Pixel::Transparent; SCREEN_WIDTH]; SCREEN_HEIGHT];
 
         for y in 0..128 {
             for x in 0..160 {
@@ -572,11 +572,11 @@ impl Ppu {
         bg_cnts
     }
 
-    fn extract_rgb(rgb: u16) -> Rgb {
+    fn extract_rgb(rgb: u16) -> Pixel {
         let r = ((rgb & 0b0000_0000_0001_1111) as u8) << 3;
         let g = (((rgb & 0b0000_0011_1110_0000) >> 5) as u8) << 3;
         let b = (((rgb & 0b0111_1100_0000_0000) >> 10) as u8) << 3;
-        (r, g, b)
+        Pixel::Rgb(r, g, b)
     }
 }
 
