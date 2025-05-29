@@ -27,7 +27,7 @@ pub enum ResponseEvent {
     Disassembly(u32, u32, Vec<DecodedInstruction>),
     Ppu(
         Box<[Frame; 6]>,
-        Vec<Rgb>,
+        (usize, Vec<Rgb>),
         [(InternalScreenSize, Vec<Rgb>); 4],
         Box<[Rgb; PALETTE_TOTAL_ENTRIES]>,
         PpuRegisters,

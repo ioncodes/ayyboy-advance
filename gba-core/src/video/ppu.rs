@@ -131,7 +131,7 @@ impl Ppu {
         palette
     }
 
-    pub fn render_tileset(&self) -> Vec<Rgb> {
+    pub fn render_tileset(&self) -> (usize, Vec<Rgb>) {
         let tileset_addr = self.bg_cnt[0].value().tileset_addr() as usize;
         let tile_size = match self.bg_cnt[0].value().bpp() {
             ColorDepth::Bpp4 => 0x20,
@@ -183,7 +183,14 @@ impl Ppu {
             }
         }
 
-        out
+        assert!(
+            out.len() == w_px * h_px,
+            "Tileset size mismatch: {} != {}",
+            out.len(),
+            w_px * h_px
+        );
+
+        (tile_count, out)
     }
 
     pub fn render_tilemap(&self, bg_cnt: &BgCnt) -> (InternalScreenSize, Vec<Rgb>) {
@@ -265,6 +272,13 @@ impl Ppu {
                 }
             }
         }
+
+        assert!(
+            internal_frame.len() == map_w * map_h,
+            "Internal frame size mismatch: {} != {}",
+            internal_frame.len(),
+            map_w * map_h
+        );
 
         (bg_cnt.screen_size(), internal_frame)
     }

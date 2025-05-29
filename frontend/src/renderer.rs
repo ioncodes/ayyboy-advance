@@ -117,7 +117,9 @@ impl App for Renderer {
         });
 
         if self.debugger.open {
-            Window::new("Screen").show(ctx, |ui| ui.image(&self.screen_texture));
+            Window::new("Screen")
+                .resizable(false)
+                .show(ctx, |ui| ui.image(&self.screen_texture));
         }
 
         if !self.running && !self.debugger.open {

@@ -1,8 +1,6 @@
 use crate::event::RequestEvent;
 use crossbeam_channel::Sender;
-use egui::{
-    CollapsingHeader, Color32, ColorImage, Context, RichText, ScrollArea, TextureHandle, TextureOptions, Window,
-};
+use egui::{CollapsingHeader, Color32, ColorImage, Context, RichText, TextureHandle, TextureOptions, Window};
 use gba_core::video::registers::{BgCnt, BgOffset, DispCnt, DispStat, InternalScreenSize};
 use gba_core::video::{Frame, Rgb, PALETTE_TOTAL_ENTRIES, SCREEN_HEIGHT, SCREEN_WIDTH};
 
@@ -17,11 +15,9 @@ pub struct PpuRegisters {
 
 pub struct PpuWidget {
     pub frames: Box<[Frame; 6]>,
-    pub tileset: Vec<Rgb>,
     pub tilemaps: [(InternalScreenSize, Vec<Rgb>); 4],
     pub palette: Box<[Rgb; PALETTE_TOTAL_ENTRIES]>,
     pub registers: PpuRegisters,
-    tileset_texture: Option<TextureHandle>,
     tilemap0_texture: Option<TextureHandle>,
     tilemap1_texture: Option<TextureHandle>,
     tilemap2_texture: Option<TextureHandle>,
@@ -41,7 +37,6 @@ impl PpuWidget {
 
         PpuWidget {
             frames: Box::new([[[(0, 0, 0); SCREEN_WIDTH]; SCREEN_HEIGHT]; 6]),
-            tileset: Vec::new(),
             tilemaps: [
                 (InternalScreenSize::Size256x256, Vec::new()),
                 (InternalScreenSize::Size512x512, Vec::new()),
@@ -50,7 +45,6 @@ impl PpuWidget {
             ],
             palette: Box::new([(0, 0, 0); PALETTE_TOTAL_ENTRIES]),
             registers: PpuRegisters::default(),
-            tileset_texture: None,
             tilemap0_texture: None,
             tilemap1_texture: None,
             tilemap2_texture: None,
@@ -66,12 +60,10 @@ impl PpuWidget {
     }
 
     pub fn update(
-        &mut self, ctx: &Context, frames: Box<[Frame; 6]>, tileset: Vec<Rgb>,
-        tilemaps: [(InternalScreenSize, Vec<Rgb>); 4], palette: Box<[Rgb; PALETTE_TOTAL_ENTRIES]>,
-        registers: PpuRegisters,
+        &mut self, ctx: &Context, frames: Box<[Frame; 6]>, tilemaps: [(InternalScreenSize, Vec<Rgb>); 4],
+        palette: Box<[Rgb; PALETTE_TOTAL_ENTRIES]>, registers: PpuRegisters,
     ) {
         self.frames = frames;
-        self.tileset = tileset;
         self.tilemaps = tilemaps;
         self.palette = palette;
         self.registers = registers;
@@ -101,18 +93,6 @@ impl PpuWidget {
         update_texture(&mut self.bgmode5_frame0_texture, &self.frames[4]);
         update_texture(&mut self.bgmode5_frame1_texture, &self.frames[5]);
 
-        if let Some(tileset_texture) = &mut self.tileset_texture {
-            let mut pixels = vec![Color32::BLACK; self.tileset.len()];
-            for (i, color) in self.tileset.iter().enumerate() {
-                pixels[i] = Color32::from_rgb(color.0, color.1, color.2);
-            }
-            let image = ColorImage {
-                size: [16 * 8, 64 * 8],
-                pixels,
-            };
-            tileset_texture.set(image, TextureOptions::NEAREST);
-        }
-
         let update_tilemap_texture = |texture: &mut Option<TextureHandle>, size: InternalScreenSize, colors: &[Rgb]| {
             if let Some(texture) = texture {
                 let mut pixels = vec![Color32::BLACK; colors.len()];
@@ -126,12 +106,6 @@ impl PpuWidget {
                     InternalScreenSize::Size256x512 => [256, 512],
                     InternalScreenSize::Size512x256 => [512, 256],
                 };
-
-                *texture = ctx.load_texture(
-                    texture.name(),
-                    ColorImage::new(dimensions, Color32::BLACK),
-                    TextureOptions::default(),
-                );
 
                 texture.set(
                     ColorImage {
@@ -148,13 +122,6 @@ impl PpuWidget {
         update_tilemap_texture(&mut self.tilemap2_texture, self.tilemaps[2].0, &self.tilemaps[2].1);
         update_tilemap_texture(&mut self.tilemap3_texture, self.tilemaps[3].0, &self.tilemaps[3].1);
 
-        if self.tileset_texture.is_none() {
-            self.tileset_texture = Some(ctx.load_texture(
-                "tileset",
-                ColorImage::new([16 * 8, 64 * 8], Color32::BLACK),
-                TextureOptions::default(),
-            ));
-        }
         if self.tilemap0_texture.is_none() {
             self.tilemap0_texture = Some(ctx.load_texture(
                 "tilemap0",
@@ -411,17 +378,6 @@ impl PpuWidget {
                         }
                     });
                 }
-            });
-
-            CollapsingHeader::new("Tileset").default_open(false).show(ui, |ui| {
-                ScrollArea::vertical()
-                    .auto_shrink([false, true])
-                    .max_height(64.0 * 8.0 * 4.0)
-                    .show(ui, |ui| {
-                        if let Some(texture) = &self.tileset_texture {
-                            ui.image(texture);
-                        }
-                    });
             });
 
             CollapsingHeader::new("Internal Frames")
