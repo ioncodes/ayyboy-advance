@@ -1213,13 +1213,18 @@ impl Instruction {
                 // treating thumb bl as one big 32-bit instr isn't exactly ideal either
                 // golden sun for instance just uses one half of it in some cases
 
-                let offset_hi = i as i32;
-                let offset_lo = ((opcode >> 16) & 0b111_1111_1111) as i32;
+                let hi_half = (opcode & 0xFFFF) as u16; // first fetched
+                let lo_half = (opcode >> 16) as u16; // second fetched
 
-                let mut offset = (offset_hi << 12) | (offset_lo << 1); // bit 0 is always 0
-                if offset_hi & 0x400 != 0 {
-                    offset |= !0x3ffff; // sign-extend from bit 22
-                }
+                // upper 11 bits and lower 11 bits
+                let imm_hi = (hi_half & 0x07FF) as i32; // bits 10-0
+                let imm_lo = (lo_half & 0x07FF) as i32;
+
+                // build 23-bit signed offset
+                let mut offset = (imm_hi << 12) | (imm_lo << 1); // bit0 is always 0
+
+                // sign-extend from bit 22
+                offset = (offset << 9) >> 9; // keep 23 bits signed
 
                 Ok(Instruction {
                     opcode: Opcode::Bl,

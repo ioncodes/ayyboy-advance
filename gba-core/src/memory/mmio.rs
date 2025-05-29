@@ -1,3 +1,5 @@
+use core::panic;
+
 use super::device::{Addressable, IoRegister};
 use super::dma::Dma;
 use super::registers::DmaControl;
@@ -15,6 +17,7 @@ const IWRAM_SIZE: u32 = 0x8000; // 32 KiB
 const PALETTE_SIZE: u32 = 0x400; // 1 KiB
 const VRAM_SIZE: u32 = 0x18000; // 128 KiB
 const OAM_SIZE: u32 = 0x400; // 1 KiB
+const SRAM_SIZE: u32 = 0x1000; // 4 KiB
 
 pub struct Mmio {
     pub internal_memory: Box<[u8; 0x04FFFFFF + 1]>,
@@ -143,7 +146,11 @@ impl Mmio {
             0x08000000..=0x09FFFFFF => self.external_memory[(addr - 0x08000000) as usize],
             0x0A000000..=0x0BFFFFFF => self.external_memory[(addr - 0x0A000000) as usize], // Mirror of 0x08000000..=0x09FFFFFF
             0x0C000000..=0x0DFFFFFF => self.external_memory[(addr - 0x0C000000) as usize], // Mirror of 0x08000000..=0x09FFFFFF
-            0x0E000000..=0x0FFFFFFF => self.external_memory[(addr - 0x0E000000) as usize], // Mostly Gamepak SRAM
+            0x0E000000..=0x0FFFFFFF => {
+                // GamePak SRAM – mirrors every 4 KiB in 0x0E000000‑0x0FFFFFFF
+                let addr = 0x08000000 + ((addr - 0x0E000000) % SRAM_SIZE);
+                self.external_memory[(addr - 0x08000000) as usize]
+            }
             _ => {
                 error!("Reading from unmapped memory address: {:08x}", addr);
                 0x69
@@ -174,7 +181,7 @@ impl Mmio {
         trace!("Writing {:02x} to {:08x}", value, addr);
 
         match addr {
-            0x00000000..=0x00003FFF => error!("Writing to BIOS: {:02x} to {:08x}", value, addr),
+            0x00000000..=0x00003FFF => warn!("Writing to BIOS: {:02x} to {:08x}", value, addr),
             0x04000000..=0x04000056 => self.ppu.write(addr, value), // PPU I/O
             0x04000080..=0x0400008E => self.apu.write(addr, value), // APU I/O
             0x040000B0..=0x040000DF => self.dma.write(addr, value), // DMA I/O
@@ -224,10 +231,14 @@ impl Mmio {
                     _ => self.ppu.write(addr, value),
                 }
             }
-            0x08000000..=0x09FFFFFF => self.external_memory[(addr - 0x08000000) as usize] = value,
-            0x0A000000..=0x0BFFFFFF => self.external_memory[(addr - 0x0A000000) as usize] = value, // Mirror of 0x08000000..=0x09FFFFFF
-            0x0C000000..=0x0DFFFFFF => self.external_memory[(addr - 0x0C000000) as usize] = value, // Mirror of 0x08000000..=0x09FFFFFF
-            0x0E000000..=0x0FFFFFFF => self.external_memory[(addr - 0x0E000000) as usize] = value, // Mostly Gamepak SRAM
+            // 0x08000000..=0x09FFFFFF => self.external_memory[(addr - 0x08000000) as usize] = value,
+            // 0x0A000000..=0x0BFFFFFF => self.external_memory[(addr - 0x0A000000) as usize] = value, // Mirror of 0x08000000..=0x09FFFFFF
+            // 0x0C000000..=0x0DFFFFFF => self.external_memory[(addr - 0x0C000000) as usize] = value, // Mirror of 0x08000000..=0x09FFFFFF
+            // 0x0E000000..=0x0FFFFFFF => self.external_memory[(addr - 0x0E000000) as usize] = value, // Mostly Gamepak SRAM
+            0x08000000..=0x09FFFFFF => warn!("Writing to GamePak memory: {:02x} to {:08x}", value, addr),
+            0x0A000000..=0x0BFFFFFF => warn!("Writing to GamePak memory: {:02x} to {:08x}", value, addr), // Mirror of 0x08000000..=0x09FFFFFF
+            0x0C000000..=0x0DFFFFFF => warn!("Writing to GamePak memory: {:02x} to {:08x}", value, addr), // Mirror of 0x08000000..=0x09FFFFFF
+            0x0E000000..=0x0FFFFFFF => self.external_memory[(addr - 0x08000000) as usize] = value, // GamePak SRAM
             _ => {
                 error!("Writing to unmapped memory address: {:08x}", addr);
             }

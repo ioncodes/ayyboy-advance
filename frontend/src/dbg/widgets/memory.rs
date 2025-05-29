@@ -61,6 +61,8 @@ pub struct MemoryWidget {
     memory_view: MemoryView,
     event_tx: Sender<RequestEvent>,
     memory: Vec<TrackedValue<u8>>,
+    auto_refresh: bool,
+    auto_refresh_counter: usize,
 }
 
 impl MemoryWidget {
@@ -71,6 +73,8 @@ impl MemoryWidget {
             memory_view: MemoryView::Bios,
             event_tx: tx,
             memory: vec![TrackedValue::default(); 0x0FFFFFFF + 1],
+            auto_refresh: false,
+            auto_refresh_counter: 0,
         }
     }
 
@@ -81,6 +85,14 @@ impl MemoryWidget {
     }
 
     pub fn render(&mut self, ctx: &Context) {
+        if self.auto_refresh {
+            self.auto_refresh_counter = self.auto_refresh_counter.wrapping_add(1);
+
+            if self.auto_refresh_counter % 1000 == 0 {
+                let _ = self.event_tx.send(RequestEvent::UpdateMemory);
+            }
+        }
+
         Window::new("Memory").resizable(false).min_width(400.0).show(ctx, |ui| {
             ui.horizontal(|ui| {
                 ui.with_layout(egui::Layout::left_to_right(egui::Align::TOP), |ui| {
@@ -101,6 +113,7 @@ impl MemoryWidget {
                 });
 
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::TOP), |ui| {
+                    ui.checkbox(&mut self.auto_refresh, "Auto Refresh");
                     if ui
                         .button(format!("{} Refresh", egui_phosphor::regular::ARROW_CLOCKWISE))
                         .clicked()

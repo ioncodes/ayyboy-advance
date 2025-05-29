@@ -107,11 +107,12 @@ impl Cpu {
             }
 
             #[cfg(not(feature = "verbose_debug"))]
-            debug!("{:08x}: {}", state.pc, instruction);
+            debug!("[{:08x}] {:08x}: {}", state.opcode, state.pc, instruction);
 
             #[cfg(feature = "verbose_debug")]
             debug!(
-                "{:08x}: {: <40} [{}]",
+                "[{:08x}] {:08x}: {: <50} [{}]",
+                state.opcode,
                 state.pc,
                 format!("{}", instruction),
                 self.compact_registers()
