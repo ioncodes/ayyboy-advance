@@ -203,14 +203,14 @@ impl Emulator {
                 }
                 RequestEvent::UpdatePpu => {
                     let _ = self.dbg_resp_tx.send(ResponseEvent::Ppu(
-                        Box::new([
+                        vec![
                             self.cpu.mmio.ppu.get_background_frame(3, FRAME_0_ADDRESS),
                             self.cpu.mmio.ppu.get_background_frame(3, FRAME_1_ADDRESS),
                             self.cpu.mmio.ppu.get_background_frame(4, FRAME_0_ADDRESS),
                             self.cpu.mmio.ppu.get_background_frame(4, FRAME_1_ADDRESS),
                             self.cpu.mmio.ppu.get_background_frame(5, FRAME_0_ADDRESS),
                             self.cpu.mmio.ppu.get_background_frame(5, FRAME_1_ADDRESS),
-                        ]),
+                        ],
                         self.cpu.mmio.ppu.render_tileset(),
                         [
                             self.cpu.mmio.ppu.render_tilemap(self.cpu.mmio.ppu.bg_cnt[0].value()),
@@ -218,7 +218,7 @@ impl Emulator {
                             self.cpu.mmio.ppu.render_tilemap(self.cpu.mmio.ppu.bg_cnt[2].value()),
                             self.cpu.mmio.ppu.render_tilemap(self.cpu.mmio.ppu.bg_cnt[3].value()),
                         ],
-                        Box::new(self.cpu.mmio.ppu.fetch_palette()),
+                        Vec::from(self.cpu.mmio.ppu.fetch_palette()),
                         PpuRegisters {
                             disp_cnt: *self.cpu.mmio.ppu.disp_cnt.value(),
                             disp_stat: *self.cpu.mmio.ppu.disp_stat.value(),

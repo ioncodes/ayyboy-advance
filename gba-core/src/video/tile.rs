@@ -1,13 +1,13 @@
-use super::Rgb;
+use super::Pixel;
 use bitflags::bitflags;
 
 #[derive(Clone, Copy)]
 pub struct Tile {
-    pub pixels: [Rgb; 64],
+    pub pixels: [Pixel; 64],
 }
 
 impl Tile {
-    pub fn from_bytes(bytes: &[u8], palette: &[Rgb]) -> Self {
+    pub fn from_bytes(bytes: &[u8], palette: &[Pixel]) -> Self {
         assert!(
             bytes.len() == 0x20 || bytes.len() == 0x40,
             "Tile data must be 32 or 64 bytes long, got {} bytes",
@@ -43,8 +43,8 @@ impl Tile {
         }
     }
 
-    fn parse_as_4bpp(bytes: &[u8], palette: &[Rgb]) -> [Rgb; 64] {
-        let mut pixels = [(0, 0, 0); 64];
+    fn parse_as_4bpp(bytes: &[u8], palette: &[Pixel]) -> [Pixel; 64] {
+        let mut pixels = [Pixel::Transparent; 64];
 
         for i in 0..32 {
             let left_pixel = bytes[i] & 0x0F;
@@ -53,26 +53,24 @@ impl Tile {
             let idx = i * 2;
             if left_pixel != 0 {
                 pixels[idx] = palette[left_pixel as usize];
-            } else {
-                pixels[idx] = (0, 0, 0); // Transparent pixel
             }
 
             if right_pixel != 0 {
                 pixels[idx + 1] = palette[right_pixel as usize];
-            } else {
-                pixels[idx + 1] = (0, 0, 0); // Transparent pixel
             }
         }
 
         pixels
     }
 
-    fn parse_as_8bpp(bytes: &[u8], palette: &[Rgb]) -> [Rgb; 64] {
-        let mut pixels = [(0, 0, 0); 64];
+    fn parse_as_8bpp(bytes: &[u8], palette: &[Pixel]) -> [Pixel; 64] {
+        let mut pixels = [Pixel::Transparent; 64];
 
         for i in 0..64 {
             let color_index = bytes[i];
-            pixels[i] = palette[color_index as usize];
+            if color_index != 0 {
+                pixels[i] = palette[color_index as usize];
+            }
         }
 
         pixels
@@ -82,7 +80,7 @@ impl Tile {
 impl Default for Tile {
     fn default() -> Self {
         Tile {
-            pixels: [(0, 0, 0); 64],
+            pixels: [Pixel::Transparent; 64],
         }
     }
 }
@@ -102,7 +100,7 @@ impl TileSet {
         self.tiles[y * 64 + x] = tile;
     }
 
-    pub fn get_pixel(&self, x: usize, y: usize) -> Rgb {
+    pub fn get_pixel(&self, x: usize, y: usize) -> Pixel {
         let tile_x = x / 8;
         let tile_y = y / 8;
         let pixel_x = x % 8;

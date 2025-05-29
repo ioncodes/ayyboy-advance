@@ -1,7 +1,7 @@
 mod emulator;
 
 use emulator::Emulator;
-use gba_core::video::{Frame, SCREEN_HEIGHT, SCREEN_WIDTH};
+use gba_core::video::{Frame, Pixel, SCREEN_HEIGHT, SCREEN_WIDTH};
 use image::{ImageBuffer, Rgb, RgbImage};
 use std::collections::VecDeque;
 use std::fs::{self, DirEntry};
@@ -10,9 +10,9 @@ fn write_png(frame: &Frame, path: &str) {
     let w = SCREEN_WIDTH as u32;
     let h = SCREEN_HEIGHT as u32;
 
-    let img: RgbImage = ImageBuffer::from_fn(w, h, |x, y| {
-        let (r, g, b) = frame[y as usize][x as usize];
-        Rgb([r, g, b])
+    let img: RgbImage = ImageBuffer::from_fn(w, h, |x, y| match frame[y as usize][x as usize] {
+        Pixel::Transparent => Rgb([0, 0, 0]),
+        Pixel::Rgb(r, g, b) => Rgb([r, g, b]),
     });
 
     img.save(path).unwrap()

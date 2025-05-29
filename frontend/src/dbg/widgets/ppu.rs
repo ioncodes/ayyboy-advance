@@ -2,7 +2,7 @@ use crate::event::RequestEvent;
 use crossbeam_channel::Sender;
 use egui::{CollapsingHeader, Color32, ColorImage, Context, RichText, TextureHandle, TextureOptions, Window};
 use gba_core::video::registers::{BgCnt, BgOffset, DispCnt, DispStat, InternalScreenSize};
-use gba_core::video::{Frame, Rgb, PALETTE_TOTAL_ENTRIES, SCREEN_HEIGHT, SCREEN_WIDTH};
+use gba_core::video::{Frame, Pixel, SCREEN_HEIGHT, SCREEN_WIDTH};
 
 #[derive(Default)]
 pub struct PpuRegisters {
@@ -14,9 +14,9 @@ pub struct PpuRegisters {
 }
 
 pub struct PpuWidget {
-    pub frames: Box<[Frame; 6]>,
-    pub tilemaps: [(InternalScreenSize, Vec<Rgb>); 4],
-    pub palette: Box<[Rgb; PALETTE_TOTAL_ENTRIES]>,
+    pub frames: Vec<Frame>,
+    pub tilemaps: [(InternalScreenSize, Vec<Pixel>); 4],
+    pub palette: Vec<Pixel>,
     pub registers: PpuRegisters,
     tilemap0_texture: Option<TextureHandle>,
     tilemap1_texture: Option<TextureHandle>,
@@ -36,14 +36,14 @@ impl PpuWidget {
         let _ = tx.send(RequestEvent::UpdatePpu); // request initial PPU state
 
         PpuWidget {
-            frames: Box::new([[[(0, 0, 0); SCREEN_WIDTH]; SCREEN_HEIGHT]; 6]),
+            frames: Vec::new(),
             tilemaps: [
                 (InternalScreenSize::Size256x256, Vec::new()),
                 (InternalScreenSize::Size512x512, Vec::new()),
                 (InternalScreenSize::Size256x256, Vec::new()),
                 (InternalScreenSize::Size512x512, Vec::new()),
             ],
-            palette: Box::new([(0, 0, 0); PALETTE_TOTAL_ENTRIES]),
+            palette: Vec::new(),
             registers: PpuRegisters::default(),
             tilemap0_texture: None,
             tilemap1_texture: None,
@@ -60,8 +60,8 @@ impl PpuWidget {
     }
 
     pub fn update(
-        &mut self, ctx: &Context, frames: Box<[Frame; 6]>, tilemaps: [(InternalScreenSize, Vec<Rgb>); 4],
-        palette: Box<[Rgb; PALETTE_TOTAL_ENTRIES]>, registers: PpuRegisters,
+        &mut self, ctx: &Context, frames: Vec<Frame>, tilemaps: [(InternalScreenSize, Vec<Pixel>); 4],
+        palette: Vec<Pixel>, registers: PpuRegisters,
     ) {
         self.frames = frames;
         self.tilemaps = tilemaps;
@@ -74,7 +74,9 @@ impl PpuWidget {
                 for y in 0..SCREEN_HEIGHT {
                     for x in 0..SCREEN_WIDTH {
                         let color = frame[y][x];
-                        pixels[y * SCREEN_WIDTH + x] = Color32::from_rgba_premultiplied(color.0, color.1, color.2, 255);
+                        if let Pixel::Rgb(r, g, b) = color {
+                            pixels[y * SCREEN_WIDTH + x] = Color32::from_rgba_premultiplied(r, g, b, 255);
+                        }
                     }
                 }
                 let image = ColorImage {
@@ -93,29 +95,32 @@ impl PpuWidget {
         update_texture(&mut self.bgmode5_frame0_texture, &self.frames[4]);
         update_texture(&mut self.bgmode5_frame1_texture, &self.frames[5]);
 
-        let update_tilemap_texture = |texture: &mut Option<TextureHandle>, size: InternalScreenSize, colors: &[Rgb]| {
-            if let Some(texture) = texture {
-                let mut pixels = vec![Color32::BLACK; colors.len()];
-                for (i, color) in colors.iter().enumerate() {
-                    pixels[i] = Color32::from_rgb(color.0, color.1, color.2);
+        let update_tilemap_texture =
+            |texture: &mut Option<TextureHandle>, size: InternalScreenSize, colors: &[Pixel]| {
+                if let Some(texture) = texture {
+                    let mut pixels = vec![Color32::BLACK; colors.len()];
+                    for (i, color) in colors.iter().enumerate() {
+                        if let Pixel::Rgb(r, g, b) = color {
+                            pixels[i] = Color32::from_rgba_premultiplied(*r, *g, *b, 255);
+                        }
+                    }
+
+                    let dimensions = match size {
+                        InternalScreenSize::Size256x256 => [256, 256],
+                        InternalScreenSize::Size512x512 => [512, 512],
+                        InternalScreenSize::Size256x512 => [256, 512],
+                        InternalScreenSize::Size512x256 => [512, 256],
+                    };
+
+                    texture.set(
+                        ColorImage {
+                            size: dimensions,
+                            pixels,
+                        },
+                        TextureOptions::NEAREST,
+                    );
                 }
-
-                let dimensions = match size {
-                    InternalScreenSize::Size256x256 => [256, 256],
-                    InternalScreenSize::Size512x512 => [512, 512],
-                    InternalScreenSize::Size256x512 => [256, 512],
-                    InternalScreenSize::Size512x256 => [512, 256],
-                };
-
-                texture.set(
-                    ColorImage {
-                        size: dimensions,
-                        pixels,
-                    },
-                    TextureOptions::NEAREST,
-                );
-            }
-        };
+            };
 
         update_tilemap_texture(&mut self.tilemap0_texture, self.tilemaps[0].0, &self.tilemaps[0].1);
         update_tilemap_texture(&mut self.tilemap1_texture, self.tilemaps[1].0, &self.tilemaps[1].1);
@@ -369,12 +374,16 @@ impl PpuWidget {
                     ui.horizontal(|ui| {
                         for (col_index, color) in row.iter().enumerate() {
                             let i = row_index * 16 + col_index;
-                            let color32 = Color32::from_rgb(color.0, color.1, color.2);
-                            ui.label(
-                                RichText::new(format!("{:04X}", i))
-                                    .background_color(color32)
-                                    .monospace(),
-                            );
+                            if let Pixel::Rgb(r, g, b) = color {
+                                let color32 = Color32::from_rgb(*r, *g, *b);
+                                ui.label(
+                                    RichText::new(format!("{:04X}", i))
+                                        .background_color(color32)
+                                        .monospace(),
+                                );
+                            } else {
+                                ui.label(RichText::new(format!("{:04X}", i)).monospace());
+                            }
                         }
                     });
                 }

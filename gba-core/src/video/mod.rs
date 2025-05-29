@@ -17,5 +17,10 @@ pub const PALETTE_TOTAL_ENTRIES: usize = PALETTE_ENTRIES * 2; // BG and OBJ
 pub const TILESET_ENTRY_SIZE: usize = 0x4000;
 pub const TILEMAP_ENTRY_SIZE: usize = 0x800;
 
-pub type Rgb = (u8, u8, u8);
-pub type Frame = [[Rgb; SCREEN_WIDTH]; SCREEN_HEIGHT];
+#[derive(PartialEq, Clone, Copy)]
+pub enum Pixel {
+    Transparent,
+    Rgb(u8, u8, u8),
+}
+
+pub type Frame = [[Pixel; SCREEN_WIDTH]; SCREEN_HEIGHT];

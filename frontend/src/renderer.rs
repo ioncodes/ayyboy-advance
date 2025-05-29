@@ -7,7 +7,7 @@ use eframe::{App, CreationContext};
 use egui::{Align2, Key, RichText, Window};
 use egui_extras::{Column, TableBuilder};
 use gba_core::input::registers::KeyInput;
-use gba_core::video::{Frame, SCREEN_HEIGHT, SCREEN_WIDTH};
+use gba_core::video::{Frame, Pixel, SCREEN_HEIGHT, SCREEN_WIDTH};
 
 pub const SCALE: usize = 8;
 
@@ -50,13 +50,15 @@ impl Renderer {
         }
     }
 
-    pub fn update_screen(&mut self, texture: &[[(u8, u8, u8); SCREEN_WIDTH]; SCREEN_HEIGHT]) {
+    pub fn update_screen(&mut self, texture: &[[Pixel; SCREEN_WIDTH]; SCREEN_HEIGHT]) {
         let mut pixels = vec![Color32::BLACK; SCREEN_WIDTH * SCREEN_HEIGHT];
 
         for y in 0..SCREEN_HEIGHT {
             for x in 0..SCREEN_WIDTH {
                 let color = texture[y][x];
-                pixels[y * SCREEN_WIDTH + x] = Color32::from_rgba_premultiplied(color.0, color.1, color.2, 255);
+                if let Pixel::Rgb(r, g, b) = color {
+                    pixels[y * SCREEN_WIDTH + x] = Color32::from_rgba_premultiplied(r, g, b, 255);
+                }
             }
         }
 

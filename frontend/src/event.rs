@@ -1,6 +1,6 @@
 use gba_core::input::registers::KeyInput;
 use gba_core::video::registers::InternalScreenSize;
-use gba_core::video::{Frame, Rgb, PALETTE_TOTAL_ENTRIES};
+use gba_core::video::{Frame, Pixel};
 
 use crate::dbg::widgets::ppu::PpuRegisters;
 
@@ -26,10 +26,10 @@ pub enum ResponseEvent {
     Cpu(Cpu),
     Disassembly(u32, u32, Vec<DecodedInstruction>),
     Ppu(
-        Box<[Frame; 6]>,
-        (usize, Vec<Rgb>),
-        [(InternalScreenSize, Vec<Rgb>); 4],
-        Box<[Rgb; PALETTE_TOTAL_ENTRIES]>,
+        Vec<Frame>,
+        (usize, Vec<Pixel>),
+        [(InternalScreenSize, Vec<Pixel>); 4],
+        Vec<Pixel>,
         PpuRegisters,
     ), // TODO: BG Mode 3,4,5 each frame 0 and 1
 }
