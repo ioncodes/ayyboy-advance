@@ -354,8 +354,17 @@ impl Ppu {
                 continue;
             }
 
-            let y = attr0.y_coordinate() as i32;
-            let x = attr1.x_coordinate() as i32;
+            let mut y = attr0.y_coordinate() as i32;
+            if y >= 160 {
+                // 160-255 means “negative”
+                y -= 256; //   247 → −9  etc.
+            }
+
+            let mut x = attr1.x_coordinate() as i32;
+            if x >= 240 {
+                // 240-511 means “negative”
+                x -= 512; //   496 → −16 etc.
+            }
 
             let shape = attr0.shape();
             let size = attr1.size(shape);
@@ -416,29 +425,26 @@ impl Ppu {
                     }
 
                     // screen-space top-left of this 8×8 tile
-                    let mut sx = x + (tx * 8) as i32;
-                    let mut sy = y + (ty * 8) as i32;
-                    if sx >= 256 {
-                        sx -= 512;
-                    }
-                    if sy >= 256 {
-                        sy -= 256;
-                    }
+                    let tile_x = x + (tx as i32) * 8;
+                    let tile_y = y + (ty as i32) * 8;
 
                     // blit 8×8
                     for py in 0..8 {
-                        let dy = sy + py as i32;
-                        if !(0..SCREEN_HEIGHT as i32).contains(&dy) {
+                        let sy = tile_y + py as i32;
+                        if sy < 0 || sy >= SCREEN_HEIGHT as i32 {
                             continue;
                         }
+
                         for px in 0..8 {
-                            let dx = sx + px as i32;
-                            if !(0..SCREEN_WIDTH as i32).contains(&dx) {
+                            let sx = tile_x + px as i32;
+                            if sx < 0 || sx >= SCREEN_WIDTH as i32 {
                                 continue;
                             }
+
                             let c = tile.pixels[py * 8 + px];
                             if c != (0, 0, 0) {
-                                frame[dy as usize][dx as usize] = c;
+                                // colour-0 = transparent
+                                frame[sy as usize][sx as usize] = c;
                             }
                         }
                     }

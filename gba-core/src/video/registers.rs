@@ -1,6 +1,7 @@
 use std::fmt::Display;
 
 use bitflags::bitflags;
+use log::warn;
 
 use super::{FRAME_0_ADDRESS, FRAME_1_ADDRESS, TILEMAP_ENTRY_SIZE, TILESET_ENTRY_SIZE};
 
@@ -185,10 +186,10 @@ impl ObjAttribute0 {
     }
 
     pub fn disabled(&self) -> bool {
-        assert!(
-            !self.contains(ObjAttribute0::ROTATION_SCALING),
-            "DISABLE flag cannot be used with rotation/scaling"
-        );
+        if self.contains(ObjAttribute0::ROTATION_SCALING) {
+            warn!("DISABLE flag cannot be used with rotation/scaling");
+        }
+
         self.contains(ObjAttribute0::DISABLE_OR_DBL_SIZE)
     }
 
