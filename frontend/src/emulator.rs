@@ -223,6 +223,8 @@ impl Emulator {
                             disp_cnt: *self.cpu.mmio.ppu.disp_cnt.value(),
                             disp_stat: *self.cpu.mmio.ppu.disp_stat.value(),
                             bg_cnt: self.cpu.mmio.ppu.bg_cnt.map(|bg| *bg.value()),
+                            bg_vofs: self.cpu.mmio.ppu.bg_vofs.map(|bg| *bg.value()),
+                            bg_hofs: self.cpu.mmio.ppu.bg_hofs.map(|bg| *bg.value()),
                         },
                     ));
                     EventResult::None

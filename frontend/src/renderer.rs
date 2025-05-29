@@ -116,6 +116,10 @@ impl App for Renderer {
             image.paint_at(ui, ui.ctx().screen_rect());
         });
 
+        if self.debugger.open {
+            Window::new("Screen").show(ctx, |ui| ui.image(&self.screen_texture));
+        }
+
         if !self.running && !self.debugger.open {
             Window::new("Controls")
                 .anchor(Align2::CENTER_CENTER, vec2(0.0, 0.0))

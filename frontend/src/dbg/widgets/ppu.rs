@@ -3,7 +3,7 @@ use crossbeam_channel::Sender;
 use egui::{
     CollapsingHeader, Color32, ColorImage, Context, RichText, ScrollArea, TextureHandle, TextureOptions, Window,
 };
-use gba_core::video::registers::{BgCnt, DispCnt, DispStat, InternalScreenSize};
+use gba_core::video::registers::{BgCnt, BgOffset, DispCnt, DispStat, InternalScreenSize};
 use gba_core::video::{Frame, Rgb, PALETTE_TOTAL_ENTRIES, SCREEN_HEIGHT, SCREEN_WIDTH};
 
 #[derive(Default)]
@@ -11,6 +11,8 @@ pub struct PpuRegisters {
     pub disp_cnt: DispCnt,
     pub disp_stat: DispStat,
     pub bg_cnt: [BgCnt; 4],
+    pub bg_vofs: [BgOffset; 4],
+    pub bg_hofs: [BgOffset; 4],
 }
 
 pub struct PpuWidget {
@@ -349,6 +351,24 @@ impl PpuWidget {
                                 .monospace(),
                         );
                         ui.label(RichText::new(format!("BG{}CNT Priority: {}", i, bg_cnt.priority())).monospace());
+                        if i != 3 {
+                            ui.separator();
+                        }
+                    }
+                });
+
+            CollapsingHeader::new("Background Offsets (BGxVOFS/BGxHOFS)")
+                .default_open(true)
+                .show(ui, |ui| {
+                    for (i, (bg_vofs, bg_hofs)) in self
+                        .registers
+                        .bg_vofs
+                        .iter()
+                        .zip(self.registers.bg_hofs.iter())
+                        .enumerate()
+                    {
+                        ui.label(RichText::new(format!("BG{}VOFS: {}", i, bg_vofs.offset())).monospace());
+                        ui.label(RichText::new(format!("BG{}HOFS: {}", i, bg_hofs.offset())).monospace());
                         if i != 3 {
                             ui.separator();
                         }
