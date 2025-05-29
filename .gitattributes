@@ -1,1 +1,1 @@
-*.zip filter=lfs diff=lfs merge=lfs -text
+external/screenshots.zip filter=lfs diff=lfs merge=lfs -text
