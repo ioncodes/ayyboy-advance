@@ -1,8 +1,8 @@
-use super::registers::{BgCnt, BgOffset, ColorDepth, DispCnt, DispStat};
+use super::registers::{BgCnt, BgOffset, ColorDepth, DispCnt, DispStat, ObjShape};
 use super::tile::Tile;
 use super::{Frame, Rgb, PALETTE_ADDR_END, PALETTE_ADDR_START, PALETTE_TOTAL_ENTRIES, SCREEN_HEIGHT, SCREEN_WIDTH};
 use crate::memory::device::{Addressable, IoRegister};
-use crate::video::registers::InternalScreenSize;
+use crate::video::registers::{Dimension, InternalScreenSize, ObjAttribute0, ObjAttribute1, ObjAttribute2, ObjSize};
 use crate::video::tile::TileInfo;
 use crate::video::TILEMAP_ENTRY_SIZE;
 use log::*;
@@ -89,7 +89,7 @@ impl Ppu {
             }
         };
 
-        match lcd_control.bg_mode() {
+        let mut frame = match lcd_control.bg_mode() {
             0 => self.render_background_mode0(),
             1..=2 => {
                 trace!(
@@ -105,7 +105,11 @@ impl Ppu {
             4 => self.render_background_mode4(lcd_control.frame_address()),
             5 => self.render_background_mode5(lcd_control.frame_address()),
             _ => unreachable!(),
-        }
+        };
+
+        self.render_sprites(&mut frame);
+
+        frame
     }
 
     pub fn get_background_frame(&self, mode: usize, base_addr: u32) -> Frame {
@@ -281,6 +285,166 @@ impl Ppu {
         );
 
         (bg_cnt.screen_size(), internal_frame)
+    }
+
+    #[inline]
+    fn obj_dimensions(shape: ObjShape, size: ObjSize) -> (usize, usize) {
+        let dims = match size {
+            ObjSize::Square8x8 => (8, 8),
+            ObjSize::Square16x16 => (16, 16),
+            ObjSize::Square32x32 => (32, 32),
+            ObjSize::Square64x64 => (64, 64),
+            ObjSize::Horizontal16x8 => (16, 8),
+            ObjSize::Horizontal32x8 => (32, 8),
+            ObjSize::Horizontal32x16 => (32, 16),
+            ObjSize::Horizontal64x32 => (64, 32),
+            ObjSize::Vertical8x16 => (8, 16),
+            ObjSize::Vertical8x32 => (8, 32),
+            ObjSize::Vertical16x32 => (16, 32),
+            ObjSize::Vertical16x64 => (16, 64),
+            ObjSize::Vertical32x64 => (32, 64),
+        };
+
+        assert!(
+            match shape {
+                ObjShape::Square => matches!(
+                    size,
+                    ObjSize::Square8x8 | ObjSize::Square16x16 | ObjSize::Square32x32 | ObjSize::Square64x64
+                ),
+                ObjShape::Horizontal => matches!(
+                    size,
+                    ObjSize::Horizontal16x8
+                        | ObjSize::Horizontal32x8
+                        | ObjSize::Horizontal32x16
+                        | ObjSize::Horizontal64x32
+                ),
+                ObjShape::Vertical => matches!(
+                    size,
+                    ObjSize::Vertical8x16
+                        | ObjSize::Vertical8x32
+                        | ObjSize::Vertical16x32
+                        | ObjSize::Vertical16x64
+                        | ObjSize::Vertical32x64
+                ),
+            },
+            "ObjShape({:?}) and ObjSize({:?}) mismatch",
+            shape,
+            size
+        );
+
+        dims
+    }
+
+    fn render_sprites(&self, frame: &mut Frame) {
+        const OAM_BASE: u32 = 0x0700_0000;
+        const OBJ_BASE: u32 = 0x0601_0000;
+
+        let palette = self.fetch_palette();
+        let obj_palette = &palette[256..512];
+
+        let obj_dimension = self.disp_cnt.value().dimension();
+
+        for obj_id in 0..128 {
+            let attr0 = ObjAttribute0::from_bits_truncate(self.read_u16(OAM_BASE + obj_id * 8 + 0));
+            let attr1 = ObjAttribute1::from_bits_truncate(self.read_u16(OAM_BASE + obj_id * 8 + 2));
+            let attr2 = ObjAttribute2::from_bits_truncate(self.read_u16(OAM_BASE + obj_id * 8 + 4));
+
+            // disabled, TODO: check if affine?
+            if attr0.disabled() {
+                continue;
+            }
+
+            let y = attr0.y_coordinate() as i32;
+            let x = attr1.x_coordinate() as i32;
+
+            let shape = attr0.shape();
+            let size = attr1.size(shape);
+            let (w_px, h_px) = Self::obj_dimensions(shape, size);
+
+            // unsupported
+            if w_px == 0 {
+                continue;
+            }
+
+            let tile_size: usize = if attr0.bpp() == ColorDepth::Bpp8 { 0x40 } else { 0x20 };
+
+            let tiles_per_row = if obj_dimension == Dimension::OneDimensional {
+                w_px / 8
+            } else {
+                32
+            };
+
+            // tiles per dimension
+            let tiles_x = w_px / 8;
+            let tiles_y = h_px / 8;
+
+            for ty in 0..tiles_y {
+                for tx in 0..tiles_x {
+                    let src_tx = if attr1.x_flip() { tiles_x - 1 - tx } else { tx };
+                    let src_ty = if attr1.y_flip() { tiles_y - 1 - ty } else { ty };
+
+                    let mut tile_nr = (attr2.tile_number() + src_ty * tiles_per_row + src_tx) as u32;
+                    if attr0.bpp() == ColorDepth::Bpp8 {
+                        // 1d 8bpp wrap
+                        tile_nr &= 0x3FF;
+                    }
+
+                    // fetch raw tile bytes
+                    let tile_addr = OBJ_BASE + (tile_nr * tile_size as u32);
+                    let tile_data = {
+                        let mut tile_data = vec![0u8; tile_size as usize]; // TODO: 64?
+                        for i in 0..tile_size {
+                            tile_data[i as usize] = self.read(tile_addr + i as u32);
+                        }
+                        tile_data
+                    };
+
+                    // extract the tile pixels using the given palette bank
+                    let pal_slice = if attr0.bpp() == ColorDepth::Bpp4 {
+                        &obj_palette[attr2.palette() as usize * 16..][..16]
+                    } else {
+                        &palette[256..512]
+                    };
+                    let mut tile = Tile::from_bytes(&tile_data[..tile_size], pal_slice);
+
+                    // flip the tile if needed
+                    if attr1.x_flip() {
+                        tile.flip_x();
+                    }
+                    if attr1.y_flip() {
+                        tile.flip_y();
+                    }
+
+                    // screen-space top-left of this 8×8 tile
+                    let mut sx = x + (tx * 8) as i32;
+                    let mut sy = y + (ty * 8) as i32;
+                    if sx >= 256 {
+                        sx -= 512;
+                    }
+                    if sy >= 256 {
+                        sy -= 256;
+                    }
+
+                    // blit 8×8
+                    for py in 0..8 {
+                        let dy = sy + py as i32;
+                        if !(0..SCREEN_HEIGHT as i32).contains(&dy) {
+                            continue;
+                        }
+                        for px in 0..8 {
+                            let dx = sx + px as i32;
+                            if !(0..SCREEN_WIDTH as i32).contains(&dx) {
+                                continue;
+                            }
+                            let c = tile.pixels[py * 8 + px];
+                            if c != (0, 0, 0) {
+                                frame[dy as usize][dx as usize] = c;
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 
     fn render_background_mode0(&self) -> Frame {

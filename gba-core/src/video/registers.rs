@@ -49,6 +49,12 @@ bitflags! {
     }
 }
 
+#[derive(PartialEq)]
+pub enum Dimension {
+    OneDimensional,
+    TwoDimensional,
+}
+
 impl DispCnt {
     pub fn bg_mode(&self) -> u8 {
         (self.bits() & DispCnt::BG_MODE.bits()) as u8
@@ -59,6 +65,14 @@ impl DispCnt {
             FRAME_0_ADDRESS
         } else {
             FRAME_1_ADDRESS
+        }
+    }
+
+    pub fn dimension(&self) -> Dimension {
+        if self.contains(DispCnt::OBJ_CHAR_MAPPING) {
+            Dimension::OneDimensional
+        } else {
+            Dimension::TwoDimensional
         }
     }
 }
@@ -82,6 +96,7 @@ impl Display for InternalScreenSize {
     }
 }
 
+#[derive(PartialEq)]
 pub enum ColorDepth {
     Bpp4,
     Bpp8,
@@ -132,5 +147,139 @@ bitflags! {
 impl BgOffset {
     pub fn offset(&self) -> usize {
         (self.bits() & BgOffset::OFFSET.bits()) as usize
+    }
+}
+
+#[derive(Debug, PartialEq, Clone, Copy)]
+pub enum ObjShape {
+    Square,
+    Horizontal,
+    Vertical,
+}
+
+bitflags! {
+    #[derive(Default, Copy, Clone)]
+    pub struct ObjAttribute0: u16 {
+        const Y_COORDINATE          = 0b0000_0000_1111_1111;
+        const ROTATION_SCALING      = 0b0000_0001_0000_0000;
+        const DISABLE_OR_DBL_SIZE   = 0b0000_0010_0000_0000;
+        const OBJ_MODE              = 0b0000_1100_0000_0000;
+        const OBJ_MOSAIC            = 0b0001_0000_0000_0000;
+        const COLOR_256             = 0b0010_0000_0000_0000;
+        const SHAPE                 = 0b1100_0000_0000_0000;
+    }
+}
+
+impl ObjAttribute0 {
+    pub fn y_coordinate(&self) -> usize {
+        (self.bits() & ObjAttribute0::Y_COORDINATE.bits()) as usize
+    }
+
+    pub fn shape(&self) -> ObjShape {
+        match (*self & ObjAttribute0::SHAPE).bits() {
+            0b0000_0000_0000_0000 => ObjShape::Square,
+            0b0100_0000_0000_0000 => ObjShape::Horizontal,
+            0b1000_0000_0000_0000 => ObjShape::Vertical,
+            _ => unreachable!("prohibited value"),
+        }
+    }
+
+    pub fn disabled(&self) -> bool {
+        assert!(
+            !self.contains(ObjAttribute0::ROTATION_SCALING),
+            "DISABLE flag cannot be used with rotation/scaling"
+        );
+        self.contains(ObjAttribute0::DISABLE_OR_DBL_SIZE)
+    }
+
+    pub fn bpp(&self) -> ColorDepth {
+        if self.contains(ObjAttribute0::COLOR_256) {
+            ColorDepth::Bpp8
+        } else {
+            ColorDepth::Bpp4
+        }
+    }
+}
+
+#[derive(Debug, PartialEq)]
+pub enum ObjSize {
+    Square8x8,
+    Square16x16,
+    Square32x32,
+    Square64x64,
+    Horizontal16x8,
+    Horizontal32x8,
+    Horizontal32x16,
+    Horizontal64x32,
+    Vertical8x16,
+    Vertical8x32,
+    Vertical16x32,
+    Vertical16x64,
+    Vertical32x64,
+}
+
+bitflags! {
+    #[derive(Default, Copy, Clone)]
+    pub struct ObjAttribute1: u16 {
+        const X_COORDINATE  = 0b0000_0001_1111_1111;
+        const UNUSED        = 0b0000_1110_0000_0000;
+        const X_FLIP        = 0b0001_0000_0000_0000;
+        const Y_FLIP        = 0b0010_0000_0000_0000;
+        const OBJ_SIZE      = 0b1100_0000_0000_0000;
+    }
+}
+
+impl ObjAttribute1 {
+    pub fn x_coordinate(&self) -> usize {
+        (self.bits() & ObjAttribute1::X_COORDINATE.bits()) as usize
+    }
+
+    pub fn x_flip(&self) -> bool {
+        self.contains(ObjAttribute1::X_FLIP)
+    }
+
+    pub fn y_flip(&self) -> bool {
+        self.contains(ObjAttribute1::Y_FLIP)
+    }
+
+    pub fn size(&self, shape: ObjShape) -> ObjSize {
+        match (*self & ObjAttribute1::OBJ_SIZE).bits() {
+            0b0000_0000_0000_0000 if shape == ObjShape::Square => ObjSize::Square8x8,
+            0b0100_0000_0000_0000 if shape == ObjShape::Square => ObjSize::Square16x16,
+            0b1000_0000_0000_0000 if shape == ObjShape::Square => ObjSize::Square32x32,
+            0b1100_0000_0000_0000 if shape == ObjShape::Square => ObjSize::Square64x64,
+            0b0000_0000_0000_0000 if shape == ObjShape::Horizontal => ObjSize::Horizontal16x8,
+            0b0100_0000_0000_0000 if shape == ObjShape::Horizontal => ObjSize::Horizontal32x8,
+            0b1000_0000_0000_0000 if shape == ObjShape::Horizontal => ObjSize::Horizontal32x16,
+            0b1100_0000_0000_0000 if shape == ObjShape::Horizontal => ObjSize::Horizontal64x32,
+            0b0000_0000_0000_0000 if shape == ObjShape::Vertical => ObjSize::Vertical8x16,
+            0b0100_0000_0000_0000 if shape == ObjShape::Vertical => ObjSize::Vertical8x32,
+            0b1000_0000_0000_0000 if shape == ObjShape::Vertical => ObjSize::Vertical16x32,
+            0b1100_0000_0000_0000 if shape == ObjShape::Vertical => ObjSize::Vertical16x64,
+            _ => unreachable!("Invalid OBJ_SIZE bits"),
+        }
+    }
+}
+
+bitflags! {
+    #[derive(Default, Copy, Clone)]
+    pub struct ObjAttribute2: u16 {
+        const TILE_NUMBER = 0b0000_0011_1111_1111;
+        const PRIORITY    = 0b0000_1100_0000_0000;
+        const PALLETE     = 0b1111_0000_0000_0000;
+    }
+}
+
+impl ObjAttribute2 {
+    pub fn tile_number(&self) -> usize {
+        (self.bits() & ObjAttribute2::TILE_NUMBER.bits()) as usize
+    }
+
+    pub fn priority(&self) -> usize {
+        (self.bits() & ObjAttribute2::PRIORITY.bits() >> 10) as usize
+    }
+
+    pub fn palette(&self) -> usize {
+        ((self.bits() & ObjAttribute2::PALLETE.bits()) >> 12) as usize
     }
 }
