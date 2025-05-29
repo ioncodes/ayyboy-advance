@@ -1,21 +1,26 @@
 use super::dbg::debugger::Debugger;
 use super::event::ResponseEvent;
 use crate::event::RequestEvent;
+use chrono::Utc;
 use crossbeam_channel::{Receiver, Sender};
 use eframe::egui::{vec2, CentralPanel, Color32, ColorImage, Context, Image, TextureHandle, TextureOptions};
 use eframe::{App, CreationContext};
 use egui::{Align2, Key, RichText, Window};
 use egui_extras::{Column, TableBuilder};
+use egui_toast::{Toast, ToastKind, ToastOptions, Toasts};
 use gba_core::input::registers::KeyInput;
 use gba_core::video::{Frame, Pixel, SCREEN_HEIGHT, SCREEN_WIDTH};
+use image::{imageops, ImageBuffer, Rgb, RgbImage};
 
 pub const SCALE: usize = 8;
 
 pub struct Renderer {
     screen_texture: TextureHandle,
+    screen_buffer: Frame,
     debugger: Debugger,
     display_rx: Receiver<Frame>,
     backend_tx: Sender<RequestEvent>,
+    toasts: Toasts,
     running: bool,
 }
 
@@ -24,6 +29,8 @@ impl Renderer {
         cc: &CreationContext, display_rx: Receiver<Frame>, backend_tx: Sender<RequestEvent>,
         backend_rx: Receiver<ResponseEvent>,
     ) -> Renderer {
+        catppuccin_egui::set_theme(&cc.egui_ctx, catppuccin_egui::MOCHA);
+
         let screen_texture = cc.egui_ctx.load_texture(
             "screen_texture",
             ColorImage::new([SCREEN_WIDTH, SCREEN_HEIGHT], Color32::BLACK),
@@ -41,16 +48,22 @@ impl Renderer {
         egui_phosphor::add_to_fonts(&mut fonts, egui_phosphor::Variant::Regular);
         cc.egui_ctx.set_fonts(fonts);
 
+        let toasts = Toasts::new();
+
         Renderer {
             screen_texture,
+            screen_buffer: [[Pixel::Transparent; SCREEN_WIDTH]; SCREEN_HEIGHT],
             debugger,
             display_rx,
             backend_tx,
+            toasts,
             running: false,
         }
     }
 
-    pub fn update_screen(&mut self, texture: &[[Pixel; SCREEN_WIDTH]; SCREEN_HEIGHT]) {
+    pub fn update_screen(&mut self, texture: &Frame) {
+        self.screen_buffer = texture.clone();
+
         let mut pixels = vec![Color32::BLACK; SCREEN_WIDTH * SCREEN_HEIGHT];
 
         for y in 0..SCREEN_HEIGHT {
@@ -76,6 +89,35 @@ impl Renderer {
             if i.key_pressed(Key::F1) {
                 self.debugger.toggle_window();
                 self.running = false;
+            }
+
+            // Take a screenshot
+            if i.key_pressed(Key::F2) {
+                let timestamp = Utc::now().format("%Y%m%d_%H%M%S").to_string();
+                let screenshot_path = format!("screenshot_{}.png", timestamp);
+
+                let img: RgbImage = ImageBuffer::from_fn(SCREEN_WIDTH as u32, SCREEN_HEIGHT as u32, |x, y| match self
+                    .screen_buffer[y as usize][x as usize]
+                {
+                    Pixel::Transparent => Rgb([0, 0, 0]),
+                    Pixel::Rgb(r, g, b) => Rgb([r, g, b]),
+                });
+
+                let scaled_img = imageops::resize(
+                    &img,
+                    (SCREEN_WIDTH * SCALE) as u32,
+                    (SCREEN_HEIGHT * SCALE) as u32,
+                    imageops::FilterType::Nearest,
+                );
+
+                scaled_img.save(&screenshot_path).unwrap();
+
+                self.toasts.add(Toast {
+                    text: format!("Screenshot saved as {}", screenshot_path).into(),
+                    kind: ToastKind::Info,
+                    options: ToastOptions::default().duration_in_seconds(3.0),
+                    ..Default::default()
+                });
             }
 
             // Run the emulator
@@ -152,6 +194,15 @@ impl App for Renderer {
 
                             body.row(0.0, |mut row| {
                                 row.col(|ui| {
+                                    ui.label(RichText::new("F2").strong());
+                                });
+                                row.col(|ui| {
+                                    ui.label("Take a screenshot");
+                                });
+                            });
+
+                            body.row(0.0, |mut row| {
+                                row.col(|ui| {
                                     ui.label(RichText::new("Space").strong());
                                 });
                                 row.col(|ui| {
@@ -161,28 +212,28 @@ impl App for Renderer {
 
                             body.row(0.0, |mut row| {
                                 row.col(|ui| {
-                                    ui.label(RichText::new("A, S buttons").strong());
+                                    ui.label(RichText::new("A, S").strong());
                                 });
                                 row.col(|ui| {
-                                    ui.label("A, B buttons");
-                                });
-                            });
-
-                            body.row(0.0, |mut row| {
-                                row.col(|ui| {
-                                    ui.label(RichText::new("Q, W buttons").strong());
-                                });
-                                row.col(|ui| {
-                                    ui.label("L, R buttons");
+                                    ui.label("A, B");
                                 });
                             });
 
                             body.row(0.0, |mut row| {
                                 row.col(|ui| {
-                                    ui.label(RichText::new("Enter, Backspace buttons").strong());
+                                    ui.label(RichText::new("Q, W").strong());
                                 });
                                 row.col(|ui| {
-                                    ui.label("Start, Select buttons");
+                                    ui.label("L, R");
+                                });
+                            });
+
+                            body.row(0.0, |mut row| {
+                                row.col(|ui| {
+                                    ui.label(RichText::new("Enter, Backspace").strong());
+                                });
+                                row.col(|ui| {
+                                    ui.label("Start, Select");
                                 });
                             });
 
@@ -197,6 +248,8 @@ impl App for Renderer {
                         });
                 });
         }
+
+        self.toasts.show(ctx);
 
         ctx.request_repaint();
     }
