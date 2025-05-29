@@ -358,14 +358,12 @@ impl Ppu {
 
             let mut y = attr0.y_coordinate() as i32;
             if y >= 160 {
-                // 160-255 means “negative”
-                y -= 256; //   247 → −9  etc.
+                y -= 256;
             }
 
             let mut x = attr1.x_coordinate() as i32;
             if x >= 240 {
-                // 240-511 means “negative”
-                x -= 512; //   496 → −16 etc.
+                x -= 512;
             }
 
             let shape = attr0.shape();
@@ -426,11 +424,11 @@ impl Ppu {
                         tile.flip_y();
                     }
 
-                    // screen-space top-left of this 8×8 tile
+                    // screen-space top-left of this 8x8 tile
                     let tile_x = x + (tx as i32) * 8;
                     let tile_y = y + (ty as i32) * 8;
 
-                    // blit 8×8
+                    // blit 8x8
                     for py in 0..8 {
                         let sy = tile_y + py as i32;
                         if sy < 0 || sy >= SCREEN_HEIGHT as i32 {
@@ -445,7 +443,7 @@ impl Ppu {
 
                             let c = tile.pixels[py * 8 + px];
                             if c != (0, 0, 0) {
-                                // colour-0 = transparent
+                                // colour 0 = transparent
                                 frame[sy as usize][sx as usize] = c;
                             }
                         }
