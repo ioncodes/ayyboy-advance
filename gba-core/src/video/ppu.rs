@@ -277,7 +277,7 @@ impl Ppu {
         // this list is sorted by priority
         let bg_cnts = self.effective_backgrounds();
 
-        for bg_cnt in bg_cnts {
+        for (i, bg_cnt) in bg_cnts.iter().enumerate() {
             let (map_w, map_h) = match bg_cnt.screen_size() {
                 InternalScreenSize::Size256x256 => (256, 256),
                 InternalScreenSize::Size512x256 => (512, 256),
@@ -285,8 +285,8 @@ impl Ppu {
                 InternalScreenSize::Size512x512 => (512, 512),
             };
 
-            let vertical_offset = self.bg_vofs[0].value().offset();
-            let horizontal_offset = self.bg_hofs[0].value().offset();
+            let vertical_offset = self.bg_vofs[i].value().offset();
+            let horizontal_offset = self.bg_hofs[i].value().offset();
 
             let hoff = horizontal_offset % map_w;
             let voff = vertical_offset % map_h;
