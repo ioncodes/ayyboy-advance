@@ -172,7 +172,7 @@ impl Ppu {
         let w_px = TILES_PER_ROW * TILE_WIDTH; // atlas width  in px (128)
         let h_px = rows * TILE_WIDTH; // atlas height in px (rows*8)
 
-        let mut out = vec![Pixel::Transparent; w_px * h_px];
+        let mut out = vec![palettes[0]; w_px * h_px];
 
         for (idx, tile) in tileset.iter().enumerate() {
             let gx = idx % TILES_PER_ROW; // tile X in grid
@@ -215,7 +215,7 @@ impl Ppu {
             InternalScreenSize::Size512x512 => (512, 512, 64, 64),
         };
 
-        let mut internal_frame = vec![Pixel::Transparent; map_w * map_h];
+        let mut internal_frame = vec![palette[0]; map_w * map_h];
 
         for ty in 0..tiles_y {
             for tx in 0..tiles_x {
