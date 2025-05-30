@@ -104,8 +104,10 @@ impl Ppu {
             }
         };
 
-        let mut frame = match lcd_control.bg_mode() {
-            0 => self.render_background_mode0(),
+        let sprite_frame = self.render_sprites();
+
+        let frame = match lcd_control.bg_mode() {
+            0 => self.render_background_mode0(&sprite_frame),
             1..=2 => {
                 trace!(
                     "Background layers: BG0({}), BG1({}), BG2({}), BG3({})",
@@ -122,14 +124,12 @@ impl Ppu {
             _ => unreachable!(),
         };
 
-        self.render_sprites(&mut frame);
-
         frame
     }
 
     pub fn get_background_frame(&self, mode: usize, base_addr: u32) -> Frame {
         match mode {
-            0 => self.render_background_mode0(),
+            0 => self.render_background_mode0(&vec![(5, Pixel::Transparent); SCREEN_WIDTH * SCREEN_HEIGHT]),
             1..=2 => [[Pixel::Transparent; SCREEN_WIDTH]; SCREEN_HEIGHT],
             3 => self.render_background_mode3(base_addr),
             4 => self.render_background_mode4(base_addr),
@@ -202,7 +202,13 @@ impl Ppu {
             }
         }
 
-        assert_eq!(out.len(), w_px * h_px, "Tileset size mismatch: {} != {}", out.len(), w_px * h_px);
+        assert_eq!(
+            out.len(),
+            w_px * h_px,
+            "Tileset size mismatch: {} != {}",
+            out.len(),
+            w_px * h_px
+        );
 
         (tile_count, out)
     }
@@ -287,7 +293,13 @@ impl Ppu {
             }
         }
 
-        assert_eq!(internal_frame.len(), map_w * map_h, "Internal frame size mismatch: {} != {}", internal_frame.len(), map_w * map_h);
+        assert_eq!(
+            internal_frame.len(),
+            map_w * map_h,
+            "Internal frame size mismatch: {} != {}",
+            internal_frame.len(),
+            map_w * map_h
+        );
 
         (bg_cnt.screen_size(), internal_frame)
     }
@@ -439,9 +451,11 @@ impl Ppu {
         dims
     }
 
-    fn render_sprites(&self, frame: &mut [[Pixel; SCREEN_WIDTH]; SCREEN_HEIGHT]) {
+    fn render_sprites(&self) -> Vec<(usize, Pixel)> {
         const OAM_BASE: u32 = 0x0700_0000;
         const OBJ_BASE: u32 = 0x0601_0000;
+
+        let mut frame = vec![(5, Pixel::Transparent); SCREEN_WIDTH * SCREEN_HEIGHT];
 
         let palette = self.fetch_palette();
         let obj_palette = &palette[256..512];
@@ -454,7 +468,7 @@ impl Ppu {
             let attr0 = ObjAttribute0::from_bits_truncate(self.read_u16(OAM_BASE + obj_id * 8 + 0));
             let attr1 = ObjAttribute1::from_bits_truncate(self.read_u16(OAM_BASE + obj_id * 8 + 2));
             let attr2 = ObjAttribute2::from_bits_truncate(self.read_u16(OAM_BASE + obj_id * 8 + 4));
-            
+
             // disabled, TODO: check if affine?
             if attr0.disabled() {
                 continue;
@@ -545,19 +559,21 @@ impl Ppu {
                                 continue;
                             }
 
-                            let c = tile.pixels[py * 8 + px];
-                            // Instead of checking (0,0,0) for transparency:
-                            if c != Pixel::Transparent {
-                                frame[sy as usize][sx as usize] = c;
+                            let color = tile.pixels[py * 8 + px];
+                            if color != Pixel::Transparent {
+                                let sprite_idx = (sy as usize) * SCREEN_WIDTH + (sx as usize);
+                                frame[sprite_idx] = (attr2.priority(), color);
                             }
                         }
                     }
                 }
             }
         }
+
+        frame
     }
 
-    fn render_background_mode0(&self) -> Frame {
+    fn render_background_mode0(&self, sprite_frame: &Vec<(usize, Pixel)>) -> Frame {
         trace!("Rendering background mode 0");
 
         let mut frame = [[Pixel::Transparent; SCREEN_WIDTH]; SCREEN_HEIGHT];
@@ -589,6 +605,13 @@ impl Ppu {
                     // Instead of checking (0,0,0), we rely on whether color is Transparent.
                     if color != Pixel::Transparent {
                         frame[y][x] = color;
+                    }
+
+                    let sprite_idx = y * SCREEN_WIDTH + x;
+                    if sprite_frame[sprite_idx].0 <= bg_cnt.priority()
+                        && sprite_frame[sprite_idx].1 != Pixel::Transparent
+                    {
+                        frame[y][x] = sprite_frame[sprite_idx].1;
                     }
                 }
             }

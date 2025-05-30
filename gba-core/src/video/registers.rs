@@ -132,8 +132,8 @@ impl BgCnt {
         }
     }
 
-    pub fn priority(&self) -> u8 {
-        (self.bits() & BgCnt::BG_PRIORITY.bits()) as u8
+    pub fn priority(&self) -> usize {
+        (self.bits() & BgCnt::BG_PRIORITY.bits()) as usize
     }
 }
 
