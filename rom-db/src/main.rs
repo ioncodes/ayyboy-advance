@@ -63,7 +63,7 @@ fn main() {
         std::process::exit(1);
     });
 
-    const OUTPUT_FOLDER: &str = "rom-db/screenshots";
+    const OUTPUT_FOLDER: &str = "rom-db-ui/screenshots";
     const MAX_THREADS: usize = 5;
 
     fs::create_dir_all(OUTPUT_FOLDER).expect("Failed to create output directory");

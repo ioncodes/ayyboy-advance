@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
     }
     
     try {
-        const imagePath = path.resolve(process.cwd(), '../target/rom-db/', folder, image);
+        const imagePath = path.resolve(process.cwd(), 'screenshots/', folder, image);
         const imageBuffer = await readFile(imagePath);
         
         return new Response(new Uint8Array(imageBuffer), {
