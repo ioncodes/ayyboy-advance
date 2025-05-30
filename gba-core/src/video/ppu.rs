@@ -583,14 +583,13 @@ impl Ppu {
 impl Addressable for Ppu {
     fn read(&self, addr: u32) -> u8 {
         match addr {
-            0x04000000..=0x04000001 => self.disp_cnt.read(addr),  // DISPCNT
-            0x04000004..=0x04000005 => self.disp_stat.read(addr), // DISPSTAT
-            0x04000006..=0x04000007 => self.scanline.read(addr),  // VCOUNT
-            0x04000008..=0x0400000E => {
-                // BG0CNT, BG1CNT, BG2CNT, BG3CNT
-                let index = (addr - 0x04000008) as usize / 2;
-                self.bg_cnt[index].read(addr)
-            }
+            0x04000000..=0x04000001 => self.disp_cnt.read(addr),   // DISPCNT
+            0x04000004..=0x04000005 => self.disp_stat.read(addr),  // DISPSTAT
+            0x04000006..=0x04000007 => self.scanline.read(addr),   // VCOUNT
+            0x04000008..=0x04000009 => self.bg_cnt[0].read(addr),  // BG0CNT
+            0x0400000A..=0x0400000B => self.bg_cnt[1].read(addr),  // BG1CNT
+            0x0400000C..=0x0400000D => self.bg_cnt[2].read(addr),  // BG2CNT
+            0x0400000E..=0x0400000F => self.bg_cnt[3].read(addr),  // BG3CNT
             0x04000010..=0x04000011 => self.bg_hofs[0].read(addr), // BG0HOFS
             0x04000012..=0x04000013 => self.bg_vofs[0].read(addr), // BG0VOFS
             0x04000014..=0x04000015 => self.bg_hofs[1].read(addr), // BG1HOFS
@@ -611,11 +610,10 @@ impl Addressable for Ppu {
             0x04000000..=0x04000001 => self.disp_cnt.write(addr, value), // DISPCNT
             0x04000004..=0x04000005 => self.disp_stat.write(addr, value), // DISPSTAT
             0x04000006..=0x04000007 => self.scanline.write(addr, value), // VCOUNT
-            0x04000008..=0x0400000E => {
-                // BG0CNT, BG1CNT, BG2CNT, BG3CNT
-                let index = (addr - 0x04000008) as usize / 2;
-                self.bg_cnt[index].write(addr, value)
-            }
+            0x04000008..=0x04000009 => self.bg_cnt[0].write(addr, value), // BG0CNT
+            0x0400000A..=0x0400000B => self.bg_cnt[1].write(addr, value), // BG1CNT
+            0x0400000C..=0x0400000D => self.bg_cnt[2].write(addr, value), // BG2CNT
+            0x0400000E..=0x0400000F => self.bg_cnt[3].write(addr, value), // BG3CNT
             0x04000010..=0x04000011 => self.bg_hofs[0].write(addr, value), // BG0HOFS
             0x04000012..=0x04000013 => self.bg_vofs[0].write(addr, value), // BG0VOFS
             0x04000014..=0x04000015 => self.bg_hofs[1].write(addr, value), // BG1HOFS

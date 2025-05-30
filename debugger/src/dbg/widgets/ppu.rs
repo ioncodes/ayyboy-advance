@@ -315,11 +315,11 @@ impl PpuWidget {
                             RichText::new(format!("BG{}CNT Screen Size: {}", i, bg_cnt.screen_size())).monospace(),
                         );
                         ui.label(
-                            RichText::new(format!("BG{}CNT Char Base Address: {:08x}", i, bg_cnt.tileset_addr()))
+                            RichText::new(format!("BG{}CNT Tileset Address: {:08x}", i, bg_cnt.tileset_addr()))
                                 .monospace(),
                         );
                         ui.label(
-                            RichText::new(format!("BG{}CNT Screen Base Address: {:08x}", i, bg_cnt.tilemap_addr()))
+                            RichText::new(format!("BG{}CNT Tilemap Address: {:08x}", i, bg_cnt.tilemap_addr()))
                                 .monospace(),
                         );
                         ui.label(RichText::new(format!("BG{}CNT Priority: {}", i, bg_cnt.priority())).monospace());
