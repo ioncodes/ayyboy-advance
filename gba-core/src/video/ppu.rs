@@ -13,6 +13,21 @@ pub enum PpuEvent {
     HBlank,
 }
 
+#[derive(Clone)]
+pub struct Sprite {
+    pub id: usize,
+    pub x: usize,
+    pub y: usize,
+    pub shape: ObjShape,
+    pub size: ObjSize,
+    pub tile_number: usize,
+    pub palette: usize,
+    pub x_flip: bool,
+    pub y_flip: bool,
+    pub priority: usize,
+    pub image: Vec<Pixel>,
+}
+
 pub struct Ppu {
     pub h_counter: u16,
     pub vram: Box<[u8; (0x07FFFFFF - 0x05000000) + 1]>,
@@ -285,6 +300,105 @@ impl Ppu {
         );
 
         (bg_cnt.screen_size(), internal_frame)
+    }
+
+    pub fn create_sprite_debug_map(&self) -> Vec<Sprite> {
+        const OAM_BASE: u32 = 0x0700_0000;
+        const OBJ_BASE: u32 = 0x0601_0000;
+
+        let mut sprites = Vec::with_capacity(128);
+
+        let palette = self.fetch_palette();
+        let obj_palette = &palette[256..512];
+
+        let obj_dimension = self.disp_cnt.value().dimension();
+
+        for obj_id in 0..128 {
+            let attr0 = ObjAttribute0::from_bits_truncate(self.read_u16(OAM_BASE + obj_id * 8 + 0));
+            let attr1 = ObjAttribute1::from_bits_truncate(self.read_u16(OAM_BASE + obj_id * 8 + 2));
+            let attr2 = ObjAttribute2::from_bits_truncate(self.read_u16(OAM_BASE + obj_id * 8 + 4));
+
+            let shape = attr0.shape();
+            let size = attr1.size(shape);
+            let (w_px, h_px) = Self::obj_dimensions(shape, size);
+
+            let tile_size: usize = if attr0.bpp() == ColorDepth::Bpp8 { 0x40 } else { 0x20 };
+
+            let tiles_per_row = if obj_dimension == Dimension::OneDimensional {
+                w_px / 8
+            } else {
+                32
+            };
+
+            // tiles per dimension
+            let tiles_x = w_px / 8;
+            let tiles_y = h_px / 8;
+
+            let mut sprite_data = vec![Pixel::Transparent; w_px * h_px];
+
+            for ty in 0..tiles_y {
+                for tx in 0..tiles_x {
+                    let src_tx = if attr1.x_flip() { tiles_x - 1 - tx } else { tx };
+                    let src_ty = if attr1.y_flip() { tiles_y - 1 - ty } else { ty };
+
+                    let mut tile_nr = (attr2.tile_number() + src_ty * tiles_per_row + src_tx) as u32;
+                    if attr0.bpp() == ColorDepth::Bpp8 {
+                        // 1d 8bpp wrap
+                        tile_nr &= 0x3FF;
+                    }
+
+                    // fetch raw tile bytes
+                    let tile_addr = OBJ_BASE + (tile_nr * tile_size as u32);
+                    let tile_data = {
+                        let mut tile_data = vec![0u8; tile_size as usize]; // TODO: 64?
+                        for i in 0..tile_size {
+                            tile_data[i as usize] = self.read(tile_addr + i as u32);
+                        }
+                        tile_data
+                    };
+
+                    // extract the tile pixels using the given palette bank
+                    let pal_slice = if attr0.bpp() == ColorDepth::Bpp4 {
+                        &obj_palette[attr2.palette() as usize * 16..][..16]
+                    } else {
+                        &palette[256..512]
+                    };
+                    let mut tile = Tile::from_bytes(&tile_data[..tile_size], pal_slice);
+
+                    // flip the tile if needed
+                    if attr1.x_flip() {
+                        tile.flip_x();
+                    }
+                    if attr1.y_flip() {
+                        tile.flip_y();
+                    }
+
+                    for py in 0..8 {
+                        for px in 0..8 {
+                            let dst_x = tx * 8 + px;
+                            let dst_y = ty * 8 + py;
+                            sprite_data[dst_y * w_px + dst_x] = tile.pixels[py * 8 + px];
+                        }
+                    }
+                }
+            }
+
+            sprites.push(Sprite {
+                id: obj_id as usize,
+                x: attr1.x_coordinate(),
+                y: attr0.y_coordinate(),
+                shape,
+                size,
+                tile_number: attr2.tile_number(),
+                palette: attr2.palette(),
+                x_flip: attr1.x_flip(),
+                y_flip: attr1.y_flip(),
+                priority: attr2.priority(),
+                image: sprite_data,
+            });
+        }
+
+        sprites
     }
 
     #[inline]

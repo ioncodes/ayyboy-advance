@@ -1,4 +1,5 @@
 use gba_core::input::registers::KeyInput;
+use gba_core::video::ppu::Sprite;
 use gba_core::video::registers::InternalScreenSize;
 use gba_core::video::{Frame, Pixel};
 
@@ -31,5 +32,6 @@ pub enum ResponseEvent {
         [(InternalScreenSize, Vec<Pixel>); 4],
         Vec<Pixel>,
         PpuRegisters,
+        Vec<Sprite>,
     ), // TODO: BG Mode 3,4,5 each frame 0 and 1
 }

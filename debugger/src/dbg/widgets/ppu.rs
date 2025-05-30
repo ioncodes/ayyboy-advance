@@ -1,7 +1,8 @@
 use crate::event::RequestEvent;
 use crossbeam_channel::Sender;
-use egui::{CollapsingHeader, Color32, ColorImage, Context, RichText, TextureHandle, TextureOptions, Window};
-use gba_core::video::registers::{BgCnt, BgOffset, DispCnt, DispStat, InternalScreenSize};
+use egui::{CollapsingHeader, Color32, ColorImage, Context, Image, RichText, TextureHandle, TextureOptions, Window};
+use gba_core::video::ppu::Sprite;
+use gba_core::video::registers::{BgCnt, BgOffset, DispCnt, DispStat, InternalScreenSize, ObjSize};
 use gba_core::video::{Frame, Pixel, SCREEN_HEIGHT, SCREEN_WIDTH};
 
 #[derive(Default)]
@@ -18,6 +19,8 @@ pub struct PpuWidget {
     pub tilemaps: [(InternalScreenSize, Vec<Pixel>); 4],
     pub palette: Vec<Pixel>,
     pub registers: PpuRegisters,
+    pub sprites: Vec<Sprite>,
+    sprite_textures: Vec<Option<TextureHandle>>,
     tilemap0_texture: Option<TextureHandle>,
     tilemap1_texture: Option<TextureHandle>,
     tilemap2_texture: Option<TextureHandle>,
@@ -45,6 +48,8 @@ impl PpuWidget {
             ],
             palette: Vec::new(),
             registers: PpuRegisters::default(),
+            sprites: Vec::new(),
+            sprite_textures: vec![None; 128], // 128 sprites max
             tilemap0_texture: None,
             tilemap1_texture: None,
             tilemap2_texture: None,
@@ -61,12 +66,13 @@ impl PpuWidget {
 
     pub fn update(
         &mut self, ctx: &Context, frames: Vec<Frame>, tilemaps: [(InternalScreenSize, Vec<Pixel>); 4],
-        palette: Vec<Pixel>, registers: PpuRegisters,
+        palette: Vec<Pixel>, registers: PpuRegisters, sprites: Vec<Sprite>,
     ) {
         self.frames = frames;
         self.tilemaps = tilemaps;
         self.palette = palette;
         self.registers = registers;
+        self.sprites = sprites;
 
         let update_texture = |texture: &mut Option<TextureHandle>, frame: &Frame| {
             if let Some(texture) = texture {
@@ -126,6 +132,47 @@ impl PpuWidget {
         update_tilemap_texture(&mut self.tilemap1_texture, self.tilemaps[1].0, &self.tilemaps[1].1);
         update_tilemap_texture(&mut self.tilemap2_texture, self.tilemaps[2].0, &self.tilemaps[2].1);
         update_tilemap_texture(&mut self.tilemap3_texture, self.tilemaps[3].0, &self.tilemaps[3].1);
+
+        let update_sprite_texture = |texture: &mut Option<TextureHandle>, sprite: &Sprite| {
+            if let Some(texture) = texture {
+                let pixels = sprite
+                    .image
+                    .iter()
+                    .map(|&color| {
+                        if let Pixel::Rgb(r, g, b) = color {
+                            Color32::from_rgba_premultiplied(r, g, b, 255)
+                        } else {
+                            Color32::TRANSPARENT
+                        }
+                    })
+                    .collect::<Vec<_>>();
+
+                let size = match sprite.size {
+                    ObjSize::Square8x8 => [8, 8],
+                    ObjSize::Square16x16 => [16, 16],
+                    ObjSize::Square32x32 => [32, 32],
+                    ObjSize::Square64x64 => [64, 64],
+                    ObjSize::Horizontal16x8 => [16, 8],
+                    ObjSize::Horizontal32x8 => [32, 8],
+                    ObjSize::Horizontal32x16 => [32, 16],
+                    ObjSize::Horizontal64x32 => [64, 32],
+                    ObjSize::Vertical8x16 => [8, 16],
+                    ObjSize::Vertical8x32 => [8, 32],
+                    ObjSize::Vertical16x64 => [16, 64],
+                    ObjSize::Vertical16x32 => [16, 32],
+                    ObjSize::Vertical32x64 => [32, 64],
+                };
+
+                texture.set(ColorImage { size: size, pixels }, TextureOptions::NEAREST);
+            }
+        };
+
+        self.sprite_textures
+            .iter_mut()
+            .zip(self.sprites.iter())
+            .for_each(|(texture, sprite)| {
+                update_sprite_texture(texture, sprite);
+            });
 
         if self.tilemap0_texture.is_none() {
             self.tilemap0_texture = Some(ctx.load_texture(
@@ -197,6 +244,15 @@ impl PpuWidget {
                 TextureOptions::default(),
             ));
         }
+        self.sprite_textures.iter_mut().for_each(|texture| {
+            if texture.is_none() {
+                *texture = Some(ctx.load_texture(
+                    "sprite",
+                    ColorImage::new([8, 8], Color32::BLACK),
+                    TextureOptions::default(),
+                ));
+            }
+        });
 
         let _ = self.event_tx.send(RequestEvent::UpdatePpu);
     }
@@ -387,6 +443,35 @@ impl PpuWidget {
                         }
                     });
                 }
+            });
+
+            CollapsingHeader::new("Sprites").default_open(true).show(ui, |ui| {
+                ui.horizontal_wrapped(|ui| {
+                    for sprite in &self.sprites {
+                        let texture = self.sprite_textures.get(sprite.id).and_then(|t| t.as_ref()).unwrap();
+                        ui.add(
+                            Image::from_texture(texture)
+                                .fit_to_original_size(2.0)
+                                .texture_options(egui::TextureOptions::NEAREST),
+                        )
+                        .on_hover_text(
+                            RichText::new(format!(
+                                "ID: {}, Tile Nr: {}\nX: {}, Y: {}\nSize: {:?}\nShape: {:?}\nPriority: {:?}\nPalette: {}\nFlip X: {}, Flip Y: {}",
+                                sprite.id,
+                                sprite.tile_number,
+                                sprite.x,
+                                sprite.y,
+                                sprite.size,
+                                sprite.shape,
+                                sprite.priority,
+                                sprite.palette,
+                                sprite.x_flip,
+                                sprite.y_flip,
+                            ))
+                            .monospace(),
+                        );
+                    }
+                });
             });
 
             CollapsingHeader::new("Internal Frames")

@@ -202,7 +202,7 @@ impl ObjAttribute0 {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub enum ObjSize {
     Square8x8,
     Square16x16,

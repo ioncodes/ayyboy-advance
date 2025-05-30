@@ -226,6 +226,7 @@ impl Emulator {
                             bg_vofs: self.cpu.mmio.ppu.bg_vofs.map(|bg| *bg.value()),
                             bg_hofs: self.cpu.mmio.ppu.bg_hofs.map(|bg| *bg.value()),
                         },
+                        self.cpu.mmio.ppu.create_sprite_debug_map(),
                     ));
                     EventResult::None
                 }
