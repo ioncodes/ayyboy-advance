@@ -1,3 +1,4 @@
+/*
 fn dump_stack() {
     let sp = cpu.read_register("sp");
     println(`Stack @ ${hex32(sp)}:`);
@@ -25,13 +26,23 @@ fn print_opcode() {
 
     println(`${dump}`);
 }
+*/
+
+fn dump_attr2() {
+    let attr2 = emu.read_u16(0x07000004);
+    let name = (attr2 & 0b0000_0011_1111_1111);
+    let prio = (attr2 & 0b0000_1100_0000_0000) >> 10;
+    let plnr = (attr2 & 0b1111_0000_0000_0000) >> 12;
+    println(`ATTR2: ${bin16(attr2)} -> Name: ${name}, Prio: ${prio}, Palette: ${plnr}`);
+}
 
 fn setup() {
     let breakpoints = #{
         // "0x08008644": "dump_stack",
         // "0x0800865c": "dump_stack",
         // "0x08008588": "dump_stack",
-        "0x0801ad2a": "print_opcode"
+        // "0x0801ad2a": "print_opcode",
+        "0x00000C20": "dump_attr2"
     };
     breakpoints
 }

@@ -12,12 +12,12 @@ use crate::video::ppu::{Ppu, PpuEvent};
 use crate::video::registers::DispStat;
 use log::*;
 
-const EWRAM_SIZE: u32 = 0x40000; // 256 KiB
-const IWRAM_SIZE: u32 = 0x8000; // 32 KiB
-const PALETTE_SIZE: u32 = 0x400; // 1 KiB
+const EWRAM_SIZE: u32 = 0x40000; // 256 KiB
+const IWRAM_SIZE: u32 = 0x8000; // 32 KiB
+const PALETTE_SIZE: u32 = 0x400; // 1 KiB
 const VRAM_SIZE: u32 = 0x20000; // 128 KiB. // VRAM is 96 KiB, but it mirrors every 128 KiB
-const OAM_SIZE: u32 = 0x400; // 1 KiB
-const SRAM_SIZE: u32 = 0x8000; // 32 KiB
+const OAM_SIZE: u32 = 0x400; // 1 KiB
+const SRAM_SIZE: u32 = 0x8000; // 32 KiB
 
 pub struct Mmio {
     pub internal_memory: Box<[u8; 0x04FFFFFF + 1]>,
@@ -123,9 +123,9 @@ impl Mmio {
             }
             0x00000000..=0x04FFFFFF => {
                 let addr = match addr {
-                    // External WRAM – mirrors every 256 KiB in 0x02000000‑0x02FFFFFF
+                    // External WRAM – mirrors every 256 KiB in 0x02000000‑0x02FFFFFF
                     0x02000000..=0x02FFFFFF => 0x02000000 + ((addr - 0x02000000) % EWRAM_SIZE),
-                    // Internal WRAM – mirrors every 32 KiB in 0x03000000‑0x03FFFFFF
+                    // Internal WRAM – mirrors every 32 KiB in 0x03000000‑0x03FFFFFF
                     0x03000000..=0x03FFFFFF => 0x03000000 + ((addr - 0x03000000) % IWRAM_SIZE),
                     _ => addr,
                 };
@@ -133,11 +133,11 @@ impl Mmio {
             }
             0x05000000..=0x07FFFFFF => {
                 let addr = match addr {
-                    // Pallete RAM – mirrors every 1 KiB in 0x05000000‑0x050003FF
+                    // Pallete RAM – mirrors every 1 KiB in 0x05000000‑0x050003FF
                     0x05000000..=0x05FFFFFF => 0x05000000 + ((addr - 0x05000000) % PALETTE_SIZE),
                     // VRAM – mirrors every 128 KiB in 0x06000000‑06017FFF (96 KiB)
                     0x06000000..=0x06FFFFFF => 0x06000000 + ((addr - 0x06000000) % VRAM_SIZE),
-                    // OAM – mirrors every 1 KiB in 0x07000000‑0x070003FF
+                    // OAM – mirrors every 1 KiB in 0x07000000‑0x070003FF
                     0x07000000..=0x07FFFFFF => 0x07000000 + ((addr - 0x07000000) % OAM_SIZE),
                     _ => addr,
                 };
@@ -147,7 +147,7 @@ impl Mmio {
             0x0A000000..=0x0BFFFFFF => self.external_memory[(addr - 0x0A000000) as usize], // Mirror of 0x08000000..=0x09FFFFFF
             0x0C000000..=0x0DFFFFFF => self.external_memory[(addr - 0x0C000000) as usize], // Mirror of 0x08000000..=0x09FFFFFF
             0x0E000000..=0x0FFFFFFF => {
-                // GamePak SRAM – mirrors every 32 KiB in 0x0E000000‑0x0FFFFFFF
+                // GamePak SRAM – mirrors every 32 KiB in 0x0E000000‑0x0FFFFFFF
                 let addr = 0x08000000 + ((addr - 0x0E000000) % SRAM_SIZE);
                 self.external_memory[(addr - 0x08000000) as usize]
             }
@@ -198,9 +198,9 @@ impl Mmio {
             }
             0x00000000..=0x04FFFFFF => {
                 let addr = match addr {
-                    // External WRAM – mirrors every 256 KiB in 0x02000000‑0x02FFFFFF
+                    // External WRAM – mirrors every 256 KiB in 0x02000000‑0x02FFFFFF
                     0x02000000..=0x02FFFFFF => 0x02000000 + ((addr - 0x02000000) % EWRAM_SIZE),
-                    // Internal WRAM – mirrors every 32 KiB in 0x03000000‑0x03FFFFFF
+                    // Internal WRAM – mirrors every 32 KiB in 0x03000000‑0x03FFFFFF
                     0x03000000..=0x03FFFFFF => 0x03000000 + ((addr - 0x03000000) % IWRAM_SIZE),
                     _ => addr,
                 };
@@ -208,11 +208,11 @@ impl Mmio {
             }
             0x05000000..=0x07FFFFFF => {
                 let addr = match addr {
-                    // Pallete RAM – mirrors every 1 KiB in 0x05000000‑0x050003FF
+                    // Pallete RAM – mirrors every 1 KiB in 0x05000000‑0x050003FF
                     0x05000000..=0x05FFFFFF => 0x05000000 + ((addr - 0x05000000) % PALETTE_SIZE),
-                    // VRAM – mirrors every 96 KiB in 0x06000000‑06017FFF
+                    // VRAM – mirrors every 96 KiB in 0x06000000‑06017FFF
                     0x06000000..=0x06FFFFFF => 0x06000000 + ((addr - 0x06000000) % VRAM_SIZE),
-                    // OAM – mirrors every 1 KiB in 0x07000000‑0x070003FF
+                    // OAM – mirrors every 1 KiB in 0x07000000‑0x070003FF
                     0x07000000..=0x07FFFFFF => 0x07000000 + ((addr - 0x07000000) % OAM_SIZE),
                     _ => addr,
                 };

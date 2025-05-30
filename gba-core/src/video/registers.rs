@@ -277,7 +277,7 @@ impl ObjAttribute2 {
     }
 
     pub fn priority(&self) -> usize {
-        (self.bits() & ObjAttribute2::PRIORITY.bits() >> 10) as usize
+        ((self.bits() & ObjAttribute2::PRIORITY.bits()) >> 10) as usize
     }
 
     pub fn palette(&self) -> usize {

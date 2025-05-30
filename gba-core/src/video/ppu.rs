@@ -184,7 +184,7 @@ impl Ppu {
         const TILE_WIDTH: usize = 8;
         const TILES_PER_ROW: usize = 16;
         let rows = tile_count / TILES_PER_ROW; // total rows
-        let w_px = TILES_PER_ROW * TILE_WIDTH; // atlas width  in px (128)
+        let w_px = TILES_PER_ROW * TILE_WIDTH; // atlas width in px (128)
         let h_px = rows * TILE_WIDTH; // atlas height in px (rows*8)
 
         let mut out = vec![palettes[0]; w_px * h_px];
@@ -202,12 +202,7 @@ impl Ppu {
             }
         }
 
-        assert!(
-            out.len() == w_px * h_px,
-            "Tileset size mismatch: {} != {}",
-            out.len(),
-            w_px * h_px
-        );
+        assert_eq!(out.len(), w_px * h_px, "Tileset size mismatch: {} != {}", out.len(), w_px * h_px);
 
         (tile_count, out)
     }
@@ -251,7 +246,7 @@ impl Ppu {
                 let tile_info = TileInfo::from_bits_truncate(self.read_u16(addr));
 
                 // fetch the tile data from the tileset
-                let tile_addr = tileset_addr as usize + tile_info.tile_id() * tile_size;
+                let tile_addr = tileset_addr + tile_info.tile_id() * tile_size;
                 let tile_data = {
                     let mut tile_data = vec![0u8; tile_size];
                     for i in 0..tile_size {
@@ -262,7 +257,7 @@ impl Ppu {
 
                 // extract the tile pixels using the given palette bank
                 let palette_bank = if tile_size == 0x20 {
-                    &palette[tile_info.palette() as usize * 16..][..16]
+                    &palette[tile_info.palette() * 16..][..16]
                 } else {
                     &palette[..256]
                 };
@@ -292,12 +287,7 @@ impl Ppu {
             }
         }
 
-        assert!(
-            internal_frame.len() == map_w * map_h,
-            "Internal frame size mismatch: {} != {}",
-            internal_frame.len(),
-            map_w * map_h
-        );
+        assert_eq!(internal_frame.len(), map_w * map_h, "Internal frame size mismatch: {} != {}", internal_frame.len(), map_w * map_h);
 
         (bg_cnt.screen_size(), internal_frame)
     }
@@ -350,16 +340,16 @@ impl Ppu {
                     // fetch raw tile bytes
                     let tile_addr = OBJ_BASE + (tile_nr * tile_size as u32);
                     let tile_data = {
-                        let mut tile_data = vec![0u8; tile_size as usize]; // TODO: 64?
+                        let mut tile_data = vec![0u8; tile_size]; // TODO: 64?
                         for i in 0..tile_size {
-                            tile_data[i as usize] = self.read(tile_addr + i as u32);
+                            tile_data[i] = self.read(tile_addr + i as u32);
                         }
                         tile_data
                     };
 
                     // extract the tile pixels using the given palette bank
                     let pal_slice = if attr0.bpp() == ColorDepth::Bpp4 {
-                        &obj_palette[attr2.palette() as usize * 16..][..16]
+                        &obj_palette[attr2.palette() * 16..][..16]
                     } else {
                         &palette[256..512]
                     };
@@ -464,7 +454,7 @@ impl Ppu {
             let attr0 = ObjAttribute0::from_bits_truncate(self.read_u16(OAM_BASE + obj_id * 8 + 0));
             let attr1 = ObjAttribute1::from_bits_truncate(self.read_u16(OAM_BASE + obj_id * 8 + 2));
             let attr2 = ObjAttribute2::from_bits_truncate(self.read_u16(OAM_BASE + obj_id * 8 + 4));
-
+            
             // disabled, TODO: check if affine?
             if attr0.disabled() {
                 continue;
@@ -515,16 +505,16 @@ impl Ppu {
                     // fetch raw tile bytes
                     let tile_addr = OBJ_BASE + (tile_nr * tile_size as u32);
                     let tile_data = {
-                        let mut tile_data = vec![0u8; tile_size as usize]; // TODO: 64?
+                        let mut tile_data = vec![0u8; tile_size]; // TODO: 64?
                         for i in 0..tile_size {
-                            tile_data[i as usize] = self.read(tile_addr + i as u32);
+                            tile_data[i] = self.read(tile_addr + i as u32);
                         }
                         tile_data
                     };
 
                     // extract the tile pixels using the given palette bank
                     let pal_slice = if attr0.bpp() == ColorDepth::Bpp4 {
-                        &obj_palette[attr2.palette() as usize * 16..][..16]
+                        &obj_palette[attr2.palette() * 16..][..16]
                     } else {
                         &palette[256..512]
                     };

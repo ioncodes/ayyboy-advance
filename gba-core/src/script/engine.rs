@@ -22,6 +22,9 @@ impl ScriptEngine {
         engine.register_fn("hex8", |value: i64| -> String { format!("{:02x}", value as u8) });
         engine.register_fn("hex16", |value: i64| -> String { format!("{:04x}", value as u16) });
         engine.register_fn("hex32", |value: i64| -> String { format!("{:08x}", value as u32) });
+        engine.register_fn("bin8", |value: i64| -> String { format!("{:08b}", value as u8) });
+        engine.register_fn("bin16", |value: i64| -> String { format!("{:016b}", value as u16) });
+        engine.register_fn("bin32", |value: i64| -> String { format!("{:032b}", value as u32) });
         engine.register_fn("padleft", |s: &str, token: &str, len: i64| -> String {
             let mut padded = s.to_string();
             while padded.len() < len as usize {
