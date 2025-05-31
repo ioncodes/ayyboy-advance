@@ -1,9 +1,9 @@
 # ayyboy advance
 ayyboy's big brother
 
-Kirby - Nightmare in Dream Land             |  Debugger
-:-------------------------:|:-------------------------:
-![screenshot_20250531_001016](https://github.com/user-attachments/assets/570c7d4b-a593-4633-b7eb-474f98fd7ed8) | ![image](https://github.com/user-attachments/assets/ba13412a-61ee-486c-9bbc-96bc61e4cf44)
+|                                        Kirby - Nightmare in Dream Land                                         |                                         Debugger                                          |
+| :------------------------------------------------------------------------------------------------------------: | :---------------------------------------------------------------------------------------: |
+| ![screenshot_20250531_001016](https://github.com/user-attachments/assets/570c7d4b-a593-4633-b7eb-474f98fd7ed8) | ![image](https://github.com/user-attachments/assets/ba13412a-61ee-486c-9bbc-96bc61e4cf44) |
 
 ## setup
 ```bash
@@ -14,7 +14,7 @@ cargo build --profile dev  # logs all levels <=INFO by default, opt-level 3 for 
 
 ## usage
 ```
-Usage: ayyboy-advance.exe [OPTIONS] --rom <ROM>
+Usage: ayydbg.exe [OPTIONS] --rom <ROM>
 
 Options:
       --trace            Enable trace-level logging (highest verbosity, incl. cpu dump and mmio events)
