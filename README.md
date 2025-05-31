@@ -1,6 +1,10 @@
 # ayyboy advance
 ayyboy's big brother
 
+Kirby - Nightmare in Dream Land             |  Debugger
+:-------------------------:|:-------------------------:
+![screenshot_20250531_001016](https://github.com/user-attachments/assets/570c7d4b-a593-4633-b7eb-474f98fd7ed8) | ![image](https://github.com/user-attachments/assets/ba13412a-61ee-486c-9bbc-96bc61e4cf44)
+
 ## setup
 ```bash
 # place BIOS in external/gba_bios.bin
