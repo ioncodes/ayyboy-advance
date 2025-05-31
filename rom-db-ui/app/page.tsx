@@ -4,7 +4,7 @@ import SearchComponent from './SearchComponent';
 
 async function getScreenshotFolders() {
     try {
-        const screenshotsPath = path.resolve(process.cwd(), '../target/rom-db/');
+        const screenshotsPath = path.resolve(process.cwd(), 'screenshots/');
 
         try {
             await fs.access(screenshotsPath);
@@ -27,7 +27,7 @@ async function getScreenshotFolders() {
 
 async function getImagesInFolder(folderName: string) {
     try {
-        const folderPath = path.resolve(process.cwd(), '../target/rom-db/', folderName);
+        const folderPath = path.resolve(process.cwd(), 'screenshots/', folderName);
         const entries = await fs.readdir(folderPath);
         return entries.filter(file => file.toLowerCase().endsWith('.png'));
     } catch (error) {
