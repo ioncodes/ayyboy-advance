@@ -170,7 +170,7 @@ impl CpuWidget {
 
             for i in 0..4 {
                 CollapsingHeader::new(format!("DMA Channel {}", i))
-                    .default_open(true)
+                    .default_open(if i == 1 || i == 2 { false } else { true })
                     .show(ui, |ui| {
                         ui.horizontal(|ui| {
                             ui.label(

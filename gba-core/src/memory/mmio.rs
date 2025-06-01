@@ -111,19 +111,13 @@ impl Mmio {
                         AddrControl::Increment => src + i as u32,
                         AddrControl::Decrement => src - i as u32,
                         AddrControl::Fixed => src,
-                        AddrControl::Reload => {
-                            error!("DMA source address control set to Reload, not implemented");
-                            src
-                        }
+                        AddrControl::Reload => unreachable!(),
                     };
                     let dst_addr = match dst_ctrl {
                         AddrControl::Increment => dst + i as u32,
                         AddrControl::Decrement => dst - i as u32,
                         AddrControl::Fixed => dst,
-                        AddrControl::Reload => {
-                            error!("DMA destination address control set to Reload, not implemented");
-                            dst
-                        }
+                        AddrControl::Reload => dst + i as u32,
                     };
 
                     let value = self.read(src_addr);
@@ -152,6 +146,10 @@ impl Mmio {
             0x04000301 => self.io_halt_cnt.read(),             // HALTCNT
             0x04000300 => 1, // "After initial reset, the GBA BIOS initializes the register to 01h"
             // Internal and External Memory
+            0x00000000..=0x00003FFF => {
+                warn!("Reading from BIOS (Open Bus): {:08x}", addr);
+                0x69
+            }
             0x0400020A..=0x0400020B => self.internal_memory[addr as usize], // Unused
             0x04000000..=0x040003FE => {
                 error!("Unmapped I/O read: {:08x}", addr);
