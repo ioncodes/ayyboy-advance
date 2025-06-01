@@ -26,17 +26,18 @@ impl TransferChannel {
         self.ctl.value_as::<DmaControl>().is_enabled()
     }
 
-    pub fn transfer_size(&self) -> u16 {
-        let size = self.cnt.value_as::<DmaControl>().transfer_size();
+    pub fn transfer_units(&self) -> u16 {
         let max_size = if self.id == 3 { 0xFFFF } else { 0x3FFF };
-
-        let count = (self.cnt.value() & max_size) * size as u16;
-
-        if count == 0 {
+        let size = self.cnt.value() & max_size;
+        if size == 0 {
             max_size
         } else {
-            count
+            size
         }
+    }
+
+    pub fn transfer_size(&self) -> usize {
+        self.ctl.value_as::<DmaControl>().transfer_size()
     }
 
     pub fn trigger(&self) -> DmaTrigger {

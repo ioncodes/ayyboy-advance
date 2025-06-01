@@ -101,27 +101,35 @@ impl Mmio {
                     continue;
                 }
 
-                let size = self.dma.channels[channel].transfer_size();
+                let units = self.dma.channels[channel].transfer_units();
+                let unit_size = self.dma.channels[channel].transfer_size() as u16;
                 let src_ctrl = self.dma.channels[channel].src_addr_control();
                 let dst_ctrl = self.dma.channels[channel].dst_addr_control();
 
                 // transfer it at once
-                for i in 0..size {
+                for i in 0..units {
+                    let offset = (i as u32) * unit_size as u32;
+
                     let src_addr = match src_ctrl {
-                        AddrControl::Increment => src + i as u32,
-                        AddrControl::Decrement => src - i as u32,
+                        AddrControl::Increment => src + offset,
+                        AddrControl::Decrement => src - offset,
                         AddrControl::Fixed => src,
                         AddrControl::Reload => unreachable!(),
-                    };
+                    } & !(unit_size as u32 - 1);
                     let dst_addr = match dst_ctrl {
-                        AddrControl::Increment => dst + i as u32,
-                        AddrControl::Decrement => dst - i as u32,
+                        AddrControl::Increment => dst + offset,
+                        AddrControl::Decrement => dst - offset,
                         AddrControl::Fixed => dst,
-                        AddrControl::Reload => dst + i as u32,
-                    };
+                        AddrControl::Reload => dst + offset,
+                    } & !(unit_size as u32 - 1);
 
-                    let value = self.read(src_addr);
-                    self.write(dst_addr, value);
+                    if unit_size == 4 {
+                        let value = self.read_u32(src_addr);
+                        self.write_u32(dst_addr, value);
+                    } else {
+                        let value = self.read_u16(src_addr);
+                        self.write_u16(dst_addr, value);
+                    }
                 }
 
                 // if it's a repeat transfer, we just leave it enabled

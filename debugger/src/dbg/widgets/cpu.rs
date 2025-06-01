@@ -178,7 +178,7 @@ impl CpuWidget {
                                     "src @ {:08x} -> dst @ {:08x}, {:04x} bytes",
                                     self.cpu.dma.get().channels[i].src.value(),
                                     self.cpu.dma.get().channels[i].dst.value(),
-                                    self.cpu.dma.get().channels[i].transfer_size()
+                                    self.cpu.dma.get().channels[i].transfer_units()
                                 ))
                                 .monospace(),
                             );
