@@ -104,6 +104,21 @@ impl Ppu {
             }
         };
 
+        let blit_sprites = |frame: &mut Frame, sprite_frame: &Vec<(usize, Pixel)>| {
+            let bg2cnt = self.bg_cnt[2].value();
+
+            for (y, row) in frame.iter_mut().enumerate() {
+                for (x, pixel) in row.iter_mut().enumerate() {
+                    let sprite_idx = y * SCREEN_WIDTH + x;
+                    if sprite_frame[sprite_idx].1 != Pixel::Transparent
+                        && sprite_frame[sprite_idx].0 <= bg2cnt.priority()
+                    {
+                        *pixel = sprite_frame[sprite_idx].1;
+                    }
+                }
+            }
+        };
+
         let sprite_frame = self.render_sprites();
 
         let frame = match lcd_control.bg_mode() {
@@ -118,9 +133,21 @@ impl Ppu {
                 );
                 [[Pixel::Transparent; SCREEN_WIDTH]; SCREEN_HEIGHT]
             }
-            3 => self.render_background_mode3(lcd_control.frame_address()),
-            4 => self.render_background_mode4(lcd_control.frame_address()),
-            5 => self.render_background_mode5(lcd_control.frame_address()),
+            3 => {
+                let mut frame = self.render_background_mode3(lcd_control.frame_address());
+                blit_sprites(&mut frame, &sprite_frame);
+                frame
+            }
+            4 => {
+                let mut frame = self.render_background_mode4(lcd_control.frame_address());
+                blit_sprites(&mut frame, &sprite_frame);
+                frame
+            }
+            5 => {
+                let mut frame = self.render_background_mode5(lcd_control.frame_address());
+                blit_sprites(&mut frame, &sprite_frame);
+                frame
+            }
             _ => unreachable!(),
         };
 
