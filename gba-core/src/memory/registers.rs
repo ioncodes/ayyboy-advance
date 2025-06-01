@@ -1,5 +1,5 @@
 use bitflags::{bitflags, Flags};
-use log::{error, warn};
+use log::warn;
 
 bitflags! {
     #[derive(Default, Copy, Clone)]
@@ -101,10 +101,7 @@ impl DmaControl {
             0 => DmaTrigger::Immediate,
             1 => DmaTrigger::VBlank,
             2 => DmaTrigger::HBlank,
-            3 => {
-                error!("DMA trigger set to Special, not implemented");
-                DmaTrigger::Special
-            }
+            3 => DmaTrigger::Special,
             _ => unreachable!(),
         }
     }

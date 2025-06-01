@@ -92,15 +92,6 @@ impl Mmio {
                     continue;
                 }
 
-                if self.dma.channels[channel].trigger() == DmaTrigger::Special {
-                    // Special DMA trigger is not implemented
-                    error!(
-                        "DMA channel {} triggered with Special trigger, not implemented",
-                        channel
-                    );
-                    continue;
-                }
-
                 let units = self.dma.channels[channel].transfer_units();
                 let unit_size = self.dma.channels[channel].transfer_size() as u16;
                 let src_ctrl = self.dma.channels[channel].src_addr_control();
@@ -155,8 +146,8 @@ impl Mmio {
             0x04000300 => 1, // "After initial reset, the GBA BIOS initializes the register to 01h"
             // Internal and External Memory
             0x00000000..=0x00003FFF => {
-                warn!("Reading from BIOS (Open Bus): {:08x}", addr);
-                0x69
+                //warn!("Reading from BIOS (Open Bus): {:08x}", addr);
+                self.internal_memory[addr as usize]
             }
             0x0400020A..=0x0400020B => self.internal_memory[addr as usize], // Unused
             0x04000000..=0x040003FE => {
