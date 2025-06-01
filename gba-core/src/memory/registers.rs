@@ -1,4 +1,5 @@
 use bitflags::{bitflags, Flags};
+use log::{error, warn};
 
 bitflags! {
     #[derive(Default, Copy, Clone)]
@@ -34,6 +35,90 @@ bitflags! {
         const START_TIMING      = 0b0011_0000_0000_0000;
         const IRQ_UPON_COMPLETE = 0b0100_0000_0000_0000;
         const ENABLE            = 0b1000_0000_0000_0000;
+    }
+}
+
+#[derive(Debug, PartialEq, Clone, Copy)]
+pub enum AddrControl {
+    Increment,
+    Decrement,
+    Fixed,
+    Reload,
+}
+
+#[derive(Debug, PartialEq, Clone, Copy)]
+pub enum DmaTrigger {
+    Immediate,
+    VBlank,
+    HBlank,
+    Special,
+}
+
+impl DmaControl {
+    pub fn dest_addr_control(&self) -> AddrControl {
+        let value = (self.bits() & DmaControl::DEST_ADDR_CONTROL.bits()) >> 5;
+
+        match value {
+            0 => AddrControl::Increment,
+            1 => AddrControl::Decrement,
+            2 => AddrControl::Fixed,
+            3 => AddrControl::Reload,
+            _ => unreachable!(),
+        }
+    }
+
+    pub fn src_addr_control(&self) -> AddrControl {
+        let value = (self.bits() & DmaControl::SRC_ADDR_CONTROL.bits()) >> 7;
+
+        match value {
+            0 => AddrControl::Increment,
+            1 => AddrControl::Decrement,
+            2 => AddrControl::Fixed,
+            3 => {
+                warn!("DMA source address control set to Reload, this is not a valid state");
+                AddrControl::Reload
+            }
+            _ => unreachable!(),
+        }
+    }
+
+    pub fn is_repeat(&self) -> bool {
+        self.contains(DmaControl::DMA_REPEAT)
+    }
+
+    pub fn transfer_size(&self) -> usize {
+        if self.contains(DmaControl::DMA_TRANFER_TYPE) {
+            4
+        } else {
+            2
+        }
+    }
+
+    pub fn trigger(&self) -> DmaTrigger {
+        let value = (self.bits() & DmaControl::START_TIMING.bits()) >> 12;
+
+        match value {
+            0 => DmaTrigger::Immediate,
+            1 => DmaTrigger::VBlank,
+            2 => DmaTrigger::HBlank,
+            3 => {
+                error!("DMA trigger set to Special, not implemented");
+                DmaTrigger::Special
+            }
+            _ => unreachable!(),
+        }
+    }
+
+    pub fn is_enabled(&self) -> bool {
+        self.contains(DmaControl::ENABLE)
+    }
+
+    pub fn enable(&mut self) {
+        self.insert(DmaControl::ENABLE);
+    }
+
+    pub fn disable(&mut self) {
+        self.remove(DmaControl::ENABLE);
     }
 }
 
@@ -118,6 +203,13 @@ impl MappedRegister16 {
         T: Flags<Bits = u16> + Copy,
     {
         T::from_bits_truncate(self.value())
+    }
+
+    pub fn value_as_mut<T>(&mut self) -> &mut T
+    where
+        T: Flags<Bits = u16> + Copy,
+    {
+        unsafe { &mut *(self as *mut MappedRegister16 as *mut T) }
     }
 }
 

@@ -1,5 +1,5 @@
 use super::device::Addressable;
-use super::registers::{DmaControl, MappedRegister16, MappedRegister32};
+use super::registers::{AddrControl, DmaControl, DmaTrigger, MappedRegister16, MappedRegister32};
 use std::fmt::Display;
 
 #[derive(Default, PartialEq, Clone, Copy)]
@@ -23,24 +23,44 @@ impl TransferChannel {
     }
 
     pub fn is_enabled(&self) -> bool {
-        self.ctl.value_as::<DmaControl>().contains(DmaControl::ENABLE)
+        self.ctl.value_as::<DmaControl>().is_enabled()
     }
 
     pub fn transfer_size(&self) -> u16 {
-        let cnt = self.cnt.value_as::<DmaControl>();
-        let size = if cnt.contains(DmaControl::DMA_TRANFER_TYPE) {
-            4
-        } else {
-            2
-        };
-
+        let size = self.cnt.value_as::<DmaControl>().transfer_size();
         let max_size = if self.id == 3 { 0xFFFF } else { 0x3FFF };
-        let count = (self.cnt.value() & max_size) * size;
+
+        let count = (self.cnt.value() & max_size) * size as u16;
+
         if count == 0 {
             max_size
         } else {
             count
         }
+    }
+
+    pub fn trigger(&self) -> DmaTrigger {
+        self.ctl.value_as::<DmaControl>().trigger()
+    }
+
+    pub fn dst_addr_control(&self) -> AddrControl {
+        self.cnt.value_as::<DmaControl>().dest_addr_control()
+    }
+
+    pub fn src_addr_control(&self) -> AddrControl {
+        self.ctl.value_as::<DmaControl>().src_addr_control()
+    }
+
+    pub fn is_repeat(&self) -> bool {
+        self.ctl.value_as::<DmaControl>().is_repeat()
+    }
+
+    pub fn enable(&mut self) {
+        self.ctl.value_as_mut::<DmaControl>().enable();
+    }
+
+    pub fn disable(&mut self) {
+        self.ctl.value_as_mut::<DmaControl>().disable();
     }
 }
 

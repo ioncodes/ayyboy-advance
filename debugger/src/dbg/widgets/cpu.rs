@@ -1,7 +1,7 @@
 use crate::dbg::tracked_value::TrackedValue;
 use crate::event::RequestEvent;
 use crossbeam_channel::Sender;
-use egui::{Color32, ComboBox, Context, RichText, TextEdit, Window};
+use egui::{CollapsingHeader, Color32, ComboBox, Context, RichText, TextEdit, Window};
 use gba_core::arm7tdmi::registers::Psr;
 use gba_core::arm7tdmi::timer::Timers;
 use gba_core::memory::dma::Dma;
@@ -169,22 +169,45 @@ impl CpuWidget {
             ui.separator();
 
             for i in 0..4 {
-                ui.horizontal(|ui| {
-                    ui.label(
-                        RichText::new(format!(
-                            "DMA {}: {:08x} -> {:08x}, {:04x} bytes",
-                            i,
-                            self.cpu.dma.get().channels[i].src.value(),
-                            self.cpu.dma.get().channels[i].dst.value(),
-                            self.cpu.dma.get().channels[i].transfer_size()
-                        ))
-                        .monospace(),
-                    );
-                    ui.checkbox(
-                        &mut self.cpu.dma.get().channels[i].is_enabled(),
-                        RichText::new("Enabled").monospace(),
-                    );
-                });
+                CollapsingHeader::new(format!("DMA Channel {}", i))
+                    .default_open(true)
+                    .show(ui, |ui| {
+                        ui.horizontal(|ui| {
+                            ui.label(
+                                RichText::new(format!(
+                                    "src @ {:08x} -> dst @ {:08x}, {:04x} bytes",
+                                    self.cpu.dma.get().channels[i].src.value(),
+                                    self.cpu.dma.get().channels[i].dst.value(),
+                                    self.cpu.dma.get().channels[i].transfer_size()
+                                ))
+                                .monospace(),
+                            );
+                            ui.checkbox(
+                                &mut self.cpu.dma.get().channels[i].is_enabled(),
+                                RichText::new("Enabled").monospace(),
+                            );
+                        });
+                        ui.horizontal(|ui| {
+                            ui.label(
+                                RichText::new(format!(
+                                    "trigger: {:?}, repeat: {}",
+                                    self.cpu.dma.get().channels[i].trigger(),
+                                    self.cpu.dma.get().channels[i].is_repeat()
+                                ))
+                                .monospace(),
+                            );
+                        });
+                        ui.horizontal(|ui| {
+                            ui.label(
+                                RichText::new(format!(
+                                    "src ctrl: {:?}, dst ctrl: {:?}",
+                                    self.cpu.dma.get().channels[i].src_addr_control(),
+                                    self.cpu.dma.get().channels[i].dst_addr_control()
+                                ))
+                                .monospace(),
+                            );
+                        });
+                    });
             }
 
             ui.separator();

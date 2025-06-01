@@ -2,12 +2,11 @@ use core::panic;
 
 use super::device::{Addressable, IoRegister};
 use super::dma::Dma;
-use super::registers::DmaControl;
 use crate::arm7tdmi::decoder::TransferLength;
 use crate::arm7tdmi::timer::Timers;
 use crate::audio::apu::Apu;
 use crate::input::joypad::Joypad;
-use crate::memory::registers::Interrupt;
+use crate::memory::registers::{AddrControl, DmaTrigger, Interrupt};
 use crate::video::ppu::{Ppu, PpuEvent};
 use crate::video::registers::DispStat;
 use log::*;
@@ -71,12 +70,19 @@ impl Mmio {
             trace!("HBLANK interrupt raised");
         }
 
-        self.transfer_dma();
+        self.transfer_dma(&events);
     }
 
-    pub fn transfer_dma(&mut self) {
+    pub fn transfer_dma(&mut self, events: &Vec<PpuEvent>) {
         for channel in 0..4 {
-            if self.dma.channels[channel].is_enabled() {
+            if self.dma.channels[channel].is_enabled()
+                && (self.dma.channels[channel].trigger() == DmaTrigger::Immediate
+                    || self.dma.channels[channel].trigger() == DmaTrigger::Special // TODO: Special trigger is not implemented, just allow it
+                    || (self.dma.channels[channel].trigger() == DmaTrigger::VBlank
+                        && events.contains(&PpuEvent::VBlank))
+                    || (self.dma.channels[channel].trigger() == DmaTrigger::HBlank
+                        && events.contains(&PpuEvent::HBlank)))
+            {
                 trace!("DMA transfer on channel {}", channel);
 
                 let src = self.dma.channels[channel].src.value();
@@ -86,18 +92,48 @@ impl Mmio {
                     continue;
                 }
 
+                if self.dma.channels[channel].trigger() == DmaTrigger::Special {
+                    // Special DMA trigger is not implemented
+                    error!(
+                        "DMA channel {} triggered with Special trigger, not implemented",
+                        channel
+                    );
+                    continue;
+                }
+
                 let size = self.dma.channels[channel].transfer_size();
+                let src_ctrl = self.dma.channels[channel].src_addr_control();
+                let dst_ctrl = self.dma.channels[channel].dst_addr_control();
 
                 // transfer it at once
                 for i in 0..size {
-                    let value = self.read(src + i as u32);
-                    self.write(dst + i as u32, value);
+                    let src_addr = match src_ctrl {
+                        AddrControl::Increment => src + i as u32,
+                        AddrControl::Decrement => src - i as u32,
+                        AddrControl::Fixed => src,
+                        AddrControl::Reload => {
+                            error!("DMA source address control set to Reload, not implemented");
+                            src
+                        }
+                    };
+                    let dst_addr = match dst_ctrl {
+                        AddrControl::Increment => dst + i as u32,
+                        AddrControl::Decrement => dst - i as u32,
+                        AddrControl::Fixed => dst,
+                        AddrControl::Reload => {
+                            error!("DMA destination address control set to Reload, not implemented");
+                            dst
+                        }
+                    };
+
+                    let value = self.read(src_addr);
+                    self.write(dst_addr, value);
                 }
 
-                // disable the DMA channel
-                self.dma.channels[channel]
-                    .ctl
-                    .set(self.dma.channels[channel].ctl.value() & !DmaControl::ENABLE.bits());
+                // if it's a repeat transfer, we just leave it enabled
+                if !self.dma.channels[channel].is_repeat() {
+                    self.dma.channels[channel].disable();
+                }
             }
         }
     }
