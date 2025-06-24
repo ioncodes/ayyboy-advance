@@ -96,14 +96,6 @@ impl Ppu {
         let lcd_control = self.disp_cnt.value();
         trace!("Grabbing internal frame buffer for PPU mode: {}", lcd_control.bg_mode());
 
-        let parse_bg_layer_view = |layer: DispCnt| {
-            if lcd_control.contains(layer) {
-                "on"
-            } else {
-                "off"
-            }
-        };
-
         let blit_sprites = |frame: &mut Frame, sprite_frame: &Vec<(usize, Pixel)>| {
             let bg2cnt = self.bg_cnt[2].value();
 
@@ -124,14 +116,8 @@ impl Ppu {
         let frame = match lcd_control.bg_mode() {
             0 => self.render_background_mode0(&sprite_frame),
             1..=2 => {
-                trace!(
-                    "Background layers: BG0({}), BG1({}), BG2({}), BG3({})",
-                    parse_bg_layer_view(DispCnt::BG0_ON),
-                    parse_bg_layer_view(DispCnt::BG1_ON),
-                    parse_bg_layer_view(DispCnt::BG2_ON),
-                    parse_bg_layer_view(DispCnt::BG3_ON)
-                );
-                [[Pixel::Transparent; SCREEN_WIDTH]; SCREEN_HEIGHT]
+                error!("Background mode 1 & 2 not implemented");
+                self.render_background_mode0(&sprite_frame)
             }
             3 => {
                 let mut frame = self.render_background_mode3(lcd_control.frame_address());
@@ -157,7 +143,10 @@ impl Ppu {
     pub fn get_background_frame(&self, mode: usize, base_addr: u32) -> Frame {
         match mode {
             0 => self.render_background_mode0(&vec![(5, Pixel::Transparent); SCREEN_WIDTH * SCREEN_HEIGHT]),
-            1..=2 => [[Pixel::Transparent; SCREEN_WIDTH]; SCREEN_HEIGHT],
+            1..=2 => {
+                error!("Background mode {} is not supported", mode);
+                self.render_background_mode0(&vec![(5, Pixel::Transparent); SCREEN_WIDTH * SCREEN_HEIGHT])
+            }
             3 => self.render_background_mode3(base_addr),
             4 => self.render_background_mode4(base_addr),
             5 => self.render_background_mode5(base_addr),
