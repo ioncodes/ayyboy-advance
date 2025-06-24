@@ -158,6 +158,13 @@ impl MappedRegister32 {
     pub fn value(&self) -> u32 {
         (self.0 as u32) | ((self.1 as u32) << 8) | ((self.2 as u32) << 16) | ((self.3 as u32) << 24)
     }
+
+    pub fn set(&mut self, value: u32) {
+        self.0 = (value & 0x000000FF) as u8;
+        self.1 = ((value >> 8) & 0x000000FF) as u8;
+        self.2 = ((value >> 16) & 0x000000FF) as u8;
+        self.3 = ((value >> 24) & 0x000000FF) as u8;
+    }
 }
 
 impl Default for MappedRegister32 {

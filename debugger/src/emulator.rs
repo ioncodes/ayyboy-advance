@@ -28,6 +28,7 @@ pub struct Emulator {
     pub display_tx: Sender<Frame>,
     pub dbg_req_rx: Receiver<RequestEvent>,
     pub dbg_resp_tx: Sender<ResponseEvent>,
+    pub rom_title: String,
     current_cycles: usize,
 }
 
@@ -48,6 +49,9 @@ impl Emulator {
         if rom_path.ends_with(".zip") {
             rom_data = Self::unzip_archive(&rom_data);
         }
+
+        // Extract ROM title
+        let rom_title = String::from_utf8_lossy(&rom_data[0xa0..0xa0 + 12]).to_string();
 
         // Load ROM into memory
         mmio.load(0x08000000, &rom_data);
@@ -92,6 +96,7 @@ impl Emulator {
             display_tx,
             dbg_req_rx,
             dbg_resp_tx,
+            rom_title,
             current_cycles: 0,
         }
     }
@@ -261,12 +266,12 @@ impl Emulator {
     fn unzip_archive(buffer: &[u8]) -> Vec<u8> {
         let mut archive = ZipArchive::new(Cursor::new(buffer)).unwrap();
 
-        let mut file_indices = (0..archive.len()).filter(|&i| !archive.by_index(i).unwrap().is_dir());
-        let first_idx = file_indices.next().unwrap_or_else(|| {
-            panic!("ZIP archive is empty or contains only directories");
-        });
+        let gba_index = (0..archive.len())
+            .filter(|&i| archive.by_index(i).unwrap().name().contains(".gba"))
+            .next()
+            .unwrap_or_else(|| panic!("No .gba file found in archive"));
 
-        let mut file = archive.by_index(first_idx).unwrap();
+        let mut file = archive.by_index(gba_index).unwrap();
         let mut buffer = Vec::with_capacity(file.size() as usize);
         let _ = file.read_to_end(&mut buffer).unwrap();
 

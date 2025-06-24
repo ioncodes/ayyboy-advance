@@ -96,6 +96,7 @@ impl Mmio {
                 let unit_size = self.dma.channels[channel].transfer_size() as u16;
                 let src_ctrl = self.dma.channels[channel].src_addr_control();
                 let dst_ctrl = self.dma.channels[channel].dst_addr_control();
+                let initial_cnt = self.dma.channels[channel].cnt.value();
 
                 // transfer it at once
                 for i in 0..units {
@@ -122,6 +123,31 @@ impl Mmio {
                         self.write_u16(dst_addr, value);
                     }
                 }
+
+                let final_src = match src_ctrl {
+                    AddrControl::Increment => src + units as u32 * unit_size as u32,
+                    AddrControl::Decrement => src - units as u32 * unit_size as u32,
+                    _ => src,
+                };
+
+                let calc_dst = match dst_ctrl {
+                    AddrControl::Increment => dst + units as u32 * unit_size as u32,
+                    AddrControl::Decrement => dst - units as u32 * unit_size as u32,
+                    AddrControl::Fixed | AddrControl::Reload => dst + units as u32 * unit_size as u32,
+                };
+
+                let final_dst = if dst_ctrl == AddrControl::Reload { dst } else { calc_dst };
+
+                // update registers
+                self.dma.channels[channel].src.set(final_src);
+                self.dma.channels[channel].dst.set(final_dst);
+
+                let cnt = if self.dma.channels[channel].is_repeat() {
+                    initial_cnt
+                } else {
+                    0
+                };
+                self.dma.channels[channel].cnt.set(cnt);
 
                 // if it's a repeat transfer, we just leave it enabled
                 if !self.dma.channels[channel].is_repeat() {

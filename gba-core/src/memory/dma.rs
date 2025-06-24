@@ -45,7 +45,7 @@ impl TransferChannel {
     }
 
     pub fn dst_addr_control(&self) -> AddrControl {
-        self.cnt.value_as::<DmaControl>().dest_addr_control()
+        self.ctl.value_as::<DmaControl>().dest_addr_control()
     }
 
     pub fn src_addr_control(&self) -> AddrControl {

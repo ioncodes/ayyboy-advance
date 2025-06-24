@@ -12,6 +12,11 @@ use gba_core::input::registers::KeyInput;
 use gba_core::video::{Frame, Pixel, SCREEN_HEIGHT, SCREEN_WIDTH};
 use image::{imageops, ImageBuffer, Rgb, RgbImage};
 
+// TODO: make it a bit smaller for when im on my macbook
+#[cfg(target_os = "macos")]
+pub const SCALE: usize = 6;
+
+#[cfg(not(target_os = "macos"))]
 pub const SCALE: usize = 8;
 
 pub struct Renderer {
@@ -30,6 +35,11 @@ impl Renderer {
         backend_rx: Receiver<ResponseEvent>,
     ) -> Renderer {
         catppuccin_egui::set_theme(&cc.egui_ctx, catppuccin_egui::MOCHA);
+
+        // TODO: debugger is currently designed for big screens
+        // so scale everything down a bit in case im on my macbook
+        #[cfg(target_os = "macos")]
+        cc.egui_ctx.set_pixels_per_point(0.75);
 
         let screen_texture = cc.egui_ctx.load_texture(
             "screen_texture",

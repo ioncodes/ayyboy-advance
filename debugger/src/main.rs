@@ -14,7 +14,10 @@ use eframe::NativeOptions;
 use gba_core::video::{Frame, SCREEN_HEIGHT, SCREEN_WIDTH};
 use log::LevelFilter;
 use renderer::Renderer;
+use shadow_rs::shadow;
 use simple_logger::SimpleLogger;
+
+shadow!(build_info);
 
 #[derive(Parser, Debug)]
 struct Args {
@@ -57,7 +60,8 @@ fn main() {
     let (dbg_req_tx, dbg_req_rx) = crossbeam_channel::bounded(25);
     let (dbg_resp_tx, dbg_resp_rx) = crossbeam_channel::bounded(25);
 
-    let mut emulator = Emulator::new(display_tx, dbg_req_rx, dbg_resp_tx, args.script, args.rom.clone());
+    let mut emulator = Emulator::new(display_tx, dbg_req_rx, dbg_resp_tx, args.script, args.rom);
+    let rom_title = emulator.rom_title.clone();
 
     std::thread::spawn(move || {
         emulator.run();
@@ -72,7 +76,7 @@ fn main() {
     };
 
     let _ = eframe::run_native(
-        &format!("ayyboy advance - {}", args.rom),
+        &format!("ayyboy advance [{}] - {}", build_info::SHORT_COMMIT, rom_title),
         native_options,
         Box::new(move |cc| Ok(Box::new(Renderer::new(cc, display_rx, dbg_req_tx, dbg_resp_rx)))),
     );
