@@ -29,7 +29,18 @@ async function getImagesInFolder(folderName: string) {
     try {
         const folderPath = path.resolve(process.cwd(), 'screenshots/', folderName);
         const entries = await fs.readdir(folderPath);
-        return entries.filter(file => file.toLowerCase().endsWith('.png'));
+
+        // only include .png files
+        const filteredEntries = entries.filter(file => file.toLowerCase().endsWith('.png'));
+
+        // sort by name_<NUMBER>
+        filteredEntries.sort((a, b) => {
+            const aNumber = parseInt(a.match(/_(\d+)\.png$/)?.[1] || '0', 10);
+            const bNumber = parseInt(b.match(/_(\d+)\.png$/)?.[1] || '0', 10);
+            return aNumber - bNumber;
+        });
+
+        return filteredEntries;
     } catch (error) {
         console.error(`Error reading images from folder ${folderName}:`, error);
         return [];
