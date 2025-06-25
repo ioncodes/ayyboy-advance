@@ -1,6 +1,7 @@
 mod emulator;
 
 use emulator::Emulator;
+use gba_core::input::registers::KeyInput;
 use gba_core::video::{Frame, Pixel, SCREEN_HEIGHT, SCREEN_WIDTH};
 use image::{ImageBuffer, Rgb, RgbImage};
 use std::collections::VecDeque;
@@ -47,6 +48,14 @@ fn emulate_rom(rom_path: String, output_path: String, filename: String) {
 
     for i in 0usize..500_000 {
         if let Some(frame) = emulator.run_to_frame() {
+            if i % 4 == 0 {
+                emulator.cpu.mmio.joypad.set_key_state(KeyInput::A, true);
+                emulator.cpu.mmio.joypad.set_key_state(KeyInput::START, true);
+            } else {
+                emulator.cpu.mmio.joypad.set_key_state(KeyInput::A, false);
+                emulator.cpu.mmio.joypad.set_key_state(KeyInput::START, false);
+            }
+
             if i % 50_000 == 0 {
                 let image_path = format!("{}/{}_{}.png", output_path, filename, i);
                 write_png(&frame, &image_path);
@@ -64,7 +73,7 @@ fn main() {
     });
 
     const OUTPUT_FOLDER: &str = "rom-db-ui/screenshots";
-    const MAX_THREADS: usize = 5;
+    const MAX_THREADS: usize = 40;
 
     fs::create_dir_all(OUTPUT_FOLDER).expect("Failed to create output directory");
 
