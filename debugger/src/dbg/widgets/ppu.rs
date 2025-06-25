@@ -158,7 +158,6 @@ impl PpuWidget {
                     ObjSize::Horizontal64x32 => [64, 32],
                     ObjSize::Vertical8x16 => [8, 16],
                     ObjSize::Vertical8x32 => [8, 32],
-                    ObjSize::Vertical16x64 => [16, 64],
                     ObjSize::Vertical16x32 => [16, 32],
                     ObjSize::Vertical32x64 => [32, 64],
                 };
@@ -456,7 +455,7 @@ impl PpuWidget {
                         )
                         .on_hover_text(
                             RichText::new(format!(
-                                "ID: {}, Tile Nr: {}\nX: {}, Y: {}\nSize: {:?}\nShape: {:?}\nPriority: {:?}\nPalette: {}\nFlip X: {}, Flip Y: {}",
+                                "ID: {}, Tile Nr: {}\nX: {}, Y: {}\nSize: {}\nShape: {:?}\nPriority: {:?}\nPalette: {}\nFlip X: {}, Flip Y: {}\nAttribute 0: {:04X} @ {:08X}\nAttribute 1: {:04X} @ {:08X}\nAttribute 2: {:04X} @ {:08X}",
                                 sprite.id,
                                 sprite.tile_number,
                                 sprite.x,
@@ -467,6 +466,12 @@ impl PpuWidget {
                                 sprite.palette,
                                 sprite.x_flip,
                                 sprite.y_flip,
+                                sprite.attr0.bits(),
+                                sprite.attr0_addr,
+                                sprite.attr1.bits(),
+                                sprite.attr1_addr,
+                                sprite.attr2.bits(),
+                                sprite.attr2_addr,
                             ))
                             .monospace(),
                         );

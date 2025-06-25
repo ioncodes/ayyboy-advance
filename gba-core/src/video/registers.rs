@@ -215,8 +215,26 @@ pub enum ObjSize {
     Vertical8x16,
     Vertical8x32,
     Vertical16x32,
-    Vertical16x64,
     Vertical32x64,
+}
+
+impl Display for ObjSize {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ObjSize::Square8x8 => write!(f, "8x8"),
+            ObjSize::Square16x16 => write!(f, "16x16"),
+            ObjSize::Square32x32 => write!(f, "32x32"),
+            ObjSize::Square64x64 => write!(f, "64x64"),
+            ObjSize::Horizontal16x8 => write!(f, "16x8"),
+            ObjSize::Horizontal32x8 => write!(f, "32x8"),
+            ObjSize::Horizontal32x16 => write!(f, "32x16"),
+            ObjSize::Horizontal64x32 => write!(f, "64x32"),
+            ObjSize::Vertical8x16 => write!(f, "8x16"),
+            ObjSize::Vertical8x32 => write!(f, "8x32"),
+            ObjSize::Vertical16x32 => write!(f, "16x32"),
+            ObjSize::Vertical32x64 => write!(f, "32x64"),
+        }
+    }
 }
 
 bitflags! {
@@ -256,7 +274,7 @@ impl ObjAttribute1 {
             0b0000_0000_0000_0000 if shape == ObjShape::Vertical => ObjSize::Vertical8x16,
             0b0100_0000_0000_0000 if shape == ObjShape::Vertical => ObjSize::Vertical8x32,
             0b1000_0000_0000_0000 if shape == ObjShape::Vertical => ObjSize::Vertical16x32,
-            0b1100_0000_0000_0000 if shape == ObjShape::Vertical => ObjSize::Vertical16x64,
+            0b1100_0000_0000_0000 if shape == ObjShape::Vertical => ObjSize::Vertical32x64,
             _ => unreachable!("Invalid OBJ_SIZE bits"),
         }
     }

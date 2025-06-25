@@ -175,7 +175,7 @@ impl CpuWidget {
                         ui.horizontal(|ui| {
                             ui.label(
                                 RichText::new(format!(
-                                    "src @ {:08x} -> dst @ {:08x}, {:04x} bytes",
+                                    "{:08x} -> {:08x}, {:04x} bytes",
                                     self.cpu.dma.get().channels[i].src.value(),
                                     self.cpu.dma.get().channels[i].dst.value(),
                                     self.cpu.dma.get().channels[i].transfer_units()
@@ -190,7 +190,7 @@ impl CpuWidget {
                         ui.horizontal(|ui| {
                             ui.label(
                                 RichText::new(format!(
-                                    "trigger: {:?}, repeat: {}",
+                                    "Trigger: {:?}, Repeat: {}",
                                     self.cpu.dma.get().channels[i].trigger(),
                                     self.cpu.dma.get().channels[i].is_repeat()
                                 ))
@@ -200,7 +200,7 @@ impl CpuWidget {
                         ui.horizontal(|ui| {
                             ui.label(
                                 RichText::new(format!(
-                                    "src ctrl: {:?}, dst ctrl: {:?}",
+                                    "Src Ctrl: {:?}, Dst Ctrl: {:?}",
                                     self.cpu.dma.get().channels[i].src_addr_control(),
                                     self.cpu.dma.get().channels[i].dst_addr_control()
                                 ))

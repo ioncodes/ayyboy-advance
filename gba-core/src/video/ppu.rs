@@ -26,6 +26,12 @@ pub struct Sprite {
     pub y_flip: bool,
     pub priority: usize,
     pub image: Vec<Pixel>,
+    pub attr0: ObjAttribute0,
+    pub attr1: ObjAttribute1,
+    pub attr2: ObjAttribute2,
+    pub attr0_addr: u32,
+    pub attr1_addr: u32,
+    pub attr2_addr: u32,
 }
 
 pub struct Ppu {
@@ -332,9 +338,13 @@ impl Ppu {
         let obj_dimension = self.disp_cnt.value().dimension();
 
         for obj_id in 0..128 {
-            let attr0 = ObjAttribute0::from_bits_truncate(self.read_u16(OAM_BASE + obj_id * 8 + 0));
-            let attr1 = ObjAttribute1::from_bits_truncate(self.read_u16(OAM_BASE + obj_id * 8 + 2));
-            let attr2 = ObjAttribute2::from_bits_truncate(self.read_u16(OAM_BASE + obj_id * 8 + 4));
+            let attr0_addr = OAM_BASE + (obj_id * 8) + 0;
+            let attr1_addr = OAM_BASE + (obj_id * 8) + 2;
+            let attr2_addr = OAM_BASE + (obj_id * 8) + 4;
+
+            let attr0 = ObjAttribute0::from_bits_truncate(self.read_u16(attr0_addr));
+            let attr1 = ObjAttribute1::from_bits_truncate(self.read_u16(attr1_addr));
+            let attr2 = ObjAttribute2::from_bits_truncate(self.read_u16(attr2_addr));
 
             let shape = attr0.shape();
             let size = attr1.size(shape);
@@ -413,6 +423,12 @@ impl Ppu {
                 y_flip: attr1.y_flip(),
                 priority: attr2.priority(),
                 image: sprite_data,
+                attr0,
+                attr1,
+                attr2,
+                attr0_addr,
+                attr1_addr,
+                attr2_addr,
             });
         }
 
@@ -433,7 +449,6 @@ impl Ppu {
             ObjSize::Vertical8x16 => (8, 16),
             ObjSize::Vertical8x32 => (8, 32),
             ObjSize::Vertical16x32 => (16, 32),
-            ObjSize::Vertical16x64 => (16, 64),
             ObjSize::Vertical32x64 => (32, 64),
         };
 
@@ -452,11 +467,7 @@ impl Ppu {
                 ),
                 ObjShape::Vertical => matches!(
                     size,
-                    ObjSize::Vertical8x16
-                        | ObjSize::Vertical8x32
-                        | ObjSize::Vertical16x32
-                        | ObjSize::Vertical16x64
-                        | ObjSize::Vertical32x64
+                    ObjSize::Vertical8x16 | ObjSize::Vertical8x32 | ObjSize::Vertical16x32 | ObjSize::Vertical32x64
                 ),
             },
             "ObjShape({:?}) and ObjSize({:?}) mismatch",
@@ -481,9 +492,13 @@ impl Ppu {
         // lower OAM entry = higher priority
         // quick hack is to go through the OAM backwards
         for obj_id in (0..128).rev() {
-            let attr0 = ObjAttribute0::from_bits_truncate(self.read_u16(OAM_BASE + obj_id * 8 + 0));
-            let attr1 = ObjAttribute1::from_bits_truncate(self.read_u16(OAM_BASE + obj_id * 8 + 2));
-            let attr2 = ObjAttribute2::from_bits_truncate(self.read_u16(OAM_BASE + obj_id * 8 + 4));
+            let attr0_addr = OAM_BASE + (obj_id * 8) + 0;
+            let attr1_addr = OAM_BASE + (obj_id * 8) + 2;
+            let attr2_addr = OAM_BASE + (obj_id * 8) + 4;
+
+            let attr0 = ObjAttribute0::from_bits_truncate(self.read_u16(attr0_addr));
+            let attr1 = ObjAttribute1::from_bits_truncate(self.read_u16(attr1_addr));
+            let attr2 = ObjAttribute2::from_bits_truncate(self.read_u16(attr2_addr));
 
             // disabled, TODO: check if affine?
             if attr0.disabled() {
