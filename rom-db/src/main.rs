@@ -48,12 +48,16 @@ fn emulate_rom(rom_path: String, output_path: String, filename: String) {
 
     for i in 0usize..500_000 {
         if let Some(frame) = emulator.run_to_frame() {
-            if i % 4 == 0 {
-                emulator.cpu.mmio.joypad.set_key_state(KeyInput::A, true);
-                emulator.cpu.mmio.joypad.set_key_state(KeyInput::START, true);
-            } else {
-                emulator.cpu.mmio.joypad.set_key_state(KeyInput::A, false);
-                emulator.cpu.mmio.joypad.set_key_state(KeyInput::START, false);
+            if i % 20_000 == 0 {
+                emulator
+                    .cpu
+                    .mmio
+                    .joypad
+                    .set_key_state(KeyInput::A, !emulator.cpu.mmio.joypad.is_key_pressed(KeyInput::A));
+                emulator.cpu.mmio.joypad.set_key_state(
+                    KeyInput::START,
+                    !emulator.cpu.mmio.joypad.is_key_pressed(KeyInput::START),
+                );
             }
 
             if i % 50_000 == 0 {

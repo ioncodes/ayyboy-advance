@@ -21,6 +21,10 @@ impl Joypad {
             self.status.insert(key);
         }
     }
+
+    pub fn is_key_pressed(&self, key: KeyInput) -> bool {
+        !self.status.contains(key)
+    }
 }
 
 impl Addressable for Joypad {
