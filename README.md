@@ -25,7 +25,7 @@ Options:
 ```
 
 ### rom-db & rom-db-ui
-`rom-db` runs every `.zip` and `.gba` found in a given folder and takes a few screenshots every now and then. These are saved in `rom-db-ui/screenshots`:
+`rom-db` runs every `.zip` and `.gba` found in a given folder and takes a few screenshots every now and then. These are saved in `rom-db-ui/public/screenshots`:
 ```bash
 # inside of rom-db-ui
 npm install

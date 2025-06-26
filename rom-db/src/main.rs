@@ -52,7 +52,7 @@ fn main() {
         std::process::exit(1);
     });
 
-    const OUTPUT_FOLDER: &str = "rom-db-ui/screenshots";
+    const OUTPUT_FOLDER: &str = "rom-db-ui/public/screenshots";
     std::fs::create_dir_all(OUTPUT_FOLDER).expect("Failed to create output directory");
 
     let rom_path = std::fs::canonicalize(rom_path).expect("Failed to canonicalize ROM path");

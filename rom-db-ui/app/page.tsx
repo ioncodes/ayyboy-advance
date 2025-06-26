@@ -1,19 +1,17 @@
-import { promises as fs } from 'fs';
+import fs from 'fs';
 import path from 'path';
 import SearchComponent from './SearchComponent';
 
-async function getScreenshotFolders() {
+function getScreenshotFolders() {
     try {
-        const screenshotsPath = path.resolve(process.cwd(), 'screenshots/');
+        const screenshotsPath = path.resolve(process.cwd(), 'public/screenshots/');
 
-        try {
-            await fs.access(screenshotsPath);
-        } catch (error) {
-            console.error('Screenshots directory not found:', error);
+        if (!fs.existsSync(screenshotsPath)) {
+            console.error('Screenshots directory not found');
             return [];
         }
 
-        const entries = await fs.readdir(screenshotsPath, { withFileTypes: true });
+        const entries = fs.readdirSync(screenshotsPath, { withFileTypes: true });
 
         return entries
             .filter(entry => entry.isDirectory())
@@ -25,10 +23,10 @@ async function getScreenshotFolders() {
     }
 }
 
-async function getImagesInFolder(folderName: string) {
+function getImagesInFolder(folderName: string) {
     try {
-        const folderPath = path.resolve(process.cwd(), 'screenshots/', folderName);
-        const entries = await fs.readdir(folderPath);
+        const folderPath = path.resolve(process.cwd(), 'public/screenshots/', folderName);
+        const entries = fs.readdirSync(folderPath);
 
         // only include .png files
         const filteredEntries = entries.filter(file => file.toLowerCase().endsWith('.png'));
@@ -47,15 +45,13 @@ async function getImagesInFolder(folderName: string) {
     }
 }
 
-export default async function ScreenshotsPage() {
-    const folders = await getScreenshotFolders();
+export default function ScreenshotsPage() {
+    const folders = getScreenshotFolders();
 
-    const folderImages = await Promise.all(
-        folders.map(async (folder) => {
-            const images = await getImagesInFolder(folder);
-            return { folder, images };
-        })
-    );
+    const folderImages = folders.map(folder => {
+        const images = getImagesInFolder(folder);
+        return { folder, images };
+    });
 
     return (
         <div className="space-y-8 p-4">

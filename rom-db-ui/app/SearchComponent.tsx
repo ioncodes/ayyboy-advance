@@ -41,7 +41,7 @@ export default function SearchComponent({ folderData }: { folderData: FolderData
                                     {images.map((image) => (
                                         <div key={image} className="border rounded overflow-hidden">
                                             <img
-                                                src={`/api/image?folder=${encodeURIComponent(folder)}&image=${encodeURIComponent(image)}`}
+                                                src={`/screenshots/${encodeURIComponent(folder)}/${encodeURIComponent(image)}`}
                                                 alt={`Screenshot from ${folder}`}
                                                 className="max-h-48 object-contain"
                                             />
