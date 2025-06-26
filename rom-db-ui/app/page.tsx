@@ -31,12 +31,8 @@ function getImagesInFolder(folderName: string) {
         // only include .png files
         const filteredEntries = entries.filter(file => file.toLowerCase().endsWith('.png'));
 
-        // sort by name_<NUMBER>
-        filteredEntries.sort((a, b) => {
-            const aNumber = parseInt(a.match(/_(\d+)\.png$/)?.[1] || '0', 10);
-            const bNumber = parseInt(b.match(/_(\d+)\.png$/)?.[1] || '0', 10);
-            return aNumber - bNumber;
-        });
+        // sort by filename (number)
+        filteredEntries.sort((a, b) => parseInt(a) - parseInt(b));
 
         return filteredEntries;
     } catch (error) {
