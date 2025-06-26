@@ -34,6 +34,12 @@ impl Cpu {
         let IoRegister(ime_value) = self.mmio.io_ime;
         let IoRegister(halt_cnt) = self.mmio.io_halt_cnt;
 
+        if self.get_pc() < 0x0000_4000 {
+            self.mmio.enable_bios_access();
+        } else {
+            self.mmio.disable_bios_access();
+        }
+
         self.pipeline.advance(self.get_pc(), self.is_thumb(), &mut self.mmio);
         trace!("Pipeline: {}", self.pipeline);
 

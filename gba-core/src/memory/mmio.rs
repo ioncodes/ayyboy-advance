@@ -33,6 +33,8 @@ pub struct Mmio {
     pub io_halt_cnt: IoRegister<u8>,  // HALTCNT
     // other
     origin_write_length: Option<TransferLength>, // cache this for cases like 8bit VRAM mirrored writes
+    executing_bios: bool,
+    openbus_bios: u32,
 }
 
 impl Mmio {
@@ -53,6 +55,8 @@ impl Mmio {
             io_if: IoRegister::default(),
             io_halt_cnt: IoRegister(0xff),
             origin_write_length: None,
+            executing_bios: false,    // TODO: we skip the bios for now
+            openbus_bios: 0xE129F000, // initial openbus value after BIOS execution
         }
     }
 
@@ -171,9 +175,13 @@ impl Mmio {
             0x04000301 => self.io_halt_cnt.read(),             // HALTCNT
             0x04000300 => 1, // "After initial reset, the GBA BIOS initializes the register to 01h"
             // Internal and External Memory
-            0x00000000..=0x00003FFF => {
-                //warn!("Reading from BIOS (Open Bus): {:08x}", addr);
-                self.internal_memory[addr as usize]
+            0x00000000..=0x00003FFF if self.executing_bios => self.internal_memory[addr as usize],
+            0x00000000..=0x00003FFF if !self.executing_bios => {
+                // BIOS open bus read
+                let shift = ((addr & 3) * 8) as u32;
+                let value = ((self.openbus_bios >> shift) & 0xFF) as u8;
+                warn!("Reading from BIOS open bus: {:08x} => {:02x}", addr, value);
+                value
             }
             0x0400020A..=0x0400020B => self.internal_memory[addr as usize], // Unused
             0x04000000..=0x040003FE => {
@@ -228,12 +236,18 @@ impl Mmio {
     }
 
     pub fn read_u32(&mut self, addr: u32) -> u32 {
-        u32::from_le_bytes([
+        let value = u32::from_le_bytes([
             self.read(addr),
             self.read(addr + 1),
             self.read(addr + 2),
             self.read(addr + 3),
-        ])
+        ]);
+
+        if (0x00000000..=0x00003FFF).contains(&addr) && self.executing_bios {
+            self.openbus_bios = value;
+        }
+
+        value
     }
 
     pub fn write(&mut self, addr: u32, value: u8) {
@@ -332,5 +346,13 @@ impl Mmio {
             }
             _ => panic!("Invalid memory address: {:08x}", addr),
         }
+    }
+
+    pub fn enable_bios_access(&mut self) {
+        self.executing_bios = true;
+    }
+
+    pub fn disable_bios_access(&mut self) {
+        self.executing_bios = false;
     }
 }
