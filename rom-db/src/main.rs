@@ -4,8 +4,6 @@ use emulator::Emulator;
 use gba_core::input::registers::KeyInput;
 use gba_core::video::{Frame, Pixel, SCREEN_HEIGHT, SCREEN_WIDTH};
 use image::{ImageBuffer, Rgb, RgbImage};
-use std::collections::VecDeque;
-use std::fs::{self, DirEntry};
 
 fn write_png(frame: &Frame, path: &str) {
     let w = SCREEN_WIDTH as u32;
@@ -19,36 +17,14 @@ fn write_png(frame: &Frame, path: &str) {
     img.save(path).unwrap()
 }
 
-fn extract_files_from_path(path: &str) -> Vec<DirEntry> {
-    fs::read_dir(path)
-        .expect("Failed to read ROM directory")
-        .filter_map(Result::ok)
-        .filter(|entry| {
-            entry
-                .path()
-                .extension()
-                .map_or(false, |ext| ext == "zip" || ext == "gba")
-        })
-        .collect::<Vec<_>>()
-}
-
-fn extract_file_stem(entry: &DirEntry) -> String {
-    entry
-        .path()
-        .file_stem()
-        .map(|s| s.to_string_lossy())
-        .unwrap_or_else(|| "unknown".into())
-        .to_string()
-}
-
-fn emulate_rom(rom_path: String, output_path: String, filename: String) {
-    fs::create_dir_all(&output_path).expect("Failed to create output directory");
+fn emulate_rom(rom_path: String, output_path: String) {
+    std::fs::create_dir_all(&output_path).expect("Failed to create output directory");
 
     let mut emulator = Emulator::new(rom_path);
 
-    for i in 0usize..500_000 {
+    for i in 0usize..1_000_000 {
         if let Some(frame) = emulator.run_to_frame() {
-            if i % 20_000 == 0 {
+            if i % 500_000 == 0 {
                 emulator
                     .cpu
                     .mmio
@@ -61,7 +37,7 @@ fn emulate_rom(rom_path: String, output_path: String, filename: String) {
             }
 
             if i % 50_000 == 0 {
-                let image_path = format!("{}/{}_{}.png", output_path, filename, i);
+                let image_path = format!("{}/{}.png", output_path, i);
                 write_png(&frame, &image_path);
             }
         } else {
@@ -71,59 +47,17 @@ fn emulate_rom(rom_path: String, output_path: String, filename: String) {
 }
 
 fn main() {
-    let rom_folder = std::env::args().nth(1).unwrap_or_else(|| {
-        println!("Usage: rom-db <rom_folder>");
+    let rom_path = std::env::args().nth(1).unwrap_or_else(|| {
+        println!("Usage: rom-db <rom_path>");
         std::process::exit(1);
     });
 
     const OUTPUT_FOLDER: &str = "rom-db-ui/screenshots";
-    const MAX_THREADS: usize = 40;
+    std::fs::create_dir_all(OUTPUT_FOLDER).expect("Failed to create output directory");
 
-    fs::create_dir_all(OUTPUT_FOLDER).expect("Failed to create output directory");
+    let rom_path = std::fs::canonicalize(rom_path).expect("Failed to canonicalize ROM path");
+    let rom_name = rom_path.file_stem().unwrap_or_default();
+    let output_path = format!("{}/{}", OUTPUT_FOLDER, rom_name.to_string_lossy());
 
-    let files = extract_files_from_path(&rom_folder);
-    let mut handles = Vec::new();
-    let mut active_threads = 0;
-    let mut queue = VecDeque::new();
-
-    for file in files {
-        let filepath = file.path();
-        let filestem = extract_file_stem(&file);
-
-        queue.push_back((
-            filepath.to_string_lossy().to_string(),
-            format!("{}/{}", OUTPUT_FOLDER, filestem),
-            filestem,
-        ));
-    }
-
-    while !queue.is_empty() || active_threads > 0 {
-        while active_threads < MAX_THREADS && !queue.is_empty() {
-            if let Some((rom_path, output_path, filename)) = queue.pop_front() {
-                let handle = std::thread::spawn(move || {
-                    emulate_rom(rom_path, output_path, filename);
-                });
-                handles.push(handle);
-                active_threads += 1;
-            }
-        }
-
-        if !handles.is_empty() {
-            let mut i = 0;
-            while i < handles.len() {
-                if handles[i].is_finished() {
-                    handles.swap_remove(i);
-                    active_threads -= 1;
-                } else {
-                    i += 1;
-                }
-            }
-        }
-
-        std::thread::sleep(std::time::Duration::from_millis(100));
-    }
-
-    for handle in handles {
-        handle.join().unwrap();
-    }
+    emulate_rom(rom_path.to_string_lossy().to_string(), output_path);
 }
