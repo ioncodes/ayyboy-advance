@@ -10,3 +10,5 @@ flamegraph.svg
 *.png
 rom-db-ui/screenshots/
 .zed/
+# Local Netlify folder
+.netlify
