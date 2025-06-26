@@ -22,9 +22,9 @@ fn emulate_rom(rom_path: String, output_path: String) {
 
     let mut emulator = Emulator::new(rom_path);
 
-    for i in 0usize..1_000_000 {
+    for i in 0usize..500_000 {
         if let Some(frame) = emulator.run_to_frame() {
-            if i % 500_000 == 0 {
+            if i % 100_000 == 0 {
                 emulator
                     .cpu
                     .mmio
@@ -36,7 +36,7 @@ fn emulate_rom(rom_path: String, output_path: String) {
                 );
             }
 
-            if i % 50_000 == 0 {
+            if i % 20_000 == 0 {
                 let image_path = format!("{}/{}.png", output_path, i);
                 write_png(&frame, &image_path);
             }
