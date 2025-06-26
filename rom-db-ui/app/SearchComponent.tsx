@@ -44,6 +44,7 @@ export default function SearchComponent({ folderData }: { folderData: FolderData
                                                 src={`/screenshots/${encodeURIComponent(folder)}/${encodeURIComponent(image)}`}
                                                 alt={`Screenshot from ${folder}`}
                                                 className="max-h-48 object-contain"
+                                                loading="lazy"
                                             />
                                         </div>
                                     ))}
