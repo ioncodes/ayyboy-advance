@@ -4,7 +4,7 @@ import re
 
 def detect_format(line):
     """Detect which format the trace line is in."""
-    if line.startswith('[debug'):
+    if 'DEBUG [' in line:
         return 'format2'  # ayyboy_advance debug (verbose_debug feature) format
     else:
         return 'format1'  # Mesen2 trace format
@@ -32,7 +32,7 @@ def parse_line(line):
     else:  # format2
         # Format 2: "[debug ayyboy_advance::arm7tdmi::cpu] 08000000: b +184 [r0=00000000..."
         # Extract address
-        addr_match = re.search(r'([0-9a-fA-F]{8}):[^[]*\[', line)
+        addr_match = re.search(r'\] ([0-9a-fA-F]{8}):', line)
         if addr_match:
             address = "0x" + addr_match.group(1).lower()
             

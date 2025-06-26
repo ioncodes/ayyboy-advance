@@ -16,6 +16,7 @@ enum Item {
 pub struct Pipeline {
     fetch: Option<Item>,
     decode: Option<Item>,
+    execute: Option<Item>,
 }
 
 impl Pipeline {
@@ -23,10 +24,13 @@ impl Pipeline {
         Pipeline {
             fetch: None,
             decode: None,
+            execute: None,
         }
     }
 
     pub fn advance(&mut self, pc: u32, is_thumb: bool, mmio: &mut Mmio) {
+        self.execute = self.decode.take();
+
         self.decode = if let Some(Item::Data(opcode, state)) = self.fetch.take() {
             let instruction = match Instruction::decode(opcode, is_thumb) {
                 Ok(instr) => Some(instr),
@@ -45,7 +49,7 @@ impl Pipeline {
     }
 
     pub fn pop(&mut self) -> Option<(Instruction, State)> {
-        match self.decode.take() {
+        match self.execute.take() {
             Some(Item::Instruction(instruction, state)) => Some((instruction, state)),
             Some(Item::Data(_, _)) => panic!("Data found in decode stage"),
             _ => None,
@@ -55,6 +59,7 @@ impl Pipeline {
     pub fn flush(&mut self) {
         self.fetch = None;
         self.decode = None;
+        self.execute = None;
     }
 
     pub fn peek_fetch(&self) -> Option<(&u32, &State)> {
@@ -65,7 +70,11 @@ impl Pipeline {
     }
 
     pub fn is_full(&self) -> bool {
-        self.fetch.is_some() && self.decode.is_some()
+        self.fetch.is_some() && self.decode.is_some() && self.execute.is_some()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.fetch.is_none() && self.decode.is_none() && self.execute.is_none()
     }
 }
 
@@ -73,13 +82,18 @@ impl Display for Pipeline {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "Fetch = {{{}}}, Decode = {{{}}}",
+            "Fetch = {{{}}}, Decode = {{{}}}, Execute = {{{}}}",
             match &self.fetch {
                 Some(Item::Instruction(instr, state)) => format!("{} @ {:08x}", instr.opcode, state.pc),
                 Some(Item::Data(data, state)) => format!("{:08x} @ {:08x}", data, state.pc),
                 None => String::from("Empty"),
             },
             match &self.decode {
+                Some(Item::Instruction(instr, state)) => format!("{} @ {:08x}", instr.opcode, state.pc),
+                Some(Item::Data(data, state)) => format!("{:08x} @ {:08x}", data, state.pc),
+                None => String::from("Empty"),
+            },
+            match &self.execute {
                 Some(Item::Instruction(instr, state)) => format!("{} @ {:08x}", instr.opcode, state.pc),
                 Some(Item::Data(data, state)) => format!("{:08x} @ {:08x}", data, state.pc),
                 None => String::from("Empty"),

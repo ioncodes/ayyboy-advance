@@ -66,9 +66,9 @@ impl Cpu {
             self.write_register(
                 &Register::R14,
                 if self.is_thumb() {
-                    self.get_pc() + 2
-                } else {
                     self.get_pc()
+                } else {
+                    self.get_pc() - 4
                 },
             );
             self.write_register(&Register::R15, 0x18);
@@ -91,12 +91,6 @@ impl Cpu {
         if halt_cnt == 0 {
             trace!("CPU is halted");
             return Err(CpuError::CpuPaused);
-        }
-
-        if self.is_thumb() {
-            self.registers.r[15] += 2;
-        } else {
-            self.registers.r[15] += 4;
         }
 
         if let Some((instruction, state)) = self.pipeline.pop() {
@@ -165,7 +159,21 @@ impl Cpu {
 
             trace!("\n{}", self);
 
+            if !self.pipeline.is_empty() {
+                if self.is_thumb() {
+                    self.registers.r[15] += 2;
+                } else {
+                    self.registers.r[15] += 4;
+                }
+            }
+
             return Ok((instruction, state));
+        }
+
+        if self.is_thumb() {
+            self.registers.r[15] += 2;
+        } else {
+            self.registers.r[15] += 4;
         }
 
         Err(CpuError::NothingToDo)
