@@ -104,12 +104,22 @@ impl Ppu {
 
         let blit_sprites = |frame: &mut Frame, sprite_frame: &Vec<(usize, Pixel)>| {
             let bg2cnt = self.bg_cnt[2].value();
+            let palettes = self.fetch_palette();
 
             for (y, row) in frame.iter_mut().enumerate() {
                 for (x, pixel) in row.iter_mut().enumerate() {
                     let sprite_idx = y * SCREEN_WIDTH + x;
-                    if sprite_frame[sprite_idx].1 != Pixel::Transparent
-                        && sprite_frame[sprite_idx].0 <= bg2cnt.priority()
+
+                    // skip if the pixel is transparent
+                    if sprite_frame[sprite_idx].1 == Pixel::Transparent {
+                        continue;
+                    }
+
+                    // blit sprite pixel if:
+                    // 1. the sprite priority is less than or equal to the background priority OR
+                    // 2. the bg pixel matches the first palette color (which indicates transparency/backdrop)
+                    if sprite_frame[sprite_idx].0 <= bg2cnt.priority()
+                        || (sprite_frame[sprite_idx].0 > bg2cnt.priority() && *pixel == palettes[0])
                     {
                         *pixel = sprite_frame[sprite_idx].1;
                     }
