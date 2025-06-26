@@ -8,8 +8,8 @@ const geistSans = Geist({
 });
 
 export const metadata: Metadata = {
-  title: "Screenshot Browser",
-  description: "View screenshots from Game Boy Advance ROMs",
+  title: "ayyboy advance screenshots",
+  description: "A collection of screenshots taken from ayyboy advance",
 };
 
 export default function RootLayout({

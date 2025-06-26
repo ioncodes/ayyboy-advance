@@ -19,7 +19,7 @@ export default function SearchComponent({ folderData }: { folderData: FolderData
             <div className="mb-6">
                 <input
                     type="text"
-                    placeholder="Search folders..."
+                    placeholder="Search screenshots..."
                     className="w-full p-2 border rounded"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
@@ -27,7 +27,7 @@ export default function SearchComponent({ folderData }: { folderData: FolderData
             </div>
 
             {filteredFolders.length === 0 ? (
-                <p>No matching folders found.</p>
+                <p>No matching titles found.</p>
             ) : (
                 <div>
                     {filteredFolders.map(({ folder, images }) => (
@@ -35,7 +35,7 @@ export default function SearchComponent({ folderData }: { folderData: FolderData
                             <h2 className="text-xl font-bold mb-2">{folder}</h2>
 
                             {images.length === 0 ? (
-                                <p className="text-gray-500">No images found in this folder</p>
+                                <p className="text-gray-500">No images found for this title</p>
                             ) : (
                                 <div className="flex flex-wrap gap-4">
                                     {images.map((image) => (
