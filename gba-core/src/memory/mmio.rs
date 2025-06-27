@@ -243,7 +243,7 @@ impl Mmio {
             self.read(addr + 3),
         ]);
 
-        if (0x00000000..=0x00003FFF).contains(&addr) && self.executing_bios {
+        if self.executing_bios && (0x00000000..=0x00003FFF).contains(&addr) {
             self.openbus_bios = value;
         }
 
