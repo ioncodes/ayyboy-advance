@@ -62,7 +62,7 @@ impl Emulator {
 
             i += 1;
 
-            match self.cpu.tick(None) {
+            match self.cpu.tick() {
                 Err(CpuError::FailedToDecode) => return None,
                 _ => {}
             }

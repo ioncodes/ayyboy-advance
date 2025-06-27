@@ -32,6 +32,7 @@ pub struct Mmio {
     pub io_if: IoRegister<Interrupt>, // IF
     pub io_halt_cnt: IoRegister<u8>,  // HALTCNT
     // other
+    pub last_rw_addr: Vec<u32>,                  // track the last read/write addresses
     origin_write_length: Option<TransferLength>, // cache this for cases like 8bit VRAM mirrored writes
     executing_bios: bool,
     openbus_bios: u32,
@@ -55,6 +56,7 @@ impl Mmio {
             io_if: IoRegister::default(),
             io_halt_cnt: IoRegister(0xff),
             origin_write_length: None,
+            last_rw_addr: Vec::new(), // initialize last_rw_addr to zero
             executing_bios: false,    // TODO: we skip the bios for now
             openbus_bios: 0xE129F000, // initial openbus value after BIOS execution
         }
@@ -225,6 +227,7 @@ impl Mmio {
         };
 
         self.origin_write_length = None;
+        self.last_rw_addr.push(addr);
 
         trace!("Read {:02x} from {:08x}", value, addr);
 
@@ -312,6 +315,8 @@ impl Mmio {
                 error!("Writing to unmapped memory address: {:08x}", addr);
             }
         }
+
+        self.last_rw_addr.push(addr);
     }
 
     pub fn write_u16(&mut self, addr: u32, value: u16) {

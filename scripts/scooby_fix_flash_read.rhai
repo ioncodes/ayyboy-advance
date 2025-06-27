@@ -1,12 +1,15 @@
-fn fix_flash_read() {
-    println(`r0: ${hex32(emu.read_register("r0"))}`);
-    emu.write_register("r0", 1);
+fn spoof_flash_chip_id() {
+    let opcode = emu.read_u32(addr);
+    let instr = disasm(opcode, emu.is_thumb());
+    println(`Spoofing flash chip ID for instruction: ${instr}`);
+    let operand = instr.sub_string(instr.index_of(" ") + 1, 2);
+    emu.write_register(operand, 1);
 }
 
 fn setup() {
     let breakpoints = #{
-        "0x08032ea8": "fix_flash_read",
+        // memory rw breakpoints
+        "0x0d000000": "spoof_flash_chip_id"
     };
     breakpoints
 }
- 

@@ -88,4 +88,8 @@ impl Proxy {
     pub fn write_u32(&mut self, address: i64, value: i64) {
         unsafe { (*self.cpu_ptr).mmio.write_u32(address as u32, value as u32) }
     }
+
+    pub fn is_thumb(&self) -> bool {
+        unsafe { (*self.cpu_ptr).is_thumb() }
+    }
 }

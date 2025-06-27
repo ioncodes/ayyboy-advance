@@ -9,7 +9,6 @@ use crate::arm7tdmi::handlers::Handlers;
 use crate::memory::device::IoRegister;
 use crate::memory::mmio::Mmio;
 use crate::memory::registers::Interrupt;
-use crate::script::engine::ScriptEngine;
 use log::*;
 use std::fmt::Display;
 
@@ -30,7 +29,7 @@ impl Cpu {
         }
     }
 
-    pub fn tick(&mut self, script_engine: Option<&mut ScriptEngine>) -> Result<(Instruction, State), CpuError> {
+    pub fn tick(&mut self) -> Result<(Instruction, State), CpuError> {
         let IoRegister(ime_value) = self.mmio.io_ime;
         let IoRegister(halt_cnt) = self.mmio.io_halt_cnt;
 
@@ -118,11 +117,8 @@ impl Cpu {
                 self.compact_registers()
             );
 
-            if let Some(script_engine) = script_engine {
-                if script_engine.handle_breakpoint(state.pc, self) {
-                    trace!("Executed script at breakpoint 0x{:08x}", state.pc);
-                }
-            }
+            // clear the last read/write addresses
+            self.mmio.last_rw_addr.clear();
 
             match instruction.opcode {
                 Opcode::B | Opcode::Bl | Opcode::Bx => Handlers::branch(&instruction, self),

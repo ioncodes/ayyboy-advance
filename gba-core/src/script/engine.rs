@@ -1,5 +1,7 @@
 use crate::arm7tdmi::cpu::Cpu;
+use crate::arm7tdmi::decoder::Instruction;
 use crate::script::proxy::Proxy;
+use core::panic;
 use log::*;
 use rhai::{Dynamic, Engine, Map, Scope, AST};
 use std::collections::HashMap;
@@ -18,7 +20,7 @@ impl ScriptEngine {
         let mut engine = Engine::new();
 
         // Helper functions
-        engine.register_fn("println", |s: &str| info!("[RHAI] {}", s));
+        engine.register_fn("println", |s: &str| println!("[RHAI] {}", s));
         engine.register_fn("hex8", |value: i64| -> String { format!("{:02x}", value as u8) });
         engine.register_fn("hex16", |value: i64| -> String { format!("{:04x}", value as u16) });
         engine.register_fn("hex32", |value: i64| -> String { format!("{:08x}", value as u32) });
@@ -38,6 +40,12 @@ impl ScriptEngine {
                 padded.push(token.chars().next().unwrap());
             }
             padded
+        });
+        engine.register_fn("disasm", |instr: i64, is_thumb: bool| -> String {
+            format!(
+                "{}",
+                Instruction::decode(instr as u32, is_thumb).unwrap_or(Instruction::nop())
+            )
         });
 
         // proxy struct
@@ -67,6 +75,7 @@ impl ScriptEngine {
             proxy.write_register(reg, value as u32);
         });
         engine.register_fn("read_cpsr", |proxy: &mut Proxy| -> i64 { proxy.read_cpsr() as i64 });
+        engine.register_fn("is_thumb", |proxy: &mut Proxy| -> bool { proxy.is_thumb() });
 
         Self {
             engine,
@@ -76,26 +85,22 @@ impl ScriptEngine {
         }
     }
 
-    pub fn load_script(&mut self, script_path: &Path) -> bool {
+    pub fn load_script(&mut self, script_path: &Path) {
         if !script_path.exists() {
-            error!("Script file not found: {}", script_path.display());
-            return false;
+            panic!("Script file {} does not exist", script_path.display());
         }
 
         let script_content = match fs::read_to_string(&script_path) {
             Ok(content) => content,
             Err(e) => {
-                error!("Failed to read script file {}: {}", script_path.display(), e);
-                return false;
+                panic!("Failed to read script file {}: {}", script_path.display(), e);
             }
         };
 
-        // Compile it
         let ast = match self.engine.compile(&script_content) {
             Ok(ast) => ast,
             Err(e) => {
-                error!("Failed to compile script: {}", e);
-                return false;
+                panic!("Failed to compile script {}: {}", script_path.display(), e);
             }
         };
 
@@ -112,32 +117,30 @@ impl ScriptEngine {
                         self.breakpoint_handlers.len(),
                         script_path.display()
                     );
-                    true
                 } else {
-                    error!("Failed to parse breakpoints from script.");
-                    false
+                    panic!("Failed to parse breakpoints from script {}", script_path.display());
                 }
             }
             Err(e) => {
-                error!("Failed to get breakpoints from script: {}", e);
-                false
+                panic!("Failed to execute setup() in script {}: {}", script_path.display(), e);
             }
         }
     }
 
-    pub fn handle_breakpoint(&mut self, address: u32, cpu: &mut Cpu) -> bool {
+    pub fn handle_breakpoint(&mut self, address: u32, instr_addr: u32, cpu: &mut Cpu) {
         if !self.loaded || !self.breakpoint_handlers.contains_key(&address) {
-            return false;
+            return;
         }
 
         let handler_name = match self.breakpoint_handlers.get(&address) {
             Some(name) => name,
-            None => return false,
+            None => return,
         };
 
         if let Some(ast) = &self.script {
             let mut scope = Scope::new();
             scope.push("emu", Proxy::new(cpu));
+            scope.push("addr", instr_addr as i64);
 
             // call the handler
             match self.engine.call_fn::<()>(&mut scope, &ast, handler_name, ()) {
@@ -146,13 +149,13 @@ impl ScriptEngine {
                         "Executed script handler '{}' for breakpoint at 0x{:08x}",
                         handler_name, address
                     );
-                    return true;
                 }
-                Err(e) => error!("Error executing script handler '{}': {}", handler_name, e),
+                Err(e) => panic!(
+                    "Failed to execute handler '{}' for breakpoint at 0x{:08x}: {}",
+                    handler_name, address, e
+                ),
             }
         }
-
-        false
     }
 
     fn parse_breakpoints(&mut self, result: Dynamic) -> bool {
