@@ -29,7 +29,6 @@ pub struct Emulator {
     pub dbg_req_rx: Receiver<RequestEvent>,
     pub dbg_resp_tx: Sender<ResponseEvent>,
     pub rom_title: String,
-    current_cycles: usize,
 }
 
 impl Emulator {
@@ -253,12 +252,7 @@ impl Emulator {
             executed_instr = Some(instr);
         }
 
-        self.current_cycles += 1; // TODO: actually track it
-
-        if self.current_cycles > 1 {
-            self.current_cycles = 0;
-            self.cpu.mmio.tick_components();
-        }
+        self.cpu.mmio.tick_components();
 
         executed_instr
     }
