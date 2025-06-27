@@ -159,6 +159,7 @@ impl Cpu {
 
             trace!("\n{}", self);
 
+            // do not increment PC if the pipeline has been flushed by an instruction
             if !self.pipeline.is_empty() {
                 if self.is_thumb() {
                     self.registers.r[15] += 2;

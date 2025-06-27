@@ -348,7 +348,7 @@ pub enum Indexing {
     Post,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Instruction {
     pub opcode: Opcode,
     pub condition: Condition,
