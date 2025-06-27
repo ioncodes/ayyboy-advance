@@ -96,7 +96,6 @@ impl Emulator {
             dbg_req_rx,
             dbg_resp_tx,
             rom_title,
-            current_cycles: 0,
         }
     }
 
