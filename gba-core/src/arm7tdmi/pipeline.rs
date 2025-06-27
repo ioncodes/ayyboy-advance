@@ -31,28 +31,25 @@ impl Pipeline {
     pub fn advance(&mut self, pc: u32, is_thumb: bool, mmio: &mut Mmio) {
         self.execute = self.decode.take();
 
-        self.decode = if let Some(Item::Data(opcode, state)) = self.fetch.take() {
-            let instruction = match Instruction::decode(opcode, is_thumb) {
-                Ok(instr) => Some(instr),
-                Err(e) => {
+        self.decode = self.fetch.take().map(|item| match item {
+            Item::Data(opcode, state) => {
+                let instr = Instruction::decode(opcode, is_thumb).unwrap_or_else(|e| {
                     error!("Failed to decode instruction: {:?} at {:08x}", e, pc);
-                    Some(Instruction::nop())
-                }
-            };
-            Some(Item::Instruction(instruction.unwrap(), state))
-        } else {
-            None
-        };
+                    Instruction::nop()
+                });
+                Item::Instruction(instr, state)
+            }
+            Item::Instruction(_, _) => unreachable!(),
+        });
 
         let opcode = mmio.read_u32(pc);
         self.fetch = Some(Item::Data(opcode, State { pc, opcode }));
     }
 
     pub fn pop(&mut self) -> Option<(Instruction, State)> {
-        match self.execute.take() {
-            Some(Item::Instruction(instruction, state)) => Some((instruction, state)),
-            Some(Item::Data(_, _)) => panic!("Data found in decode stage"),
-            _ => None,
+        match self.execute.take()? {
+            Item::Instruction(instruction, state) => Some((instruction, state)),
+            Item::Data(_, _) => panic!("Data found in decode stage"),
         }
     }
 
