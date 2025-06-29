@@ -170,7 +170,7 @@ impl Emulator {
                 }
                 RequestEvent::UpdateDisassembly(base, count) => {
                     // decoded instruction would never be available here
-                    let base = base.unwrap_or(if let Some((_, state)) = self.cpu.pipeline.peek_fetch() {
+                    let base = base.unwrap_or(if let Some(state) = self.cpu.pipeline.peek_fetch() {
                         state.pc
                     } else {
                         self.cpu.read_register(&Register::R15)

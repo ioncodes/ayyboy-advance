@@ -6,95 +6,65 @@ use std::fmt::Display;
 pub struct State {
     pub pc: u32,
     pub opcode: u32,
-}
-
-enum Item {
-    Instruction(Instruction, State),
-    Data(u32, State),
+    pub is_thumb: bool,
 }
 
 pub struct Pipeline {
-    fetch: Option<Item>,
-    decode: Option<Item>,
-    execute: Option<Item>,
+    states: Vec<State>,
 }
 
 impl Pipeline {
     pub fn new() -> Pipeline {
         Pipeline {
-            fetch: None,
-            decode: None,
-            execute: None,
+            states: Vec::with_capacity(3),
         }
     }
 
     pub fn advance(&mut self, pc: u32, is_thumb: bool, mmio: &mut Mmio) {
-        self.execute = self.decode.take();
-
-        self.decode = self.fetch.take().map(|item| match item {
-            Item::Data(opcode, state) => {
-                let instr = Instruction::decode(opcode, is_thumb).unwrap_or_else(|e| {
-                    error!("Failed to decode instruction: {:?} at {:08x}", e, pc);
-                    Instruction::nop()
-                });
-                Item::Instruction(instr, state)
-            }
-            Item::Instruction(_, _) => unreachable!(),
-        });
-
         let opcode = mmio.read_u32(pc);
-        self.fetch = Some(Item::Data(opcode, State { pc, opcode }));
+        self.states.push(State { pc, opcode, is_thumb });
     }
 
     pub fn pop(&mut self) -> Option<(Instruction, State)> {
-        match self.execute.take()? {
-            Item::Instruction(instruction, state) => Some((instruction, state)),
-            Item::Data(_, _) => panic!("Data found in decode stage"),
+        if self.states.len() < 3 {
+            return None;
         }
+
+        let state = self.states.remove(0);
+        let instr = Instruction::decode(state.opcode, state.is_thumb).unwrap_or_else(|e| {
+            error!("Failed to decode instruction: {:?} at {:08x}", e, state.pc);
+            Instruction::nop()
+        });
+
+        Some((instr, state))
     }
 
     pub fn flush(&mut self) {
-        self.fetch = None;
-        self.decode = None;
-        self.execute = None;
+        self.states.clear();
     }
 
-    pub fn peek_fetch(&self) -> Option<(&u32, &State)> {
-        match &self.fetch {
-            Some(Item::Data(data, state)) => Some((data, state)),
-            _ => None,
-        }
+    pub fn peek_fetch(&self) -> Option<&State> {
+        self.states.last()
     }
 
     pub fn is_full(&self) -> bool {
-        self.fetch.is_some() && self.decode.is_some() && self.execute.is_some()
+        self.states.len() >= 3
     }
 
     pub fn is_empty(&self) -> bool {
-        self.fetch.is_none() && self.decode.is_none() && self.execute.is_none()
+        self.states.is_empty()
     }
 }
 
 impl Display for Pipeline {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "Fetch = {{{}}}, Decode = {{{}}}, Execute = {{{}}}",
-            match &self.fetch {
-                Some(Item::Instruction(instr, state)) => format!("{} @ {:08x}", instr.opcode, state.pc),
-                Some(Item::Data(data, state)) => format!("{:08x} @ {:08x}", data, state.pc),
-                None => String::from("Empty"),
-            },
-            match &self.decode {
-                Some(Item::Instruction(instr, state)) => format!("{} @ {:08x}", instr.opcode, state.pc),
-                Some(Item::Data(data, state)) => format!("{:08x} @ {:08x}", data, state.pc),
-                None => String::from("Empty"),
-            },
-            match &self.execute {
-                Some(Item::Instruction(instr, state)) => format!("{} @ {:08x}", instr.opcode, state.pc),
-                Some(Item::Data(data, state)) => format!("{:08x} @ {:08x}", data, state.pc),
-                None => String::from("Empty"),
-            },
-        )
+        write!(f, "Pipeline: [")?;
+        for (i, state) in self.states.iter().enumerate() {
+            if i > 0 {
+                write!(f, ", ")?;
+            }
+            write!(f, "{:08x} @ {:08x}", state.opcode, state.pc)?;
+        }
+        write!(f, "]")
     }
 }
