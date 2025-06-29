@@ -1,5 +1,6 @@
 use super::decoder::{Instruction, Register};
 use super::mode::ProcessorMode;
+use super::pipeline::{Pipeline, State};
 use super::registers::{Psr, Registers};
 use super::symbolizer::Symbolizer;
 use crate::arm7tdmi::decoder::Opcode;
@@ -13,79 +14,33 @@ use std::fmt::Display;
 
 pub struct Cpu {
     pub registers: Registers,
-    pub pipeline: [(u32, u32); 2],
+    pub pipeline: Pipeline,
     pub mmio: Mmio,
     symbolizer: Symbolizer,
-    pipeline_reloaded: bool,
 }
 
 impl Cpu {
     pub fn new(buffer: &[u8], mmio: Mmio) -> Cpu {
         Cpu {
             registers: Registers::default(),
-            pipeline: [(0, 0), (0, 0)],
+            pipeline: Pipeline::new(),
             mmio,
             symbolizer: Symbolizer::new(buffer),
-            pipeline_reloaded: false,
         }
     }
 
-    pub fn pipeline_reload_arm(&mut self) {
-        let pc = &mut self.registers.r[15];
-        self.pipeline[0] = (self.mmio.read_u32(*pc), *pc);
-        *pc += 4;
-        self.pipeline[1] = (self.mmio.read_u32(*pc), *pc);
-        *pc += 4;
-    }
-
-    pub fn pipeline_reload_thumb(&mut self) {
-        let pc = &mut self.registers.r[15];
-        self.pipeline[0] = (self.mmio.read_u32(*pc), *pc);
-        *pc += 2;
-        self.pipeline[1] = (self.mmio.read_u32(*pc), *pc);
-        *pc += 2;
-    }
-
-    pub fn pipeline_reload(&mut self) {
-        if self.is_thumb() {
-            self.pipeline_reload_thumb();
-        } else {
-            self.pipeline_reload_arm();
-        }
-        self.pipeline_reloaded = true;
-    }
-
-    pub fn pipeline_advance(&mut self) -> (Instruction, u32) {
-        let (opcode, addr) = self.pipeline[0];
-        self.pipeline[0] = self.pipeline[1];
-
-        if self.is_thumb() {
-            self.pipeline[1] = (self.mmio.read_u32(self.get_pc()), self.get_pc());
-        } else {
-            self.pipeline[1] = (self.mmio.read_u32(self.get_pc()), self.get_pc());
-        }
-
-        (
-            Instruction::decode(opcode, self.is_thumb()).unwrap_or_else(|_| {
-                error!("Failed to decode instruction at PC: {:08x}", self.get_pc());
-                Instruction::nop()
-            }),
-            addr,
-        )
-    }
-
-    pub fn tick(&mut self) -> Result<(Instruction, u32), CpuError> {
+    pub fn tick(&mut self) -> Result<(Instruction, State), CpuError> {
         let IoRegister(ime_value) = self.mmio.io_ime;
         let IoRegister(halt_cnt) = self.mmio.io_halt_cnt;
 
-        if self.get_pc() < 0x0000_4000 || self.get_processor_mode() == ProcessorMode::Irq {
+        if self.get_pc() < 0x0000_4000 {
             self.mmio.enable_bios_access();
         } else {
             self.mmio.disable_bios_access();
         }
 
-        //self.pipeline.advance(self.get_pc(), self.is_thumb(), &mut self.mmio);
-        //trace!("Pipeline: {}", self.pipeline);
+        self.pipeline.advance(self.get_pc(), self.is_thumb(), &mut self.mmio);
+        trace!("Pipeline: {}", self.pipeline);
 
         let vblank_available =
             self.mmio.io_if.contains_flags(Interrupt::VBLANK) && self.mmio.io_ie.contains_flags(Interrupt::VBLANK);
@@ -98,13 +53,9 @@ impl Cpu {
         if ime_value != 0
             && (vblank_available || hblank_available)
             && !self.registers.cpsr.contains(Psr::I)
-            && self.pipeline != [(0, 0), (0, 0)]
+            && self.pipeline.is_full()
         {
-            debug!("IRQ available, switching to IRQ mode");
-
-            // we need to allow the MMIO to access the BIOS
-            // so the pipeline reloads the IRQ vector properly
-            self.mmio.enable_bios_access();
+            trace!("IRQ available, switching to IRQ mode");
 
             // copy CPSR to SPSR and switch to IRQ mode
             self.write_to_spsr(ProcessorMode::Irq, self.registers.cpsr);
@@ -125,12 +76,10 @@ impl Cpu {
             self.registers.cpsr.set(Psr::I, true);
             self.registers.cpsr.set(Psr::T, false);
 
-            //self.pipeline_reload(); pipeline is reloaded automatically when we write to R15
+            self.pipeline.flush();
 
             // allow cpu to continue
             self.mmio.io_halt_cnt.set(0xff);
-
-            println!("Switched to IRQ mode, PC: {:08x}", self.get_pc());
 
             return Err(CpuError::InterruptTriggered);
         }
@@ -143,84 +92,88 @@ impl Cpu {
             return Err(CpuError::CpuPaused);
         }
 
-        let (instruction, addr) = self.pipeline_advance();
+        if let Some((instruction, state)) = self.pipeline.pop() {
+            self.symbolizer.find(state.pc).map(|symbol| {
+                trace!("Found matching symbols @ PC: {}", symbol.join(", "));
+            });
 
-        if let Some(symbols) = self.symbolizer.find(addr) {
-            trace!("Found matching symbols @ PC: {}", symbols.join(", "));
-        }
+            trace!("Instruction: {:?}", instruction);
 
-        trace!("Instruction: {:?}", instruction);
-
-        // if self.is_thumb() {
-        //     trace!("Opcode: {:04x} | {:016b}", state.opcode as u16, state.opcode as u16);
-        // } else {
-        //     trace!("Opcode: {:08x} | {:032b}", state.opcode, state.opcode);
-        // }
-
-        #[cfg(not(feature = "verbose_debug"))]
-        debug!("[{:08x}] {:08x}: {}", state.opcode, state.pc, instruction);
-
-        #[cfg(feature = "verbose_debug")]
-        debug!(
-            "{:08x}: {: <50} [{}]",
-            addr,
-            format!("{}", instruction),
-            self.compact_registers()
-        );
-        debug!(
-            "pipeline: [{:08x} @ {:08x}, {:08x} @ {:08x}]",
-            self.pipeline[0].0, self.pipeline[0].1, self.pipeline[1].0, self.pipeline[1].1
-        );
-
-        // clear the last read/write addresses
-        self.mmio.last_rw_addr.clear();
-
-        match instruction.opcode {
-            Opcode::B | Opcode::Bl | Opcode::Bx => Handlers::branch(&instruction, self),
-            Opcode::Push | Opcode::Pop => Handlers::push_pop(&instruction, self),
-            Opcode::Cmp | Opcode::Tst | Opcode::Teq | Opcode::Cmn => Handlers::test(&instruction, self),
-            Opcode::Mov | Opcode::Mvn => Handlers::move_data(&instruction, self),
-            Opcode::Ldm | Opcode::Stm | Opcode::Ldr | Opcode::Str | Opcode::Swp => {
-                Handlers::load_store(&instruction, self)
-            }
-            Opcode::Mrs | Opcode::Msr => Handlers::psr_transfer(&instruction, self),
-            Opcode::Add
-            | Opcode::Adc
-            | Opcode::Sub
-            | Opcode::Sbc
-            | Opcode::Rsc
-            | Opcode::And
-            | Opcode::Orr
-            | Opcode::Eor
-            | Opcode::Rsb
-            | Opcode::Bic
-            | Opcode::Neg
-            | Opcode::Asr
-            | Opcode::Lsl
-            | Opcode::Lsr
-            | Opcode::Ror
-            | Opcode::Mul
-            | Opcode::Mla
-            | Opcode::Umull
-            | Opcode::Umlal
-            | Opcode::Smull
-            | Opcode::Smlal => Handlers::alu(&instruction, self),
-            Opcode::Swi => Handlers::software_interrupt(&instruction, self),
-        }
-
-        trace!("\n{}", self);
-
-        if !self.pipeline_reloaded {
             if self.is_thumb() {
-                self.registers.r[15] += 2;
+                trace!("Opcode: {:04x} | {:016b}", state.opcode as u16, state.opcode as u16);
             } else {
-                self.registers.r[15] += 4;
+                trace!("Opcode: {:08x} | {:032b}", state.opcode, state.opcode);
             }
-        } else {
-            self.pipeline_reloaded = false;
+
+            #[cfg(not(feature = "verbose_debug"))]
+            debug!("[{:08x}] {:08x}: {}", state.opcode, state.pc, instruction);
+
+            #[cfg(feature = "verbose_debug")]
+            debug!(
+                "[{:08x}] {:08x}: {: <50} [{}]",
+                state.opcode,
+                state.pc,
+                format!("{}", instruction),
+                self.compact_registers()
+            );
+
+            // clear the last read/write addresses
+            self.mmio.last_rw_addr.clear();
+
+            match instruction.opcode {
+                Opcode::B | Opcode::Bl | Opcode::Bx => Handlers::branch(&instruction, self),
+                Opcode::Push | Opcode::Pop => Handlers::push_pop(&instruction, self),
+                Opcode::Cmp | Opcode::Tst | Opcode::Teq | Opcode::Cmn => Handlers::test(&instruction, self),
+                Opcode::Mov | Opcode::Mvn => Handlers::move_data(&instruction, self),
+                Opcode::Ldm | Opcode::Stm | Opcode::Ldr | Opcode::Str | Opcode::Swp => {
+                    Handlers::load_store(&instruction, self)
+                }
+                Opcode::Mrs | Opcode::Msr => Handlers::psr_transfer(&instruction, self),
+                Opcode::Add
+                | Opcode::Adc
+                | Opcode::Sub
+                | Opcode::Sbc
+                | Opcode::Rsc
+                | Opcode::And
+                | Opcode::Orr
+                | Opcode::Eor
+                | Opcode::Rsb
+                | Opcode::Bic
+                | Opcode::Neg
+                | Opcode::Asr
+                | Opcode::Lsl
+                | Opcode::Lsr
+                | Opcode::Ror
+                | Opcode::Mul
+                | Opcode::Mla
+                | Opcode::Umull
+                | Opcode::Umlal
+                | Opcode::Smull
+                | Opcode::Smlal => Handlers::alu(&instruction, self),
+                Opcode::Swi => Handlers::software_interrupt(&instruction, self),
+            }
+
+            trace!("\n{}", self);
+
+            // do not increment PC if the pipeline has been flushed by an instruction
+            if !self.pipeline.is_empty() {
+                if self.is_thumb() {
+                    self.registers.r[15] += 2;
+                } else {
+                    self.registers.r[15] += 4;
+                }
+            }
+
+            return Ok((instruction, state));
         }
 
-        Ok((instruction, addr))
+        if self.is_thumb() {
+            self.registers.r[15] += 2;
+        } else {
+            self.registers.r[15] += 4;
+        }
+
+        Err(CpuError::NothingToDo)
     }
 
     #[cfg(feature = "verbose_debug")]
@@ -377,7 +330,7 @@ impl Cpu {
                 // since PC is a GP register, it can be freely written to
                 // we need to flush the pipeline if that's the case
                 self.registers.r[15] = if self.is_thumb() { value & !0b1 } else { value };
-                self.pipeline_reload();
+                self.pipeline.flush();
             }
             Register::Cpsr => {
                 self.registers.cpsr =
