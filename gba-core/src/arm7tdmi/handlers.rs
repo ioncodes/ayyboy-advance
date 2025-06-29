@@ -35,7 +35,7 @@ macro_rules! copy_spsr_to_cpsr_if_necessary {
         if *$rd == Register::R15 {
             let spsr = $cpu.read_register(&Register::Spsr);
             $cpu.write_register(&Register::Cpsr, spsr);
-            $cpu.pipeline.flush();
+            $cpu.pipeline_reload();
         }
     };
 }
@@ -83,7 +83,7 @@ impl Handlers {
             _ => todo!("{:?}", instr),
         }
 
-        cpu.pipeline.flush();
+        cpu.pipeline_reload();
     }
 
     pub fn software_interrupt(instr: &Instruction, cpu: &mut Cpu) {
@@ -117,7 +117,7 @@ impl Handlers {
             _ => todo!("{:?}", instr),
         }
 
-        cpu.pipeline.flush();
+        cpu.pipeline_reload();
     }
 
     pub fn push_pop(instr: &Instruction, cpu: &mut Cpu) {
