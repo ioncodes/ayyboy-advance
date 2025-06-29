@@ -35,7 +35,7 @@ macro_rules! copy_spsr_to_cpsr_if_necessary {
         if *$rd == Register::R15 {
             let spsr = $cpu.read_register(&Register::Spsr);
             $cpu.write_register(&Register::Cpsr, spsr);
-            $cpu.pipeline.flush();
+            //$cpu.pipeline.flush(); VERIFYME: we don't have to flush, write register R15 will do it for us
         }
     };
 }

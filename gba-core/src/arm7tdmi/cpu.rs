@@ -33,7 +33,8 @@ impl Cpu {
         let IoRegister(ime_value) = self.mmio.io_ime;
         let IoRegister(halt_cnt) = self.mmio.io_halt_cnt;
 
-        if self.get_pc() < 0x0000_4000 {
+        // TODO: do we need the IRQ check here?
+        if self.get_pc() < 0x0000_4000 || self.get_processor_mode() == ProcessorMode::Irq {
             self.mmio.enable_bios_access();
         } else {
             self.mmio.disable_bios_access();
@@ -76,7 +77,7 @@ impl Cpu {
             self.registers.cpsr.set(Psr::I, true);
             self.registers.cpsr.set(Psr::T, false);
 
-            self.pipeline.flush();
+            //self.pipeline.flush(); VERIFYME: we don't have to flush, write register R15 will do it for us
 
             // allow cpu to continue
             self.mmio.io_halt_cnt.set(0xff);

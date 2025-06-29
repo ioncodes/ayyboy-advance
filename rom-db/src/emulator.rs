@@ -69,6 +69,7 @@ impl Emulator {
             self.cpu.mmio.tick_components();
 
             if self.cpu.mmio.ppu.scanline.0 == 160 && !self.frame_rendered {
+                self.frame_rendered = true;
                 return Some(self.cpu.mmio.ppu.get_frame());
             } else if self.cpu.mmio.ppu.scanline.0 == 0 && self.frame_rendered {
                 self.frame_rendered = false;
