@@ -177,6 +177,21 @@ impl Cpu {
         Err(CpuError::NothingToDo)
     }
 
+    pub fn skip_bios(&mut self) {
+        // Initialize CPU state (post BIOS)
+        self.set_processor_mode(ProcessorMode::Irq);
+        self.write_register(&Register::R13, 0x03007fa0);
+        self.set_processor_mode(ProcessorMode::Supervisor);
+        self.write_register(&Register::R13, 0x03007fe0);
+        self.set_processor_mode(ProcessorMode::User);
+        self.write_register(&Register::R13, 0x03007f00);
+        self.set_processor_mode(ProcessorMode::System);
+        self.write_register(&Register::R13, 0x03007f00);
+        self.write_register(&Register::R14, 0x08000000);
+        self.write_register(&Register::R15, 0x08000000);
+        self.mmio.io_postflg.write(0x01);
+    }
+
     #[cfg(feature = "verbose_debug")]
     fn compact_registers(&self) -> String {
         format!(

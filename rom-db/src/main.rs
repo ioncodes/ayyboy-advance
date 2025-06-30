@@ -21,10 +21,15 @@ fn emulate_rom(rom_path: String, output_path: String) {
     std::fs::create_dir_all(&output_path).expect("Failed to create output directory");
 
     let mut emulator = Emulator::new(rom_path);
+    let mut toggle_joypad = false;
 
-    for i in 0usize..500_000 {
+    for i in 0usize..10000 {
         if let Some(frame) = emulator.run_to_frame() {
-            if i % 100_000 == 0 {
+            if i == 5000 {
+                toggle_joypad = true;
+            }
+
+            if i % 500 == 0 && toggle_joypad {
                 emulator
                     .cpu
                     .mmio
@@ -36,7 +41,7 @@ fn emulate_rom(rom_path: String, output_path: String) {
                 );
             }
 
-            if i % 20_000 == 0 {
+            if i % 1000 == 0 {
                 let image_path = format!("{}/{}.png", output_path, i);
                 write_png(&frame, &image_path);
             }

@@ -1,7 +1,5 @@
 use gba_core::arm7tdmi::cpu::Cpu;
-use gba_core::arm7tdmi::decoder::Register;
 use gba_core::arm7tdmi::error::CpuError;
-use gba_core::arm7tdmi::mode::ProcessorMode;
 use gba_core::memory::mmio::Mmio;
 use gba_core::video::Frame;
 use std::fs::File;
@@ -32,18 +30,7 @@ impl Emulator {
         mmio.load(0x08000000, &rom_data);
 
         let mut cpu = Cpu::new(&[], mmio);
-
-        // Initialize CPU state (post BIOS)
-        cpu.set_processor_mode(ProcessorMode::Irq);
-        cpu.write_register(&Register::R13, 0x03007fa0);
-        cpu.set_processor_mode(ProcessorMode::Supervisor);
-        cpu.write_register(&Register::R13, 0x03007fe0);
-        cpu.set_processor_mode(ProcessorMode::User);
-        cpu.write_register(&Register::R13, 0x03007f00);
-        cpu.set_processor_mode(ProcessorMode::System);
-        cpu.write_register(&Register::R13, 0x03007f00);
-        cpu.write_register(&Register::R14, 0x08000000);
-        cpu.write_register(&Register::R15, 0x08000000);
+        cpu.skip_bios();
 
         Self {
             cpu,
