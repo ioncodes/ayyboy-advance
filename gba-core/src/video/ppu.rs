@@ -617,7 +617,8 @@ impl Ppu {
     fn render_background_mode0(&self, sprite_frame: &Vec<(usize, Pixel)>) -> Frame {
         trace!("Rendering background mode 0");
 
-        let mut frame = [[Pixel::Transparent; SCREEN_WIDTH]; SCREEN_HEIGHT];
+        let palette = self.fetch_palette();
+        let mut frame = [[palette[0]; SCREEN_WIDTH]; SCREEN_HEIGHT];
 
         // this list is sorted by priority
         let bg_cnts = self.effective_backgrounds();
