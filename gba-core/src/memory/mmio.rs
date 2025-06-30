@@ -33,10 +33,10 @@ pub struct Mmio {
     pub io_halt_cnt: IoRegister<u8>,  // HALTCNT
     pub io_postflg: IoRegister<u8>,   // POSTFLG
     // other
-    pub last_rw_addr: Vec<u32>,                  // track the last read/write addresses
-    origin_write_length: Option<TransferLength>, // cache this for cases like 8bit VRAM mirrored writes
-    executing_bios: bool,
-    openbus_bios: u32,
+    pub last_rw_addr: Vec<u32>,                      // track the last read/write addresses
+    pub origin_write_length: Option<TransferLength>, // cache this for cases like 8bit VRAM mirrored writes
+    pub executing_bios: bool,
+    pub openbus_bios: u32,
 }
 
 impl Mmio {
@@ -60,7 +60,7 @@ impl Mmio {
             origin_write_length: None,
             last_rw_addr: Vec::new(), // initialize last_rw_addr to zero
             executing_bios: true,
-            openbus_bios: 0xE129F000, // initial openbus value after BIOS execution
+            openbus_bios: 0,
         }
     }
 

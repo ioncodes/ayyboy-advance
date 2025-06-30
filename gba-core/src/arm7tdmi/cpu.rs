@@ -190,6 +190,8 @@ impl Cpu {
         self.write_register(&Register::R14, 0x08000000);
         self.write_register(&Register::R15, 0x08000000);
         self.mmio.io_postflg.write(0x01);
+        self.mmio.openbus_bios = 0xE129F000; // initial openbus value after BIOS execution
+        self.mmio.disable_bios_access();
     }
 
     #[cfg(feature = "verbose_debug")]
