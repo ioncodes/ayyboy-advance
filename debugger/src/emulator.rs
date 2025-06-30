@@ -66,7 +66,7 @@ impl Emulator {
             Vec::new()
         };
 
-        let mut cpu = Cpu::new(&elf_data, mmio);
+        let cpu = Cpu::new(&elf_data, mmio);
         let mut script_engine = ScriptEngine::new();
 
         // Load script if provided
@@ -76,18 +76,6 @@ impl Emulator {
             info!("Successfully loaded script: {}", path.display());
         }
 
-        // Initialize CPU state (post BIOS)
-        cpu.set_processor_mode(ProcessorMode::Irq);
-        cpu.write_register(&Register::R13, 0x03007fa0);
-        cpu.set_processor_mode(ProcessorMode::Supervisor);
-        cpu.write_register(&Register::R13, 0x03007fe0);
-        cpu.set_processor_mode(ProcessorMode::User);
-        cpu.write_register(&Register::R13, 0x03007f00);
-        cpu.set_processor_mode(ProcessorMode::System);
-        cpu.write_register(&Register::R13, 0x03007f00);
-        cpu.write_register(&Register::R14, 0x08000000);
-        cpu.write_register(&Register::R15, 0x08000000);
-
         Self {
             cpu,
             script_engine,
@@ -96,6 +84,22 @@ impl Emulator {
             dbg_resp_tx,
             rom_title,
         }
+    }
+
+    #[allow(dead_code)]
+    pub fn skip_bios(&mut self) {
+        // Initialize CPU state (post BIOS)
+        self.cpu.set_processor_mode(ProcessorMode::Irq);
+        self.cpu.write_register(&Register::R13, 0x03007fa0);
+        self.cpu.set_processor_mode(ProcessorMode::Supervisor);
+        self.cpu.write_register(&Register::R13, 0x03007fe0);
+        self.cpu.set_processor_mode(ProcessorMode::User);
+        self.cpu.write_register(&Register::R13, 0x03007f00);
+        self.cpu.set_processor_mode(ProcessorMode::System);
+        self.cpu.write_register(&Register::R13, 0x03007f00);
+        self.cpu.write_register(&Register::R14, 0x08000000);
+        self.cpu.write_register(&Register::R15, 0x08000000);
+        self.cpu.mmio.io_postflg.write(0x01);
     }
 
     pub fn run(&mut self) {

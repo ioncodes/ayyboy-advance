@@ -31,6 +31,7 @@ pub struct Mmio {
     pub io_ie: IoRegister<Interrupt>, // IE
     pub io_if: IoRegister<Interrupt>, // IF
     pub io_halt_cnt: IoRegister<u8>,  // HALTCNT
+    pub io_postflg: IoRegister<u8>,   // POSTFLG
     // other
     pub last_rw_addr: Vec<u32>,                  // track the last read/write addresses
     origin_write_length: Option<TransferLength>, // cache this for cases like 8bit VRAM mirrored writes
@@ -55,9 +56,10 @@ impl Mmio {
             io_ie: IoRegister::default(),
             io_if: IoRegister::default(),
             io_halt_cnt: IoRegister(0xff),
+            io_postflg: IoRegister::default(),
             origin_write_length: None,
             last_rw_addr: Vec::new(), // initialize last_rw_addr to zero
-            executing_bios: false,    // TODO: we skip the bios for now
+            executing_bios: true,
             openbus_bios: 0xE129F000, // initial openbus value after BIOS execution
         }
     }
@@ -175,7 +177,7 @@ impl Mmio {
             0x04000202..=0x04000203 => self.io_if.read(addr),  // Interrupt Flag
             0x04000208..=0x04000209 => self.io_ime.read(addr), // Interrupt Master Enable
             0x04000301 => self.io_halt_cnt.read(),             // HALTCNT
-            0x04000300 => 1, // "After initial reset, the GBA BIOS initializes the register to 01h"
+            0x04000300 => self.io_postflg.read(), // POSTFLG -> "After initial reset, the GBA BIOS initializes the register to 01h"
             // Internal and External Memory
             0x00000000..=0x00003FFF if self.executing_bios => self.internal_memory[addr as usize],
             0x00000000..=0x00003FFF if !self.executing_bios => {
@@ -267,7 +269,8 @@ impl Mmio {
             0x04000202..=0x04000203 => self.io_if.write(addr, value), // Interrupt Flag
             0x04000208..=0x04000209 => self.io_ime.write(addr, value), // Interrupt Master Enable
             0x0400020A..=0x0400020B => self.internal_memory[addr as usize] = value, // Unused
-            0x04000301 => self.io_halt_cnt.write(value),            // HALTCNT
+            0x04000300 => self.io_postflg.write(value), // POSTFLG -> "After initial reset, the GBA BIOS initializes the register to 01h"
+            0x04000301 => self.io_halt_cnt.write(value), // HALTCNT
             0x04000000..=0x040003FE => {
                 error!("Unmapped I/O write: {:02x} to {:08x}", value, addr);
                 self.internal_memory[addr as usize] = value; // Unmapped I/O region
