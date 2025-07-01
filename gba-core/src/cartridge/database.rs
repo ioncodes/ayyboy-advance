@@ -1249,6 +1249,7 @@ pub static TITLE_DATABASE: phf::Map<&'static str, (u8, &'static str)> = phf_map!
     "AXXP" => (0x00, "Santa Claus Jr. Advance"),
     "AUZE" => (0x0F, "Santa Claus Saves the Earth"),
     "A57J" => (0x0E, "Scan Hunter - Sennen Kaigyo wo Oe!"),
+    "AP8P" => (0x02, "Scooby-Doo"),
     "AP8E" => (0x00, "Scooby-Doo - The Motion Picture"),
     "BMUE" => (0x0F, "Scooby-Doo 2 - Monsters Unleashed"),
     "ASDE" => (0x0F, "Scooby-Doo and the Cyber Chase"),

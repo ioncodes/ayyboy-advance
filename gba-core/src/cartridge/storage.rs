@@ -1,4 +1,4 @@
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub enum BackupType {
     Eeprom4k,
     Eeprom64k,
