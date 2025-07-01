@@ -18,7 +18,8 @@ use log::*;
 const EWRAM_SIZE: u32 = 0x40000; // 256 KiB
 const IWRAM_SIZE: u32 = 0x8000; // 32 KiB
 const PALETTE_SIZE: u32 = 0x400; // 1 KiB
-const VRAM_SIZE: u32 = 0x20000; // 128 KiB. // VRAM is 96 KiB, but it mirrors every 128 KiB
+const VRAM_PHYS_SIZE: u32 = 0x18000;
+const VRAM_WINDOW_SIZE: u32 = 0x20000; // 128 KiB
 const OAM_SIZE: u32 = 0x400; // 1 KiB
 
 pub struct Mmio {
@@ -220,8 +221,14 @@ impl Mmio {
                 let addr = match addr {
                     // Pallete RAM – mirrors every 1 KiB in 0x05000000‑0x050003FF
                     0x05000000..=0x05FFFFFF => 0x05000000 + ((addr - 0x05000000) % PALETTE_SIZE),
-                    // VRAM – mirrors every 128 KiB in 0x06000000‑06017FFF (96 KiB)
-                    0x06000000..=0x06FFFFFF => 0x06000000 + ((addr - 0x06000000) % VRAM_SIZE),
+                    // VRAM – 96 KiB + 32 KiB mirror inside each 128 KiB window
+                    0x06000000..=0x06FFFFFF => {
+                        let mut offset = (addr - 0x0600_0000) % VRAM_WINDOW_SIZE;
+                        if offset >= VRAM_PHYS_SIZE {
+                            offset -= 0x0080_00;
+                        }
+                        0x0600_0000 + offset
+                    }
                     // OAM – mirrors every 1 KiB in 0x07000000‑0x070003FF
                     0x07000000..=0x07FFFFFF => 0x07000000 + ((addr - 0x07000000) % OAM_SIZE),
                     _ => addr,
@@ -299,8 +306,14 @@ impl Mmio {
                 let addr = match addr {
                     // Pallete RAM – mirrors every 1 KiB in 0x05000000‑0x050003FF
                     0x05000000..=0x05FFFFFF => 0x05000000 + ((addr - 0x05000000) % PALETTE_SIZE),
-                    // VRAM – mirrors every 96 KiB in 0x06000000‑06017FFF
-                    0x06000000..=0x06FFFFFF => 0x06000000 + ((addr - 0x06000000) % VRAM_SIZE),
+                    // VRAM – 96 KiB + 32 KiB mirror inside each 128 KiB window
+                    0x06000000..=0x06FFFFFF => {
+                        let mut offset = (addr - 0x0600_0000) % VRAM_WINDOW_SIZE;
+                        if offset >= VRAM_PHYS_SIZE {
+                            offset -= 0x0080_00;
+                        }
+                        0x0600_0000 + offset
+                    }
                     // OAM – mirrors every 1 KiB in 0x07000000‑0x070003FF
                     0x07000000..=0x07FFFFFF => 0x07000000 + ((addr - 0x07000000) % OAM_SIZE),
                     _ => addr,
