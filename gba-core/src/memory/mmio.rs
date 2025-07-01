@@ -218,6 +218,9 @@ impl Mmio {
                 self.internal_memory[addr as usize]
             }
             0x05000000..=0x07FFFFFF => {
+                let dispcnt = self.ppu.disp_cnt.value();
+                let bg_mode = dispcnt.bg_mode();
+
                 let addr = match addr {
                     // Pallete RAM – mirrors every 1 KiB in 0x05000000‑0x050003FF
                     0x05000000..=0x05FFFFFF => 0x05000000 + ((addr - 0x05000000) % PALETTE_SIZE),
@@ -229,8 +232,10 @@ impl Mmio {
                         }
                         0x0600_0000 + offset
                     }
+                    // Lower 16 KiB of OAM is used for backgrounds in modes 3-5
+                    0x07000000..=0x07004000 if bg_mode >= 3 => addr,
                     // OAM – mirrors every 1 KiB in 0x07000000‑0x070003FF
-                    0x07000000..=0x07FFFFFF => 0x07000000 + ((addr - 0x07000000) % OAM_SIZE),
+                    0x07000000..=0x07FFFFFF if bg_mode < 3 => 0x07000000 + ((addr - 0x07000000) % OAM_SIZE),
                     _ => addr,
                 };
                 self.ppu.read(addr)
@@ -303,6 +308,9 @@ impl Mmio {
                 self.internal_memory[addr as usize] = value;
             }
             0x05000000..=0x07FFFFFF => {
+                let dispcnt = self.ppu.disp_cnt.value();
+                let bg_mode = dispcnt.bg_mode();
+
                 let addr = match addr {
                     // Pallete RAM – mirrors every 1 KiB in 0x05000000‑0x050003FF
                     0x05000000..=0x05FFFFFF => 0x05000000 + ((addr - 0x05000000) % PALETTE_SIZE),
@@ -314,6 +322,8 @@ impl Mmio {
                         }
                         0x0600_0000 + offset
                     }
+                    // Lower 16 KiB of OAM is used for backgrounds in modes 3-5
+                    0x07000000..=0x07004000 if bg_mode >= 3 => addr,
                     // OAM – mirrors every 1 KiB in 0x07000000‑0x070003FF
                     0x07000000..=0x07FFFFFF => 0x07000000 + ((addr - 0x07000000) % OAM_SIZE),
                     _ => addr,
