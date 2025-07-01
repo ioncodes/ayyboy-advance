@@ -1,3 +1,4 @@
+#[derive(Clone, Copy)]
 pub enum BackupType {
     Eeprom4k,
     Eeprom64k,
@@ -28,6 +29,22 @@ impl BackupType {
                 0x1362 => "Sanyo",
                 _ => unreachable!(),
             },
+            _ => unreachable!(),
+        }
+    }
+
+    pub fn manufacturer_id(&self) -> u8 {
+        match self {
+            BackupType::Flash512k { chip_id, .. } => *chip_id as u8,
+            BackupType::Flash1m { chip_id, .. } => *chip_id as u8,
+            _ => unreachable!(),
+        }
+    }
+
+    pub fn device_id(&self) -> u8 {
+        match self {
+            BackupType::Flash512k { chip_id, .. } => (*chip_id >> 8) as u8,
+            BackupType::Flash1m { chip_id, .. } => (*chip_id >> 8) as u8,
             _ => unreachable!(),
         }
     }

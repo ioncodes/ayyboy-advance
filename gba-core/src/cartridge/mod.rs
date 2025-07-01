@@ -1,6 +1,7 @@
 use crate::memory::device::Addressable;
 
 pub mod database;
+pub mod flash;
 pub mod sram;
 pub mod storage;
 

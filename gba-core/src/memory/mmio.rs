@@ -5,6 +5,7 @@ use super::dma::Dma;
 use crate::arm7tdmi::decoder::TransferLength;
 use crate::arm7tdmi::timer::Timers;
 use crate::audio::apu::Apu;
+use crate::cartridge::flash::Flash;
 use crate::cartridge::sram::Sram;
 use crate::cartridge::storage::BackupType;
 use crate::cartridge::StorageChip;
@@ -47,8 +48,9 @@ impl Mmio {
         let internal_memory = Box::<[u8; 0x05000000]>::new_zeroed();
         let external_memory = Box::<[u8; 0x06000000]>::new_zeroed();
 
-        let storage_chip = match backup_type {
+        let storage_chip: Box<dyn StorageChip> = match backup_type {
             BackupType::Sram => Box::new(Sram::new()),
+            BackupType::Flash512k { .. } | BackupType::Flash1m { .. } => Box::new(Flash::new(backup_type.clone())),
             _ => {
                 error!("Unsupported backup type: {}, defaulting to SRAM", backup_type);
                 Box::new(Sram::new())
