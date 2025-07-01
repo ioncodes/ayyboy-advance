@@ -1,5 +1,5 @@
 use goblin::Object;
-use log::{error, info};
+use log::info;
 use std::collections::HashMap;
 
 pub struct Symbolizer {
@@ -12,10 +12,6 @@ impl Symbolizer {
             Ok(Object::Elf(elf)) => elf,
             _ => {
                 // If the buffer is empty, we'll assume no ELF was found
-                if buffer.len() > 0 {
-                    error!("Input ELF is not a valid ELF file");
-                }
-
                 return Symbolizer {
                     symbols: HashMap::new(),
                 };

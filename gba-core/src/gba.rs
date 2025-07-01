@@ -1,6 +1,5 @@
 use crate::arm7tdmi::cpu::Cpu;
 use crate::cartridge::database::TITLE_DATABASE;
-use crate::cartridge::storage::BackupType;
 use crate::memory::mmio::Mmio;
 use crate::script::engine::ScriptEngine;
 use log::{error, info};
@@ -10,19 +9,10 @@ pub struct Gba {
     pub cpu: Cpu,
     pub script_engine: Option<ScriptEngine>,
     pub rom_title: String,
-    pub save_type: BackupType,
 }
 
 impl Gba {
     pub fn new(rom_data: &[u8], elf_data: &[u8]) -> Self {
-        let mut mmio = Mmio::new();
-        mmio.load(0x00000000, include_bytes!("../../external/gba_bios.bin"));
-
-        // Load ROM into memory
-        mmio.load(0x08000000, &rom_data);
-
-        let cpu = Cpu::new(&elf_data, mmio);
-
         // Extract game code
         let game_code = String::from_utf8_lossy(&rom_data[0xac..0xac + 4]).to_string();
         let game_title = String::from_utf8_lossy(&rom_data[0xa0..0xa0 + 12]).to_string(); // use as backup
@@ -41,11 +31,18 @@ impl Gba {
             });
         info!("Save Type: {}", save_type);
 
+        let mut mmio = Mmio::new(save_type);
+        mmio.load(0x00000000, include_bytes!("../../external/gba_bios.bin"));
+
+        // Load ROM into memory
+        mmio.load(0x08000000, &rom_data);
+
+        let cpu = Cpu::new(&elf_data, mmio);
+
         Gba {
             cpu,
             script_engine: None,
             rom_title,
-            save_type,
         }
     }
 

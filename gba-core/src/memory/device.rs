@@ -2,7 +2,7 @@ use bitflags::Flags;
 use log::trace;
 
 #[allow(dead_code)]
-pub trait Addressable {
+pub trait Addressable: Send {
     fn read(&self, addr: u32) -> u8;
     fn write(&mut self, addr: u32, value: u8);
 
@@ -38,7 +38,9 @@ pub trait Addressable {
         self.write(addr + 2, c);
         self.write(addr + 3, d);
     }
+}
 
+pub trait ParseableAsFlags: Addressable {
     fn read_as<T: Flags<Bits = u16>>(&self, addr: u32) -> T {
         T::from_bits_truncate(self.read_u16(addr))
     }
@@ -123,7 +125,7 @@ where
 
 impl<T> Addressable for IoRegister<T>
 where
-    T: Flags<Bits = u16> + Copy,
+    T: Flags<Bits = u16> + Copy + Send,
 {
     fn read(&self, addr: u32) -> u8 {
         if addr % 2 == 0 {

@@ -116,7 +116,10 @@ impl Emulator {
                     };
                     memory[..=0x04FFFFFF].copy_from_slice(&self.gba.cpu.mmio.internal_memory[..]);
                     memory[0x05000000..=0x07FFFFFF].copy_from_slice(&self.gba.cpu.mmio.ppu.vram[..]);
-                    memory[0x08000000..=0x0FFFFFFF].copy_from_slice(&self.gba.cpu.mmio.external_memory[..]);
+                    memory[0x08000000..=0x0DFFFFFF].copy_from_slice(&self.gba.cpu.mmio.external_memory[..]);
+                    for (idx, value) in self.gba.cpu.mmio.storage_chip.storage().iter().enumerate() {
+                        memory[0x0E000000 + idx] = *value;
+                    }
                     let _ = self.dbg_resp_tx.send(ResponseEvent::Memory(memory));
                     EventResult::None
                 }

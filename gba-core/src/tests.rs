@@ -3,6 +3,7 @@ mod tests {
     use crate::arm7tdmi::cpu::Cpu;
     use crate::arm7tdmi::decoder::{Instruction, Register};
     use crate::arm7tdmi::mode::ProcessorMode;
+    use crate::cartridge::storage::BackupType;
     use crate::memory::mmio::Mmio;
 
     const BIOS: &[u8] = include_bytes!("../../external/gba_bios.bin");
@@ -10,7 +11,7 @@ mod tests {
 
     #[test]
     fn run_arm_gba() {
-        let mut mmio = Mmio::new();
+        let mut mmio = Mmio::new(BackupType::Sram);
         mmio.load(0x00000000, BIOS); // bios addr
         mmio.load(0x08000000, ARM_TEST); // gamepak addr
 

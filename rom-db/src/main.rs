@@ -31,13 +31,14 @@ fn emulate_rom(rom_path: String, output_path: String) {
 
             if i % 500 == 0 && toggle_joypad {
                 emulator
+                    .gba
                     .cpu
                     .mmio
                     .joypad
-                    .set_key_state(KeyInput::A, !emulator.cpu.mmio.joypad.is_key_pressed(KeyInput::A));
-                emulator.cpu.mmio.joypad.set_key_state(
+                    .set_key_state(KeyInput::A, !emulator.gba.cpu.mmio.joypad.is_key_pressed(KeyInput::A));
+                emulator.gba.cpu.mmio.joypad.set_key_state(
                     KeyInput::START,
-                    !emulator.cpu.mmio.joypad.is_key_pressed(KeyInput::START),
+                    !emulator.gba.cpu.mmio.joypad.is_key_pressed(KeyInput::START),
                 );
             }
 

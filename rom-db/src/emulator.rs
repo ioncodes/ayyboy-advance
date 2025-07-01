@@ -1,21 +1,17 @@
-use gba_core::arm7tdmi::cpu::Cpu;
 use gba_core::arm7tdmi::error::CpuError;
-use gba_core::memory::mmio::Mmio;
+use gba_core::gba::Gba;
 use gba_core::video::Frame;
 use std::fs::File;
 use std::io::{Cursor, Read};
 use zip::ZipArchive;
 
 pub struct Emulator {
-    pub cpu: Cpu,
+    pub gba: Gba,
     frame_rendered: bool,
 }
 
 impl Emulator {
     pub fn new(rom_path: String) -> Self {
-        let mut mmio = Mmio::new();
-        mmio.load(0x00000000, include_bytes!("../../external/gba_bios.bin"));
-
         // Load ROM from file
         let mut rom_data = Vec::new();
         let mut rom_file = File::open(&rom_path).expect("Failed to open ROM file");
@@ -26,14 +22,11 @@ impl Emulator {
             rom_data = Self::unzip_archive(&rom_data);
         }
 
-        // Load ROM into memory
-        mmio.load(0x08000000, &rom_data);
-
-        let mut cpu = Cpu::new(&[], mmio);
-        cpu.skip_bios();
+        let mut gba = Gba::new(&rom_data, &[]);
+        gba.cpu.skip_bios();
 
         Self {
-            cpu,
+            gba,
             frame_rendered: false,
         }
     }
@@ -49,16 +42,16 @@ impl Emulator {
 
             i += 1;
 
-            match self.cpu.tick() {
+            match self.gba.cpu.tick() {
                 Err(CpuError::FailedToDecode) => return None,
                 _ => {}
             }
-            self.cpu.mmio.tick_components();
+            self.gba.cpu.mmio.tick_components();
 
-            if self.cpu.mmio.ppu.scanline.0 == 160 && !self.frame_rendered {
+            if self.gba.cpu.mmio.ppu.scanline.0 == 160 && !self.frame_rendered {
                 self.frame_rendered = true;
-                return Some(self.cpu.mmio.ppu.get_frame());
-            } else if self.cpu.mmio.ppu.scanline.0 == 0 && self.frame_rendered {
+                return Some(self.gba.cpu.mmio.ppu.get_frame());
+            } else if self.gba.cpu.mmio.ppu.scanline.0 == 0 && self.frame_rendered {
                 self.frame_rendered = false;
             }
         }

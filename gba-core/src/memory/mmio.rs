@@ -5,6 +5,9 @@ use super::dma::Dma;
 use crate::arm7tdmi::decoder::TransferLength;
 use crate::arm7tdmi::timer::Timers;
 use crate::audio::apu::Apu;
+use crate::cartridge::sram::Sram;
+use crate::cartridge::storage::BackupType;
+use crate::cartridge::StorageChip;
 use crate::input::joypad::Joypad;
 use crate::memory::registers::{AddrControl, DmaTrigger, Interrupt};
 use crate::video::ppu::{Ppu, PpuEvent};
@@ -16,16 +19,16 @@ const IWRAM_SIZE: u32 = 0x8000; // 32 KiB
 const PALETTE_SIZE: u32 = 0x400; // 1 KiB
 const VRAM_SIZE: u32 = 0x20000; // 128 KiB. // VRAM is 96 KiB, but it mirrors every 128 KiB
 const OAM_SIZE: u32 = 0x400; // 1 KiB
-const SRAM_SIZE: u32 = 0x8000; // 32 KiB
 
 pub struct Mmio {
     pub internal_memory: Box<[u8; 0x04FFFFFF + 1]>,
-    pub external_memory: Box<[u8; (0x0FFFFFFF - 0x08000000) + 1]>,
+    pub external_memory: Box<[u8; (0x0DFFFFFF - 0x08000000) + 1]>,
     pub ppu: Ppu,
     pub joypad: Joypad,
     pub apu: Apu,
     pub dma: Dma,
     pub timers: Timers,
+    pub storage_chip: Box<dyn StorageChip>, // Storage chip, e.g. SRAM, EEPROM, Flash
     // I/O registers
     pub io_ime: IoRegister,           // IME
     pub io_ie: IoRegister<Interrupt>, // IE
@@ -40,9 +43,17 @@ pub struct Mmio {
 }
 
 impl Mmio {
-    pub fn new() -> Mmio {
+    pub fn new(backup_type: BackupType) -> Mmio {
         let internal_memory = Box::<[u8; 0x05000000]>::new_zeroed();
-        let external_memory = Box::<[u8; 0x08000000]>::new_zeroed();
+        let external_memory = Box::<[u8; 0x06000000]>::new_zeroed();
+
+        let storage_chip = match backup_type {
+            BackupType::Sram => Box::new(Sram::new()),
+            _ => {
+                error!("Unsupported backup type: {}, defaulting to SRAM", backup_type);
+                Box::new(Sram::new())
+            }
+        };
 
         Mmio {
             internal_memory: unsafe { internal_memory.assume_init() },
@@ -52,6 +63,7 @@ impl Mmio {
             apu: Apu::new(),
             dma: Dma::new(),
             timers: Timers::new(),
+            storage_chip,
             io_ime: IoRegister::default(),
             io_ie: IoRegister::default(),
             io_if: IoRegister::default(),
@@ -217,11 +229,7 @@ impl Mmio {
             0x08000000..=0x09FFFFFF => self.external_memory[(addr - 0x08000000) as usize],
             0x0A000000..=0x0BFFFFFF => self.external_memory[(addr - 0x0A000000) as usize], // Mirror of 0x08000000..=0x09FFFFFF
             0x0C000000..=0x0DFFFFFF => self.external_memory[(addr - 0x0C000000) as usize], // Mirror of 0x08000000..=0x09FFFFFF
-            0x0E000000..=0x0FFFFFFF => {
-                // GamePak SRAM – mirrors every 32 KiB in 0x0E000000‑0x0FFFFFFF
-                let addr = 0x08000000 + ((addr - 0x0E000000) % SRAM_SIZE);
-                self.external_memory[(addr - 0x08000000) as usize]
-            }
+            0x0E000000..=0x0FFFFFFF => self.storage_chip.read(addr),
             _ => {
                 error!("Reading from unmapped memory address: {:08x}", addr);
                 0x69
@@ -313,7 +321,7 @@ impl Mmio {
             0x08000000..=0x09FFFFFF => warn!("Writing to GamePak memory: {:02x} to {:08x}", value, addr),
             0x0A000000..=0x0BFFFFFF => warn!("Writing to GamePak memory: {:02x} to {:08x}", value, addr), // Mirror of 0x08000000..=0x09FFFFFF
             0x0C000000..=0x0DFFFFFF => warn!("Writing to GamePak memory: {:02x} to {:08x}", value, addr), // Mirror of 0x08000000..=0x09FFFFFF
-            0x0E000000..=0x0FFFFFFF => self.external_memory[(addr - 0x08000000) as usize] = value, // GamePak SRAM
+            0x0E000000..=0x0FFFFFFF => self.storage_chip.write(addr, value),
             _ => {
                 error!("Writing to unmapped memory address: {:08x}", addr);
             }
