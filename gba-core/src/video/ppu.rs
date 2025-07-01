@@ -494,6 +494,9 @@ impl Ppu {
 
         let mut frame = vec![(5, Pixel::Transparent); SCREEN_WIDTH * SCREEN_HEIGHT];
 
+        let lcd_control = self.disp_cnt.value();
+        let bg_mode = lcd_control.bg_mode();
+
         let palette = self.fetch_palette();
         let obj_palette = &palette[256..512];
 
@@ -552,6 +555,14 @@ impl Ppu {
                     let src_ty = if attr1.y_flip() { tiles_y - 1 - ty } else { ty };
 
                     let mut tile_nr = (attr2.tile_number() + src_ty * tiles_per_row + src_tx) as u32;
+
+                    // https://problemkaputt.de/gbatek.htm#lcdobjoamattributes
+                    // 2. When using BG Mode 3-5 (Bitmap Modes), only tile numbers 512-1023 may be used.
+                    // That is because lower 16K of OBJ memory are used for BG. Attempts to use tiles 0-511 are ignored (not displayed).
+                    if bg_mode >= 3 && bg_mode <= 5 && tile_nr < 512 {
+                        continue;
+                    }
+
                     if attr0.bpp() == ColorDepth::Bpp8 {
                         // 1d 8bpp wrap
                         tile_nr &= 0x3FF;
