@@ -5,14 +5,14 @@ ayyboy's big brother
 | :------------------------------------------------------------------------------------------------------------: | :---------------------------------------------------------------------------------------: |
 | ![screenshot_20250531_001016](https://github.com/user-attachments/assets/570c7d4b-a593-4633-b7eb-474f98fd7ed8) | ![image](https://github.com/user-attachments/assets/ba13412a-61ee-486c-9bbc-96bc61e4cf44) |
 
-## setup
+## Setup
 ```bash
 # place BIOS in external/gba_bios.bin
 cargo build --release      # disables all logs at compile time
 cargo build --profile dev  # logs all levels <=INFO by default, opt-level 3 for performance
 ```
 
-## usage
+## Usage
 ```
 Usage: ayydbg.exe [OPTIONS] --rom <ROM>
 
@@ -24,24 +24,23 @@ Options:
   -h, --help             Print help
 ```
 
-### rom-db & rom-db-ui
+### Scripting
+ayyboy advance support's [Rhai](https://rhai.rs/) scripts. These scripts allow you to execute a given "handler" on certain events, namely:
+* Whenever the CPU executes an instruction at a given address
+* Whenever the MMIO writes to or reads from a given address (janky implementation)
+
+Refer to the [`scripts` folder](https://github.com/ioncodes/ayyboy-advance/tree/master/scripts) for examples. In particular, `dump_swi.rhai` is noteworthy as it logs every BIOS call.
+
+### Screenshot Database
 `rom-db` runs every `.zip` and `.gba` found in a given folder and takes a few screenshots every now and then. These are saved in `rom-db-ui/public/screenshots`:
 ```bash
 # inside of rom-db-ui
 npm install
 npm run build # prod build is recommended for speed
-npm run start
+npx serve@latest out
 ```
 
 A snapshot of screenshots can be found in `external/screenshots.zip`. You can unpack these in the aforementioned folder.
 
-## compatibility
-passes:
-* armwrestler
-
-games:
-* OpenLara
-* Wolfenstein 3D
-* Kirby - Nightmare in Dream Land
-* More, but I'm too lazy to update atm
-* some other games that use mode 3-5, maybe a few with mode 0 as well
+## Compatibility
+Currently passes [`armwrestler`](https://github.com/destoer/armwrestler-gba-fixed/tree/master) and a good number of [jsmolka's `gba-tests`](https://github.com/jsmolka/gba-tests). For game specific compatibility refer to the [screenshot database](https://ayyadvance.layle.dev/) (updated on milestones).
