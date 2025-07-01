@@ -6,8 +6,9 @@ process_subdir() {
     subdir="$1"
     echo "Processing: $subdir"
     find "$subdir" -type f -iname '*.png' | while read -r file; do
-        if convert "$file" -format "%[mean]" info: | grep -q '^0$'; then
-            echo "Removing black image: $file"
+        mean=$(convert "$file" -format "%[mean]" info:)
+        if [[ "$mean" == "0" ]] || [[ "$mean" == "65535" ]]; then
+            echo "Removing black/white image: $file"
             rm -f "$file"
         fi
     done

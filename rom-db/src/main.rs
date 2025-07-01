@@ -42,7 +42,7 @@ fn emulate_rom(rom_path: String, output_path: String) {
                 );
             }
 
-            if i % 1000 == 0 {
+            if i % 500 == 0 && i != 0 {
                 let image_path = format!("{}/{}.png", output_path, i);
                 write_png(&frame, &image_path);
             }
