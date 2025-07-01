@@ -1,9 +1,12 @@
 # ayyboy advance
 ayyboy's big brother
 
-|                                        Kirby - Nightmare in Dream Land                                         |                                         Debugger                                          |
-| :------------------------------------------------------------------------------------------------------------: | :---------------------------------------------------------------------------------------: |
-| ![screenshot_20250531_001016](https://github.com/user-attachments/assets/570c7d4b-a593-4633-b7eb-474f98fd7ed8) | ![image](https://github.com/user-attachments/assets/ba13412a-61ee-486c-9bbc-96bc61e4cf44) |
+|                                        Kirby - Nightmare in Dream Land                                         |  Wario Land 4  |   Fire Emblem - The Sacred Stones       |                           Debugger                                          |
+| :------------------------------------------------------------------------------------------------------------: | :----------: |:----------: | :---------------------------------------------------------------------------------------: |
+| ![screenshot_20250531_001016](https://github.com/user-attachments/assets/570c7d4b-a593-4633-b7eb-474f98fd7ed8) | ![image](https://github.com/user-attachments/assets/fe3492f8-4f5e-4cb6-b795-cf8e3770a6e1) | ![image](https://github.com/user-attachments/assets/bf519a58-f5d7-4f00-8439-6909de2d83e4)             | ![image](https://github.com/user-attachments/assets/ba13412a-61ee-486c-9bbc-96bc61e4cf44) |
+
+
+
 
 ## Setup
 ```bash
