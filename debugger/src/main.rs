@@ -61,7 +61,7 @@ fn main() {
     let (dbg_resp_tx, dbg_resp_rx) = crossbeam_channel::bounded(25);
 
     let mut emulator = Emulator::new(display_tx, dbg_req_rx, dbg_resp_tx, args.script, args.rom);
-    let rom_title = emulator.rom_title.clone();
+    let rom_title = emulator.gba.rom_title.clone();
 
     std::thread::spawn(move || {
         emulator.run();

@@ -2,6 +2,7 @@
 name = "gba-core"
 version = "0.1.0"
 edition = "2021"
+build = "build.rs"
 
 [dependencies]
 bitflags = "2.6.0"
@@ -13,6 +14,10 @@ simple_logger = { version = "5.0.0", default-features = false, features = [
     "colors",
 ] }
 thiserror = "2.0.12"
+phf = { version = "0.12.1", features = ["macros"] }
 
 [features]
 verbose_debug = []
+
+[build-dependencies]
+csv = "1.3.1"

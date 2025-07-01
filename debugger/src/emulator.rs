@@ -1,11 +1,8 @@
 use crossbeam_channel::{Receiver, Sender};
-use gba_core::arm7tdmi::cpu::Cpu;
 use gba_core::arm7tdmi::decoder::{Instruction, Register};
-use gba_core::memory::mmio::Mmio;
-use gba_core::script::engine::ScriptEngine;
+use gba_core::gba::Gba;
 use gba_core::video::{Frame, FRAME_0_ADDRESS, FRAME_1_ADDRESS};
 use lazy_static::lazy_static;
-use log::info;
 use std::fs::File;
 use std::io::{Cursor, Read};
 use std::path::Path;
@@ -22,12 +19,10 @@ lazy_static! {
 }
 
 pub struct Emulator {
-    pub cpu: Cpu,
-    pub script_engine: ScriptEngine,
+    pub gba: Gba,
     pub display_tx: Sender<Frame>,
     pub dbg_req_rx: Receiver<RequestEvent>,
     pub dbg_resp_tx: Sender<ResponseEvent>,
-    pub rom_title: String,
 }
 
 impl Emulator {
@@ -35,9 +30,6 @@ impl Emulator {
         display_tx: Sender<Frame>, dbg_req_rx: Receiver<RequestEvent>, dbg_resp_tx: Sender<ResponseEvent>,
         script_path: Option<String>, rom_path: String,
     ) -> Self {
-        let mut mmio = Mmio::new();
-        mmio.load(0x00000000, include_bytes!("../../external/gba_bios.bin"));
-
         // Load ROM from file
         let mut rom_data = Vec::new();
         let mut rom_file = File::open(&rom_path).expect("Failed to open ROM file");
@@ -47,12 +39,6 @@ impl Emulator {
         if rom_path.ends_with(".zip") {
             rom_data = Self::unzip_archive(&rom_data);
         }
-
-        // Extract ROM title
-        let rom_title = String::from_utf8_lossy(&rom_data[0xa0..0xa0 + 12]).to_string();
-
-        // Load ROM into memory
-        mmio.load(0x08000000, &rom_data);
 
         // Check for corresponding ELF file (for symbolizer)
         let elf_path = rom_path.replace(".gba", ".elf");
@@ -65,23 +51,16 @@ impl Emulator {
             Vec::new()
         };
 
-        let cpu = Cpu::new(&elf_data, mmio);
-        let mut script_engine = ScriptEngine::new();
-
-        // Load script if provided
-        if let Some(path) = script_path {
-            let path = Path::new(&path);
-            script_engine.load_script(path);
-            info!("Successfully loaded script: {}", path.display());
+        let mut gba = Gba::new(&rom_data, &elf_data);
+        if let Some(script_path) = script_path {
+            gba.load_rhai_script(script_path);
         }
 
         Self {
-            cpu,
-            script_engine,
+            gba,
             display_tx,
             dbg_req_rx,
             dbg_resp_tx,
-            rom_title,
         }
     }
 
@@ -108,10 +87,10 @@ impl Emulator {
                 step = false;
             }
 
-            if self.cpu.mmio.ppu.scanline.0 == 160 && !frame_rendered {
-                let _ = self.display_tx.send(self.cpu.mmio.ppu.get_frame());
+            if self.gba.cpu.mmio.ppu.scanline.0 == 160 && !frame_rendered {
+                let _ = self.display_tx.send(self.gba.cpu.mmio.ppu.get_frame());
                 frame_rendered = true;
-            } else if self.cpu.mmio.ppu.scanline.0 == 0 && frame_rendered {
+            } else if self.gba.cpu.mmio.ppu.scanline.0 == 0 && frame_rendered {
                 frame_rendered = false;
             }
         }
@@ -123,10 +102,10 @@ impl Emulator {
             .map(|event| match event {
                 RequestEvent::UpdateCpu => {
                     let _ = self.dbg_resp_tx.send(ResponseEvent::Cpu(widgets::cpu::Cpu {
-                        registers: self.cpu.registers.r,
-                        cpsr: self.cpu.registers.cpsr,
-                        dma: self.cpu.mmio.dma,
-                        timers: self.cpu.mmio.timers,
+                        registers: self.gba.cpu.registers.r,
+                        cpsr: self.gba.cpu.registers.cpsr,
+                        dma: self.gba.cpu.mmio.dma,
+                        timers: self.gba.cpu.mmio.timers,
                     }));
                     EventResult::None
                 }
@@ -135,9 +114,9 @@ impl Emulator {
                         let memory = Box::<[u8; 0x0FFFFFFF + 1]>::new_zeroed();
                         memory.assume_init()
                     };
-                    memory[..=0x04FFFFFF].copy_from_slice(&self.cpu.mmio.internal_memory[..]);
-                    memory[0x05000000..=0x07FFFFFF].copy_from_slice(&self.cpu.mmio.ppu.vram[..]);
-                    memory[0x08000000..=0x0FFFFFFF].copy_from_slice(&self.cpu.mmio.external_memory[..]);
+                    memory[..=0x04FFFFFF].copy_from_slice(&self.gba.cpu.mmio.internal_memory[..]);
+                    memory[0x05000000..=0x07FFFFFF].copy_from_slice(&self.gba.cpu.mmio.ppu.vram[..]);
+                    memory[0x08000000..=0x0FFFFFFF].copy_from_slice(&self.gba.cpu.mmio.external_memory[..]);
                     let _ = self.dbg_resp_tx.send(ResponseEvent::Memory(memory));
                     EventResult::None
                 }
@@ -157,16 +136,16 @@ impl Emulator {
                 }
                 RequestEvent::UpdateDisassembly(base, count) => {
                     // decoded instruction would never be available here
-                    let base = base.unwrap_or(if let Some(state) = self.cpu.pipeline.peek_fetch() {
+                    let base = base.unwrap_or(if let Some(state) = self.gba.cpu.pipeline.peek_fetch() {
                         state.pc
                     } else {
-                        self.cpu.read_register(&Register::R15)
+                        self.gba.cpu.read_register(&Register::R15)
                     });
                     let mut disasm: Vec<DecodedInstruction> = Vec::new();
                     for addr in 0..count {
-                        let addr = base + (addr * if self.cpu.is_thumb() { 2 } else { 4 });
-                        let opcode = self.cpu.mmio.read_u32(addr);
-                        match Instruction::decode(opcode, self.cpu.is_thumb()) {
+                        let addr = base + (addr * if self.gba.cpu.is_thumb() { 2 } else { 4 });
+                        let opcode = self.gba.cpu.mmio.read_u32(addr);
+                        match Instruction::decode(opcode, self.gba.cpu.is_thumb()) {
                             Ok(instr) => disasm.push(DecodedInstruction {
                                 addr,
                                 instr: format!("{}", instr),
@@ -179,43 +158,59 @@ impl Emulator {
                     }
                     let _ = self.dbg_resp_tx.send(ResponseEvent::Disassembly(
                         base,
-                        self.cpu.read_register(&Register::R15),
+                        self.gba.cpu.read_register(&Register::R15),
                         disasm,
                     ));
                     EventResult::None
                 }
                 RequestEvent::UpdateKeyState(state) => {
                     for (key, pressed) in state {
-                        self.cpu.mmio.joypad.set_key_state(key, pressed);
+                        self.gba.cpu.mmio.joypad.set_key_state(key, pressed);
                     }
                     EventResult::None
                 }
                 RequestEvent::UpdatePpu => {
                     let _ = self.dbg_resp_tx.send(ResponseEvent::Ppu(
                         vec![
-                            self.cpu.mmio.ppu.get_background_frame(3, FRAME_0_ADDRESS),
-                            self.cpu.mmio.ppu.get_background_frame(3, FRAME_1_ADDRESS),
-                            self.cpu.mmio.ppu.get_background_frame(4, FRAME_0_ADDRESS),
-                            self.cpu.mmio.ppu.get_background_frame(4, FRAME_1_ADDRESS),
-                            self.cpu.mmio.ppu.get_background_frame(5, FRAME_0_ADDRESS),
-                            self.cpu.mmio.ppu.get_background_frame(5, FRAME_1_ADDRESS),
+                            self.gba.cpu.mmio.ppu.get_background_frame(3, FRAME_0_ADDRESS),
+                            self.gba.cpu.mmio.ppu.get_background_frame(3, FRAME_1_ADDRESS),
+                            self.gba.cpu.mmio.ppu.get_background_frame(4, FRAME_0_ADDRESS),
+                            self.gba.cpu.mmio.ppu.get_background_frame(4, FRAME_1_ADDRESS),
+                            self.gba.cpu.mmio.ppu.get_background_frame(5, FRAME_0_ADDRESS),
+                            self.gba.cpu.mmio.ppu.get_background_frame(5, FRAME_1_ADDRESS),
                         ],
-                        self.cpu.mmio.ppu.render_tileset(),
+                        self.gba.cpu.mmio.ppu.render_tileset(),
                         [
-                            self.cpu.mmio.ppu.render_tilemap(self.cpu.mmio.ppu.bg_cnt[0].value()),
-                            self.cpu.mmio.ppu.render_tilemap(self.cpu.mmio.ppu.bg_cnt[1].value()),
-                            self.cpu.mmio.ppu.render_tilemap(self.cpu.mmio.ppu.bg_cnt[2].value()),
-                            self.cpu.mmio.ppu.render_tilemap(self.cpu.mmio.ppu.bg_cnt[3].value()),
+                            self.gba
+                                .cpu
+                                .mmio
+                                .ppu
+                                .render_tilemap(self.gba.cpu.mmio.ppu.bg_cnt[0].value()),
+                            self.gba
+                                .cpu
+                                .mmio
+                                .ppu
+                                .render_tilemap(self.gba.cpu.mmio.ppu.bg_cnt[1].value()),
+                            self.gba
+                                .cpu
+                                .mmio
+                                .ppu
+                                .render_tilemap(self.gba.cpu.mmio.ppu.bg_cnt[2].value()),
+                            self.gba
+                                .cpu
+                                .mmio
+                                .ppu
+                                .render_tilemap(self.gba.cpu.mmio.ppu.bg_cnt[3].value()),
                         ],
-                        Vec::from(self.cpu.mmio.ppu.fetch_palette()),
+                        Vec::from(self.gba.cpu.mmio.ppu.fetch_palette()),
                         PpuRegisters {
-                            disp_cnt: *self.cpu.mmio.ppu.disp_cnt.value(),
-                            disp_stat: *self.cpu.mmio.ppu.disp_stat.value(),
-                            bg_cnt: self.cpu.mmio.ppu.bg_cnt.map(|bg| *bg.value()),
-                            bg_vofs: self.cpu.mmio.ppu.bg_vofs.map(|bg| *bg.value()),
-                            bg_hofs: self.cpu.mmio.ppu.bg_hofs.map(|bg| *bg.value()),
+                            disp_cnt: *self.gba.cpu.mmio.ppu.disp_cnt.value(),
+                            disp_stat: *self.gba.cpu.mmio.ppu.disp_stat.value(),
+                            bg_cnt: self.gba.cpu.mmio.ppu.bg_cnt.map(|bg| *bg.value()),
+                            bg_vofs: self.gba.cpu.mmio.ppu.bg_vofs.map(|bg| *bg.value()),
+                            bg_hofs: self.gba.cpu.mmio.ppu.bg_hofs.map(|bg| *bg.value()),
                         },
-                        self.cpu.mmio.ppu.create_sprite_debug_map(),
+                        self.gba.cpu.mmio.ppu.create_sprite_debug_map(),
                     ));
                     EventResult::None
                 }
@@ -226,24 +221,24 @@ impl Emulator {
     fn do_tick(&mut self, tick: &mut bool) -> Option<Instruction> {
         let mut executed_instr: Option<Instruction> = None;
 
-        if let Ok((instr, state)) = self.cpu.tick() {
+        if let Ok((instr, state)) = self.gba.cpu.tick() {
             if BREAKPOINTS
                 .lock()
                 .unwrap()
-                .contains(&(state.pc + if self.cpu.is_thumb() { 2 } else { 4 }))
+                .contains(&(state.pc + if self.gba.cpu.is_thumb() { 2 } else { 4 }))
             {
                 *tick = false;
             }
 
-            self.script_engine.handle_breakpoint(state.pc, state.pc, &mut self.cpu);
-            for addr in self.cpu.mmio.last_rw_addr.clone() {
-                self.script_engine.handle_breakpoint(addr, state.pc, &mut self.cpu);
+            self.gba.try_execute_breakpoint(state.pc, state.pc);
+            for addr in self.gba.cpu.mmio.last_rw_addr.clone() {
+                self.gba.try_execute_breakpoint(addr, state.pc);
             }
 
             executed_instr = Some(instr);
         }
 
-        self.cpu.mmio.tick_components();
+        self.gba.cpu.mmio.tick_components();
 
         executed_instr
     }
