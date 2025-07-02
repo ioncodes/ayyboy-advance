@@ -1,8 +1,130 @@
 use crate::dbg::tracked_value::TrackedValue;
+use crate::dbg::widgets::DIRTY_COLOR;
 use crate::event::RequestEvent;
 use crossbeam_channel::Sender;
-use egui::{ComboBox, Context, RichText, Window};
-use egui_extras::{Column, TableBuilder};
+use egui::{ComboBox, Context, RichText, ScrollArea, TextStyle, Window};
+
+const BYTES_PER_ROW: usize = 16;
+
+pub struct MemoryWidget {
+    memory_view: MemoryView,
+    event_tx: Sender<RequestEvent>,
+    memory: Vec<TrackedValue<u8>>,
+}
+
+impl MemoryWidget {
+    pub fn new(tx: Sender<RequestEvent>) -> Self {
+        let _ = tx.send(RequestEvent::UpdateMemory);
+        Self {
+            memory_view: MemoryView::Bios,
+            event_tx: tx,
+            memory: vec![TrackedValue::default(); 0x0FFF_FFFF + 1],
+        }
+    }
+
+    pub fn update(&mut self, memory: Box<[u8; 0x0FFF_FFFF + 1]>) {
+        memory.iter().enumerate().for_each(|(i, v)| self.memory[i].set(*v));
+    }
+
+    pub fn render(&mut self, ctx: &Context) {
+        Window::new("Memory").resizable(false).vscroll(false).show(ctx, |ui| {
+            ui.horizontal(|ui| {
+                ui.with_layout(egui::Layout::left_to_right(egui::Align::TOP), |ui| {
+                    ComboBox::from_label("Memory Map")
+                        .selected_text(format!("{}", self.memory_view))
+                        .show_ui(ui, |ui| {
+                            for region in [
+                                MemoryView::Bios,
+                                MemoryView::OnboardWram,
+                                MemoryView::OnchipWram,
+                                MemoryView::IoRegisters,
+                                MemoryView::PaletteRam,
+                                MemoryView::Vram,
+                                MemoryView::Oam,
+                                MemoryView::GamePak,
+                                MemoryView::GamePakSram,
+                                MemoryView::Eeprom,
+                            ] {
+                                ui.selectable_value(&mut self.memory_view, region, region.to_string());
+                            }
+                        });
+                });
+
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::TOP), |ui| {
+                    if ui
+                        .button(format!("{} Refresh", egui_phosphor::regular::ARROW_CLOCKWISE))
+                        .clicked()
+                    {
+                        let _ = self.event_tx.send(RequestEvent::UpdateMemory);
+                    }
+                });
+            });
+
+            ui.separator();
+
+            ui.horizontal(|ui| {
+                ui.label(RichText::new("        ").monospace().strong());
+                for idx in 0..BYTES_PER_ROW {
+                    ui.label(RichText::new(format!("{:02X}", idx)).monospace().strong());
+                }
+                ui.add_space(5.0);
+                ui.label(RichText::new("ASCII").monospace().strong());
+            });
+
+            let start = self.memory_view.start() as usize;
+            let size = self.memory_view.size();
+            debug_assert!(start + size <= self.memory.len());
+
+            let mem_slice = &self.memory[start..start + size];
+            let total_rows = (mem_slice.len() + BYTES_PER_ROW - 1) / BYTES_PER_ROW;
+
+            ScrollArea::vertical().auto_shrink([false; 2]).show_rows(
+                ui,
+                ui.text_style_height(&TextStyle::Monospace),
+                total_rows,
+                |ui, rows| {
+                    for row in rows {
+                        let base_addr = start + row * BYTES_PER_ROW;
+                        let slice_off = row * BYTES_PER_ROW;
+                        let take = BYTES_PER_ROW.min(mem_slice.len() - slice_off);
+                        let chunk = &mem_slice[slice_off..slice_off + take];
+
+                        ui.horizontal(|ui| {
+                            ui.label(RichText::new(format!("{:08X}", base_addr)).monospace().strong());
+
+                            for cell in chunk.iter() {
+                                let mut richtext = RichText::new(format!("{:02X}", cell.get())).monospace();
+                                if cell.has_changed() {
+                                    richtext = richtext.color(DIRTY_COLOR);
+                                }
+                                ui.label(richtext);
+                            }
+
+                            for _ in 0..(BYTES_PER_ROW - take) {
+                                ui.monospace("");
+                            }
+
+                            ui.add_space(5.0);
+
+                            let ascii: String = chunk
+                                .iter()
+                                .map(|b| {
+                                    let v: u8 = b.get();
+                                    if (0x20..=0x7E).contains(&v) {
+                                        v as char
+                                    } else {
+                                        '.'
+                                    }
+                                })
+                                .collect();
+                            ui.monospace(ascii);
+                        });
+                    }
+                },
+            );
+        });
+    }
+}
 
 #[derive(PartialEq, Eq, Hash, Copy, Clone)]
 pub enum MemoryView {
@@ -38,136 +160,26 @@ impl std::fmt::Display for MemoryView {
 impl MemoryView {
     pub fn range(self) -> std::ops::RangeInclusive<u32> {
         match self {
-            MemoryView::Bios => 0x00000000..=0x00003FFF,
-            MemoryView::OnboardWram => 0x02000000..=0x0203FFFF,
-            MemoryView::OnchipWram => 0x03000000..=0x03007FFF,
-            MemoryView::IoRegisters => 0x04000000..=0x040003FE,
-            MemoryView::PaletteRam => 0x05000000..=0x050003FF,
-            MemoryView::Vram => 0x06000000..=0x06017FFF,
-            MemoryView::Oam => 0x07000000..=0x070003FF,
-            MemoryView::GamePak => 0x08000000..=0x09FFFFFF,
-            MemoryView::GamePakSram => 0x0E000000..=0x0E00FFFF,
-            MemoryView::Eeprom => 0x0D000000..=0x0DFFFFFF,
+            MemoryView::Bios => 0x0000_0000..=0x0000_3FFF,
+            MemoryView::OnboardWram => 0x0200_0000..=0x0203_FFFF,
+            MemoryView::OnchipWram => 0x0300_0000..=0x0300_7FFF,
+            MemoryView::IoRegisters => 0x0400_0000..=0x0400_03FE,
+            MemoryView::PaletteRam => 0x0500_0000..=0x0500_03FF,
+            MemoryView::Vram => 0x0600_0000..=0x0601_7FFF,
+            MemoryView::Oam => 0x0700_0000..=0x0700_03FF,
+            MemoryView::GamePak => 0x0800_0000..=0x09FF_FFFF,
+            MemoryView::GamePakSram => 0x0E00_0000..=0x0E00_FFFF,
+            MemoryView::Eeprom => 0x0D00_0000..=0x0DFF_FFFF,
         }
     }
 
+    #[inline]
     pub fn size(self) -> usize {
-        *self.range().end() as usize - *self.range().start() as usize + 1
+        (*self.range().end() as usize) - (*self.range().start() as usize) + 1
     }
 
+    #[inline]
     pub fn start(self) -> u32 {
         *self.range().start()
-    }
-}
-
-pub struct MemoryWidget {
-    memory_view: MemoryView,
-    event_tx: Sender<RequestEvent>,
-    memory: Vec<TrackedValue<u8>>,
-    auto_refresh: bool,
-    auto_refresh_counter: usize,
-}
-
-impl MemoryWidget {
-    pub fn new(tx: Sender<RequestEvent>) -> MemoryWidget {
-        let _ = tx.send(RequestEvent::UpdateMemory); // request initial memory state
-
-        MemoryWidget {
-            memory_view: MemoryView::Bios,
-            event_tx: tx,
-            memory: vec![TrackedValue::default(); 0x0FFFFFFF + 1],
-            auto_refresh: false,
-            auto_refresh_counter: 0,
-        }
-    }
-
-    pub fn update(&mut self, memory: Box<[u8; 0x0FFFFFFF + 1]>) {
-        memory[..].iter().enumerate().for_each(|(i, v)| {
-            self.memory[i].set(*v);
-        });
-    }
-
-    pub fn render(&mut self, ctx: &Context) {
-        if self.auto_refresh {
-            self.auto_refresh_counter = self.auto_refresh_counter.wrapping_add(1);
-
-            if self.auto_refresh_counter % 1000 == 0 {
-                let _ = self.event_tx.send(RequestEvent::UpdateMemory);
-            }
-        }
-
-        Window::new("Memory").resizable(false).min_width(400.0).show(ctx, |ui| {
-            ui.horizontal(|ui| {
-                ui.with_layout(egui::Layout::left_to_right(egui::Align::TOP), |ui| {
-                    ComboBox::from_label("Memory Map")
-                        .selected_text(format!("{}", self.memory_view))
-                        .show_ui(ui, |ui| {
-                            ui.selectable_value(&mut self.memory_view, MemoryView::Bios, "BIOS");
-                            ui.selectable_value(&mut self.memory_view, MemoryView::OnboardWram, "On-board WRAM");
-                            ui.selectable_value(&mut self.memory_view, MemoryView::OnchipWram, "On-chip WRAM");
-                            ui.selectable_value(&mut self.memory_view, MemoryView::IoRegisters, "I/O Registers");
-                            ui.selectable_value(&mut self.memory_view, MemoryView::PaletteRam, "Palette RAM");
-                            ui.selectable_value(&mut self.memory_view, MemoryView::Vram, "VRAM");
-                            ui.selectable_value(&mut self.memory_view, MemoryView::Oam, "OAM - OBJ Attributes");
-                            ui.selectable_value(&mut self.memory_view, MemoryView::GamePak, "GamePak");
-                            ui.selectable_value(&mut self.memory_view, MemoryView::GamePakSram, "GamePak SRAM");
-                            ui.selectable_value(&mut self.memory_view, MemoryView::Eeprom, "EEPROM");
-                        });
-                    ui.add_space(3.0);
-                });
-
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::TOP), |ui| {
-                    ui.checkbox(&mut self.auto_refresh, "Auto Refresh");
-                    if ui
-                        .button(format!("{} Refresh", egui_phosphor::regular::ARROW_CLOCKWISE))
-                        .clicked()
-                    {
-                        let _ = self.event_tx.send(RequestEvent::UpdateMemory);
-                    }
-                });
-            });
-
-            ui.separator();
-
-            TableBuilder::new(ui)
-                .columns(Column::auto(), 17)
-                .header(0.0, |mut header| {
-                    header.col(|ui| {
-                        ui.label("");
-                    });
-                    for idx in 0..16 {
-                        header.col(|ui| {
-                            ui.label(RichText::new(format!("{:02x}", idx)).monospace().strong());
-                        });
-                    }
-                })
-                .body(|body| {
-                    let range_start = self.memory_view.start();
-                    let range_count = self.memory_view.size();
-
-                    body.rows(0.0, range_count / 16, |mut row| {
-                        let idx = row.index() as u32;
-                        let addr = range_start + (idx * 16);
-
-                        row.col(|ui| {
-                            ui.label(RichText::new(format!("0x{:08x}", addr)).monospace().strong());
-                        });
-
-                        for idx in 0..16 {
-                            let addr = addr + idx;
-
-                            row.col(|ui| {
-                                let value = self.memory[addr as usize];
-                                let mut richtext = RichText::new(format!("{:02x}", value.get())).monospace();
-                                if value.has_changed() {
-                                    richtext =
-                                        richtext.color(egui::Color32::from_rgba_premultiplied(250, 160, 160, 255))
-                                }
-                                ui.label(richtext);
-                            });
-                        }
-                    });
-                });
-        });
     }
 }

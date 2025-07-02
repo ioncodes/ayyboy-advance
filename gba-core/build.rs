@@ -41,4 +41,6 @@ fn main() {
 
     let output = TEMPLATE.replace("$DB$", &table);
     std::fs::write("src/cartridge/database.rs", output).expect("Failed to write cartridge database source file");
+
+    println!("cargo:rerun-if-changed=../external/titledb_mame.csv");
 }

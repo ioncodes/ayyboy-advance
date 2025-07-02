@@ -34,8 +34,6 @@ impl Renderer {
         cc: &CreationContext, display_rx: Receiver<Frame>, backend_tx: Sender<RequestEvent>,
         backend_rx: Receiver<ResponseEvent>,
     ) -> Renderer {
-        catppuccin_egui::set_theme(&cc.egui_ctx, catppuccin_egui::MOCHA);
-
         // TODO: debugger is currently designed for big screens
         // so scale everything down a bit in case im on my macbook
         #[cfg(target_os = "macos")]

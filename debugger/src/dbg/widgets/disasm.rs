@@ -1,3 +1,4 @@
+use crate::dbg::widgets::{PC_COLOR, R15_COLOR};
 use crate::event::RequestEvent;
 use crossbeam_channel::Sender;
 use egui::{Color32, Context, RichText, ScrollArea, Window};
@@ -42,11 +43,11 @@ impl DisassemblyWidget {
                             let mut addr_label = RichText::new(format!("{:08x}", line.addr)).monospace().strong();
                             let mut instr_label = RichText::new(line.instr.clone()).monospace();
                             if line.addr == self.pc {
-                                addr_label = addr_label.color(Color32::from_rgba_premultiplied(193, 225, 193, 255));
-                                instr_label = instr_label.color(Color32::from_rgba_premultiplied(193, 225, 193, 255));
+                                addr_label = addr_label.color(PC_COLOR);
+                                instr_label = instr_label.color(PC_COLOR);
                             } else if line.addr == self.r15 {
-                                addr_label = addr_label.color(Color32::from_rgba_premultiplied(195, 177, 225, 255));
-                                instr_label = instr_label.color(Color32::from_rgba_premultiplied(195, 177, 225, 255));
+                                addr_label = addr_label.color(R15_COLOR);
+                                instr_label = instr_label.color(R15_COLOR);
                             }
                             ui.label(addr_label);
                             ui.label(instr_label);

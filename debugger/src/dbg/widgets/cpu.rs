@@ -1,4 +1,5 @@
 use crate::dbg::tracked_value::TrackedValue;
+use crate::dbg::widgets::DIRTY_COLOR;
 use crate::event::RequestEvent;
 use crossbeam_channel::Sender;
 use egui::{CollapsingHeader, Color32, ComboBox, Context, RichText, TextEdit, Window};
@@ -128,7 +129,7 @@ impl CpuWidget {
                 if reg.has_changed() {
                     RichText::new(format!("{}R{}: {:08x}", alignment, idx, reg.get()))
                         .monospace()
-                        .color(Color32::from_rgba_premultiplied(250, 160, 160, 255))
+                        .color(DIRTY_COLOR)
                 } else {
                     RichText::new(format!("{}R{}: {:08x}", alignment, idx, reg.get())).monospace()
                 }
@@ -161,7 +162,7 @@ impl CpuWidget {
             ui.label(if self.cpu.cpsr.has_changed() {
                 RichText::new(format!("CPSR: {:032b} ({})", self.cpu.cpsr.get(), self.cpu.cpsr.get()))
                     .monospace()
-                    .color(Color32::from_rgba_premultiplied(250, 160, 160, 255))
+                    .color(DIRTY_COLOR)
             } else {
                 RichText::new(format!("CPSR: {:032b} ({})", self.cpu.cpsr.get(), self.cpu.cpsr.get())).monospace()
             });

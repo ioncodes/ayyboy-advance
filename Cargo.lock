@@ -489,7 +489,6 @@ checksum = "ace50bade8e6234aa140d9a2f552bbee1db4d353f69b8217bc503490fc1a9f26"
 name = "ayydbg"
 version = "0.1.0"
 dependencies = [
- "catppuccin-egui",
  "chrono",
  "clap",
  "crossbeam-channel",
@@ -658,15 +657,6 @@ dependencies = [
  "rustix 0.38.44",
  "wayland-backend",
  "wayland-client",
-]
-
-[[package]]
-name = "catppuccin-egui"
-version = "5.5.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a93c74882fe7e6b16089cc70122af492e16b76016d3ed2af9b0c4b6a8bca0ab0"
-dependencies = [
- "egui",
 ]
 
 [[package]]
