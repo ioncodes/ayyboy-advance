@@ -15,6 +15,7 @@ pub enum MemoryView {
     Oam,
     GamePak,
     GamePakSram,
+    Eeprom,
 }
 
 impl std::fmt::Display for MemoryView {
@@ -29,6 +30,7 @@ impl std::fmt::Display for MemoryView {
             MemoryView::Oam => write!(f, "OAM - OBJ Attributes"),
             MemoryView::GamePak => write!(f, "GamePak"),
             MemoryView::GamePakSram => write!(f, "GamePak SRAM"),
+            MemoryView::Eeprom => write!(f, "EEPROM"),
         }
     }
 }
@@ -45,6 +47,7 @@ impl MemoryView {
             MemoryView::Oam => 0x07000000..=0x070003FF,
             MemoryView::GamePak => 0x08000000..=0x09FFFFFF,
             MemoryView::GamePakSram => 0x0E000000..=0x0E00FFFF,
+            MemoryView::Eeprom => 0x0D000000..=0x0DFFFFFF,
         }
     }
 
@@ -108,6 +111,7 @@ impl MemoryWidget {
                             ui.selectable_value(&mut self.memory_view, MemoryView::Oam, "OAM - OBJ Attributes");
                             ui.selectable_value(&mut self.memory_view, MemoryView::GamePak, "GamePak");
                             ui.selectable_value(&mut self.memory_view, MemoryView::GamePakSram, "GamePak SRAM");
+                            ui.selectable_value(&mut self.memory_view, MemoryView::Eeprom, "EEPROM");
                         });
                     ui.add_space(3.0);
                 });

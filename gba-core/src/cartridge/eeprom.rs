@@ -228,4 +228,8 @@ impl StorageChip for Eeprom {
     fn backup_type(&self) -> BackupType {
         self.backup_type
     }
+
+    fn backing_storage(&self) -> Vec<u8> {
+        self.eeprom.clone()
+    }
 }

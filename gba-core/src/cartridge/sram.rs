@@ -50,4 +50,8 @@ impl StorageChip for Sram {
     fn backup_type(&self) -> BackupType {
         self.backup_type
     }
+
+    fn backing_storage(&self) -> Vec<u8> {
+        self.sram.clone()
+    }
 }

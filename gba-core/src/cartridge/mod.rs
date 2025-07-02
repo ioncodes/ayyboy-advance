@@ -10,12 +10,5 @@ pub mod storage;
 pub trait StorageChip: Addressable {
     fn size(&self) -> usize;
     fn backup_type(&self) -> BackupType;
-
-    fn storage(&self) -> Vec<u8> {
-        let mut storage = vec![0; self.size()];
-        for i in 0..self.size() {
-            storage[i] = self.read((i as u32) + 0x0E000000);
-        }
-        storage
-    }
+    fn backing_storage(&self) -> Vec<u8>;
 }

@@ -1,5 +1,6 @@
 use crossbeam_channel::{Receiver, Sender};
 use gba_core::arm7tdmi::decoder::{Instruction, Register};
+use gba_core::cartridge::storage::BackupType;
 use gba_core::gba::Gba;
 use gba_core::video::{Frame, FRAME_0_ADDRESS, FRAME_1_ADDRESS};
 use lazy_static::lazy_static;
@@ -117,8 +118,15 @@ impl Emulator {
                     memory[..=0x04FFFFFF].copy_from_slice(&self.gba.cpu.mmio.internal_memory[..]);
                     memory[0x05000000..=0x07FFFFFF].copy_from_slice(&self.gba.cpu.mmio.ppu.vram[..]);
                     memory[0x08000000..=0x0DFFFFFF].copy_from_slice(&self.gba.cpu.mmio.external_memory[..]);
-                    for (idx, value) in self.gba.cpu.mmio.storage_chip.storage().iter().enumerate() {
-                        memory[0x0E000000 + idx] = *value;
+                    if matches!(
+                        self.gba.cpu.mmio.storage_chip.backup_type(),
+                        BackupType::Eeprom4k | BackupType::Eeprom64k
+                    ) {
+                        memory[0x0D000000..=0x0D000000 + self.gba.cpu.mmio.storage_chip.size() - 1]
+                            .copy_from_slice(&self.gba.cpu.mmio.storage_chip.backing_storage()[..]);
+                    } else {
+                        memory[0x0E000000..=0x0E000000 + self.gba.cpu.mmio.storage_chip.size() - 1]
+                            .copy_from_slice(&self.gba.cpu.mmio.storage_chip.backing_storage()[..]);
                     }
                     let _ = self.dbg_resp_tx.send(ResponseEvent::Memory(memory));
                     EventResult::None
