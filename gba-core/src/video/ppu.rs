@@ -131,7 +131,10 @@ impl Ppu {
 
         let frame = match lcd_control.bg_mode() {
             0 => self.render_background_mode0(&sprite_frame),
-            1..=2 => self.render_background_mode0(&sprite_frame), // TODO: prob replace with other function?
+            1..=2 => {
+                error!("Background mode 1 & 2 not implemented");
+                self.render_background_mode0(&sprite_frame)
+            }
             3 => {
                 let mut frame = self.render_background_mode3(lcd_control.frame_address());
                 blit_sprites(&mut frame, &sprite_frame);
