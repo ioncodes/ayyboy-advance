@@ -15,6 +15,7 @@ simple_logger = { version = "5.0.0", default-features = false, features = [
 ] }
 thiserror = "2.0.12"
 phf = { version = "0.12.1", features = ["macros"] }
+crc32fast = "1.4.2"
 
 [features]
 verbose_debug = []

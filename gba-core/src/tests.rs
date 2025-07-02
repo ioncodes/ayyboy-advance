@@ -11,7 +11,7 @@ mod tests {
 
     #[test]
     fn run_arm_gba() {
-        let mut mmio = Mmio::new(BackupType::Sram);
+        let mut mmio = Mmio::new(BackupType::Sram, false);
         mmio.load(0x00000000, BIOS); // bios addr
         mmio.load(0x08000000, ARM_TEST); // gamepak addr
 

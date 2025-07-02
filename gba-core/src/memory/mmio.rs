@@ -45,13 +45,13 @@ pub struct Mmio {
 }
 
 impl Mmio {
-    pub fn new(backup_type: BackupType) -> Mmio {
+    pub fn new(backup_type: BackupType, has_rtc: bool) -> Mmio {
         let internal_memory = Box::<[u8; 0x05000000]>::new_zeroed();
         let external_memory = Box::<[u8; 0x06000000]>::new_zeroed();
 
         let storage_chip: Box<dyn StorageChip> = match backup_type {
             BackupType::Sram => Box::new(Sram::new()),
-            BackupType::Flash512k { .. } | BackupType::Flash1m { .. } => Box::new(Flash::new(backup_type.clone())),
+            BackupType::Flash512k | BackupType::Flash1m => Box::new(Flash::new(backup_type.clone(), has_rtc)),
             _ => {
                 error!("Unsupported backup type: {}, defaulting to SRAM", backup_type);
                 Box::new(Sram::new())

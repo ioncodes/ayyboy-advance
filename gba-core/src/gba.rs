@@ -1,5 +1,6 @@
 use crate::arm7tdmi::cpu::Cpu;
 use crate::cartridge::database::TITLE_DATABASE;
+use crate::cartridge::storage::BackupType;
 use crate::memory::mmio::Mmio;
 use crate::script::engine::ScriptEngine;
 use log::{error, info};
@@ -13,25 +14,25 @@ pub struct Gba {
 
 impl Gba {
     pub fn new(rom_data: &[u8], elf_data: &[u8]) -> Self {
-        // Extract game code
-        let game_code = String::from_utf8_lossy(&rom_data[0xac..0xac + 4]).to_string();
         let game_title = String::from_utf8_lossy(&rom_data[0xa0..0xa0 + 12]).to_string(); // use as backup
-        info!("Game Code: {}", game_code);
         info!("Game Title: {}", game_title);
 
-        let (save_type, rom_title) = TITLE_DATABASE
-            .get(&game_code)
-            .map(|&(st, rt)| (st.into(), rt.to_string()))
+        let crc32 = crc32fast::hash(rom_data);
+        let crc32 = format!("{:08x}", crc32);
+
+        let (save_type, has_rtc, rom_title) = TITLE_DATABASE
+            .get(&crc32)
+            .map(|&(backup_type, has_rtc, game_title)| (backup_type.into(), has_rtc, game_title.to_string()))
             .unwrap_or_else(|| {
                 error!(
-                    "Game code '{}' not found in database, using default save type and title.",
-                    game_code
+                    "CRC32 '{}' not found in database, using default save type and title.",
+                    crc32
                 );
-                (0.into(), game_title.clone())
+                (BackupType::Sram, false, game_title.clone())
             });
         info!("Save Type: {}", save_type);
 
-        let mut mmio = Mmio::new(save_type);
+        let mut mmio = Mmio::new(save_type, has_rtc);
         mmio.load(0x00000000, include_bytes!("../../external/gba_bios.bin"));
 
         // Load ROM into memory

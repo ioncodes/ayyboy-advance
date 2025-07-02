@@ -1489,6 +1489,7 @@ version = "0.1.0"
 dependencies = [
  "bitflags 2.9.1",
  "bitmatch",
+ "crc32fast",
  "csv",
  "goblin",
  "log",

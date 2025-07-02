@@ -9,10 +9,11 @@ pub struct Flash {
     pub external_memory: Box<[u8; FLASH_1M_SIZE as usize]>,
     pub backup_type: BackupType,
     boundary: u32,
+    _has_rtc: bool,
 }
 
 impl Flash {
-    pub fn new(backup_type: BackupType) -> Self {
+    pub fn new(backup_type: BackupType, has_rtc: bool) -> Self {
         let external_memory = Box::<[u8; FLASH_1M_SIZE as usize]>::new_zeroed();
 
         Flash {
@@ -23,6 +24,7 @@ impl Flash {
             } else {
                 FLASH_1M_SIZE
             },
+            _has_rtc: has_rtc,
         }
     }
 }
