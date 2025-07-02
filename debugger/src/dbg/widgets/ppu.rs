@@ -266,6 +266,13 @@ impl PpuWidget {
                     );
                     ui.label(
                         RichText::new(format!(
+                            "OBJ Character Mapping: {}",
+                            self.registers.disp_cnt.dimension()
+                        ))
+                        .monospace(),
+                    );
+                    ui.label(
+                        RichText::new(format!(
                             "BG 0 Enabled: {}",
                             self.registers.disp_cnt.contains(DispCnt::BG0_ON)
                         ))
@@ -453,7 +460,7 @@ impl PpuWidget {
                         )
                         .on_hover_text(
                             RichText::new(format!(
-                                "ID: {}, Tile Nr: {}\nX: {}, Y: {}\nSize: {}\nShape: {:?}\nPriority: {:?}\nPalette: {}\nFlip X: {}, Flip Y: {}\nAttribute 0: {:04X} @ {:08X}\nAttribute 1: {:04X} @ {:08X}\nAttribute 2: {:04X} @ {:08X}",
+                                "ID: {}, Tile Nr: {}\nX: {}, Y: {}\nSize: {}\nShape: {:?}\nPriority: {:?}\nPalette: {}\nColor Depth: {}\nFlip X: {}, Flip Y: {}\nAttribute 0: {:04X} @ {:08X}\nAttribute 1: {:04X} @ {:08X}\nAttribute 2: {:04X} @ {:08X}",
                                 sprite.id,
                                 sprite.tile_number,
                                 sprite.x,
@@ -462,6 +469,7 @@ impl PpuWidget {
                                 sprite.shape,
                                 sprite.priority,
                                 sprite.palette,
+                                sprite.attr0.bpp(),
                                 sprite.x_flip,
                                 sprite.y_flip,
                                 sprite.attr0.bits(),

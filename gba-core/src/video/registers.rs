@@ -56,6 +56,15 @@ pub enum Dimension {
     TwoDimensional,
 }
 
+impl Display for Dimension {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Dimension::OneDimensional => write!(f, "1D"),
+            Dimension::TwoDimensional => write!(f, "2D"),
+        }
+    }
+}
+
 impl DispCnt {
     pub fn bg_mode(&self) -> u8 {
         (self.bits() & DispCnt::BG_MODE.bits()) as u8
@@ -137,6 +146,15 @@ impl Display for InternalScreenSize {
 pub enum ColorDepth {
     Bpp4,
     Bpp8,
+}
+
+impl Display for ColorDepth {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ColorDepth::Bpp4 => write!(f, "4bpp"),
+            ColorDepth::Bpp8 => write!(f, "8bpp"),
+        }
+    }
 }
 
 impl BgCnt {
