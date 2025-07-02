@@ -367,13 +367,14 @@ impl Ppu {
     pub fn create_sprite_debug_map(&self) -> Vec<Sprite> {
         const OAM_BASE: u32 = 0x0700_0000;
         const OBJ_BASE: u32 = 0x0601_0000;
+        const CHAR_UNIT_SIZE: u32 = 32;
 
         let mut sprites = Vec::with_capacity(128);
 
         let palette = self.fetch_palette();
         let obj_palette = &palette[256..512];
-
         let obj_dimension = self.disp_cnt.value().dimension();
+        let bg_mode = self.disp_cnt.value().bg_mode();
 
         for obj_id in 0..128 {
             let attr0_addr = OAM_BASE + (obj_id * 8) + 0;
@@ -387,19 +388,25 @@ impl Ppu {
             let shape = attr0.shape();
             let size = attr1.size(shape);
             let (w_px, h_px) = Self::obj_dimensions(shape, size);
+            if w_px == 0 {
+                continue;
+            }
 
-            let tile_size: usize = if attr0.bpp() == ColorDepth::Bpp8 { 0x40 } else { 0x20 };
-
-            let tiles_per_row = if obj_dimension == Dimension::OneDimensional {
-                w_px / 8
+            let tiles_x = w_px / 8;
+            let tiles_y = h_px / 8;
+            let bpp_factor = if attr0.bpp() == ColorDepth::Bpp8 { 2 } else { 1 };
+            let row_stride = if obj_dimension == Dimension::OneDimensional {
+                tiles_x * bpp_factor
             } else {
                 32
             };
+            let char_num_base = if attr0.bpp() == ColorDepth::Bpp8 {
+                (attr2.tile_number() & !1) as u32
+            } else {
+                attr2.tile_number() as u32
+            };
 
-            // tiles per dimension
-            let tiles_x = w_px / 8;
-            let tiles_y = h_px / 8;
-
+            let tile_size = if attr0.bpp() == ColorDepth::Bpp8 { 64 } else { 32 };
             let mut sprite_data = vec![Pixel::Transparent; w_px * h_px];
 
             for ty in 0..tiles_y {
@@ -407,31 +414,29 @@ impl Ppu {
                     let src_tx = if attr1.x_flip() { tiles_x - 1 - tx } else { tx };
                     let src_ty = if attr1.y_flip() { tiles_y - 1 - ty } else { ty };
 
-                    let mut tile_nr = (attr2.tile_number() + src_ty * tiles_per_row + src_tx) as u32;
-                    if attr0.bpp() == ColorDepth::Bpp8 {
-                        // 1d 8bpp wrap
-                        tile_nr &= 0x3FF;
+                    let char_offset = (src_ty * row_stride + src_tx * bpp_factor) as u32;
+                    let tile_nr = char_num_base + char_offset;
+
+                    if (3..=5).contains(&bg_mode) && tile_nr < 512 {
+                        continue;
                     }
 
-                    // fetch raw tile bytes
-                    let tile_addr = OBJ_BASE + (tile_nr * tile_size as u32);
-                    let tile_data = {
-                        let mut tile_data = vec![0u8; tile_size]; // TODO: 64?
-                        for i in 0..tile_size {
-                            tile_data[i] = self.read(tile_addr + i as u32);
-                        }
-                        tile_data
-                    };
+                    let tile_addr = OBJ_BASE + tile_nr * CHAR_UNIT_SIZE;
 
-                    // extract the tile pixels using the given palette bank
+                    // fetch raw tile bytes
+                    let mut tile_bytes = [0u8; 64];
+                    for i in 0..tile_size {
+                        tile_bytes[i] = self.read(tile_addr + i as u32);
+                    }
+
+                    // palette slice
                     let pal_slice = if attr0.bpp() == ColorDepth::Bpp4 {
                         &obj_palette[attr2.palette() * 16..][..16]
                     } else {
                         &palette[256..512]
                     };
-                    let mut tile = Tile::from_bytes(&tile_data[..tile_size], pal_slice);
+                    let mut tile = Tile::from_bytes(&tile_bytes[..tile_size], pal_slice);
 
-                    // flip the tile if needed
                     if attr1.x_flip() {
                         tile.flip_x();
                     }
@@ -439,6 +444,7 @@ impl Ppu {
                         tile.flip_y();
                     }
 
+                    // blit into per-sprite buffer
                     for py in 0..8 {
                         for px in 0..8 {
                             let dst_x = tx * 8 + px;
