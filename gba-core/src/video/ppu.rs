@@ -519,6 +519,7 @@ impl Ppu {
     fn render_sprites(&self) -> Vec<(usize, Pixel)> {
         const OAM_BASE: u32 = 0x0700_0000;
         const OBJ_BASE: u32 = 0x0601_0000;
+        const CHAR_UNIT_SIZE: u32 = 32;
 
         let mut frame = vec![(5, Pixel::Transparent); SCREEN_WIDTH * SCREEN_HEIGHT];
 
@@ -565,46 +566,42 @@ impl Ppu {
                 continue;
             }
 
-            let tile_size: usize = if attr0.bpp() == ColorDepth::Bpp8 { 0x40 } else { 0x20 };
+            // tiles per dimension
+            let tiles_x = w_px / 8;
+            let tiles_y = h_px / 8;
 
-            let tiles_per_row = if obj_dimension == Dimension::OneDimensional {
-                w_px / 8
+            let bpp_factor = if attr0.bpp() == ColorDepth::Bpp8 { 2 } else { 1 };
+            let row_stride = if obj_dimension == Dimension::OneDimensional {
+                tiles_x * bpp_factor
             } else {
                 32
             };
 
-            // tiles per dimension
-            let tiles_x = w_px / 8;
-            let tiles_y = h_px / 8;
+            let tile_size = if attr0.bpp() == ColorDepth::Bpp8 { 0x40 } else { 0x20 };
 
             for ty in 0..tiles_y {
                 for tx in 0..tiles_x {
                     let src_tx = if attr1.x_flip() { tiles_x - 1 - tx } else { tx };
                     let src_ty = if attr1.y_flip() { tiles_y - 1 - ty } else { ty };
 
-                    let mut tile_nr = (attr2.tile_number() + src_ty * tiles_per_row + src_tx) as u32;
+                    let char_num_base = (attr2.tile_number() & !1) as u32;
+                    let char_offset = (src_ty * row_stride + src_tx * bpp_factor) as u32;
+                    let tile_nr = char_num_base + char_offset;
 
                     // https://problemkaputt.de/gbatek.htm#lcdobjoamattributes
                     // 2. When using BG Mode 3-5 (Bitmap Modes), only tile numbers 512-1023 may be used.
                     // That is because lower 16K of OBJ memory are used for BG. Attempts to use tiles 0-511 are ignored (not displayed).
-                    if bg_mode >= 3 && bg_mode <= 5 && tile_nr < 512 {
+                    if (3..=5).contains(&bg_mode) && tile_nr < 512 {
                         continue;
                     }
 
-                    if attr0.bpp() == ColorDepth::Bpp8 {
-                        // 1d 8bpp wrap
-                        tile_nr &= 0x3FF;
-                    }
+                    let tile_addr = OBJ_BASE + (tile_nr * CHAR_UNIT_SIZE);
 
                     // fetch raw tile bytes
-                    let tile_addr = OBJ_BASE + (tile_nr * tile_size as u32);
-                    let tile_data = {
-                        let mut tile_data = vec![0u8; tile_size]; // TODO: 64?
-                        for i in 0..tile_size {
-                            tile_data[i] = self.read(tile_addr + i as u32);
-                        }
-                        tile_data
-                    };
+                    let mut tile_data = [0u8; 64]; // overcommit to avoid vec! allocation
+                    for i in 0..tile_size {
+                        tile_data[i] = self.read(tile_addr + i as u32);
+                    }
 
                     // extract the tile pixels using the given palette bank
                     let pal_slice = if attr0.bpp() == ColorDepth::Bpp4 {
