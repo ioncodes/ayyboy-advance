@@ -3,6 +3,8 @@ const SANYO_DEVICE_ID: u8 = 0x13;
 const PANASONIC_MANUFACTURER_ID: u8 = 0x32;
 const PANASONIC_DEVICE_ID: u8 = 0x1B;
 
+// TODO: Switch to https://docs.google.com/spreadsheets/d/16-a3qDDkJJNpaYOEXi-xgTv-j1QznXHt9rTUJNFshjo/edit?pli=1&gid=0#gid=0 maybe?
+
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum BackupType {
     Eeprom4k,
