@@ -2,7 +2,7 @@ use crate::dbg::tracked_value::TrackedValue;
 use crate::dbg::widgets::DIRTY_COLOR;
 use crate::event::RequestEvent;
 use crossbeam_channel::Sender;
-use egui::{CollapsingHeader, Color32, ComboBox, Context, RichText, TextEdit, Window};
+use egui::{CollapsingHeader, ComboBox, Context, RichText, TextEdit, Window};
 use gba_core::arm7tdmi::registers::Psr;
 use gba_core::arm7tdmi::timer::Timers;
 use gba_core::memory::dma::Dma;

@@ -1,7 +1,7 @@
 use crate::dbg::widgets::{PC_COLOR, R15_COLOR};
 use crate::event::RequestEvent;
 use crossbeam_channel::Sender;
-use egui::{Color32, Context, RichText, ScrollArea, Window};
+use egui::{Context, RichText, ScrollArea, Window};
 
 pub struct DecodedInstruction {
     pub addr: u32,
