@@ -590,7 +590,11 @@ impl Ppu {
                     let src_tx = if attr1.x_flip() { tiles_x - 1 - tx } else { tx };
                     let src_ty = if attr1.y_flip() { tiles_y - 1 - ty } else { ty };
 
-                    let char_num_base = (attr2.tile_number() & !1) as u32;
+                    let char_num_base = if attr0.bpp() == ColorDepth::Bpp8 {
+                        (attr2.tile_number() & !1) as u32 // even-align for 256-colour mode
+                    } else {
+                        attr2.tile_number() as u32 // leave 4-bpp numbers untouched
+                    };
                     let char_offset = (src_ty * row_stride + src_tx * bpp_factor) as u32;
                     let tile_nr = char_num_base + char_offset;
 
