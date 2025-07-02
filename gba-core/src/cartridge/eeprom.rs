@@ -1,26 +1,49 @@
+use log::trace;
+
 use crate::cartridge::storage::BackupType;
 use crate::cartridge::StorageChip;
 use crate::memory::device::Addressable;
-use log::error;
+use std::cell::{Cell, RefCell};
 
 const EEPROM_4K_SIZE: u32 = 0x200; // 512 bytes
 const EEPROM_64K_SIZE: u32 = 0x10000; // 64 KiB
 
-#[derive(PartialEq, Eq)]
-pub enum EepromState {
+#[derive(Default, Clone, Copy)]
+enum EepromState {
+    #[default]
     Idle,
-    ReadCmd,
-    WriteCmd,
+    Command {
+        first_bit: u8,
+    },
+    WriteAddress {
+        addr: u32,
+        bits_left: u8,
+    },
+    WriteData {
+        addr: u32,
+        data: u64,
+        bits_left: u8,
+    },
+    WriteFinalize {
+        addr: u32,
+        data: u64,
+    },
+    ReadAddress {
+        addr: u32,
+        bits_left: u8,
+    },
+    ReadTransfer {
+        addr: u32,
+        bits_left: u8,
+    },
 }
 
 pub struct Eeprom {
-    eeprom: Vec<u8>,
-    backup_type: BackupType,
+    pub eeprom: Vec<u8>,
+    pub backup_type: BackupType,
     boundary: u32,
-    opcode_latch: Option<u8>,
-    state: EepromState,
-    current_bits_addr: Vec<u8>,
-    current_bits_data: Vec<u8>,
+    state: RefCell<EepromState>,
+    last_read_bit: Cell<u8>,
 }
 
 impl Eeprom {
@@ -35,100 +58,161 @@ impl Eeprom {
             eeprom: vec![0xFF; eeprom_size as usize],
             backup_type,
             boundary: eeprom_size,
-            opcode_latch: None,
-            state: EepromState::Idle,
-            current_bits_addr: Vec::with_capacity(14),
-            current_bits_data: Vec::with_capacity(64),
+            state: RefCell::new(EepromState::Idle),
+            last_read_bit: Cell::new(1),
         }
     }
 }
 
 impl Addressable for Eeprom {
-    fn read(&self, _addr: u32) -> u8 {
-        //println!("Reading from EEPROM at address: {:08x}", addr);
-        0xFF
-    }
-
-    fn write(&mut self, _: u32, value: u8) {
-        let addr_bits = if self.backup_type == BackupType::Eeprom4k {
-            6
-        } else {
-            14
-        };
-
-        // are we idling?
-        if self.state == EepromState::Idle
-            && let Some(previous_opcode_bit) = self.opcode_latch
-        {
-            match (previous_opcode_bit, value) {
-                (1, 0) => {
-                    self.state = EepromState::WriteCmd;
-                    println!("EEPROM Write Command");
-                }
-                (1, 1) => {
-                    self.state = EepromState::ReadCmd;
-                    println!("EEPROM Read Command");
-                    //self.state = EepromState::Idle;
-                }
-                _ => {
-                    error!(
-                        "Invalid EEPROM state: previous_opcode_bit = {:08b}, value = {}",
-                        previous_opcode_bit, value
-                    );
-                }
-            }
-
-            self.opcode_latch = None;
-        } else {
-            self.opcode_latch = Some(value);
+    fn read(&self, addr: u32) -> u8 {
+        if addr & 1 == 1 {
+            return self.last_read_bit.get();
         }
 
-        // is there a command in progress?
-        if self.state == EepromState::WriteCmd {
-            if self.current_bits_addr.len() < addr_bits {
-                self.current_bits_addr.push(value & 1);
-            } else if self.current_bits_data.len() < 64 {
-                self.current_bits_data.push(value & 1);
-            } else if value & 1 == 0 {
-                // We have received a full command
-                let addr = ((self.current_bits_addr[0] as u32) << 13)
-                    | ((self.current_bits_addr[1] as u32) << 12)
-                    | ((self.current_bits_addr[2] as u32) << 11)
-                    | ((self.current_bits_addr[3] as u32) << 10)
-                    | ((self.current_bits_addr[4] as u32) << 9)
-                    | ((self.current_bits_addr[5] as u32) << 8)
-                    | ((self.current_bits_addr[6] as u32) << 7)
-                    | ((self.current_bits_addr[7] as u32) << 6)
-                    | ((self.current_bits_addr[8] as u32) << 5)
-                    | ((self.current_bits_addr[9] as u32) << 4)
-                    | ((self.current_bits_addr[10] as u32) << 3)
-                    | ((self.current_bits_addr[11] as u32) << 2)
-                    | ((self.current_bits_addr[12] as u32) << 1)
-                    | (self.current_bits_addr[13] as u32);
-                let data = {
-                    let mut value: u64 = 0;
-                    for (i, bit) in self.current_bits_data.iter().enumerate() {
-                        value |= (*bit as u64) << (63 - i); // now the full 0-63 range is valid
+        let mut state = self.state.borrow_mut();
+
+        let bit = match *state {
+            EepromState::ReadTransfer {
+                addr,
+                ref mut bits_left,
+            } => {
+                if *bits_left == 0 {
+                    // If no bits left, return the last read bit and reset state
+                    *state = EepromState::Idle;
+                    self.last_read_bit.get()
+                } else {
+                    *bits_left -= 1;
+                    if *bits_left >= 64 {
+                        0
+                    } else {
+                        let step = 63 - *bits_left;
+                        let byte_index = (addr as usize) * 8 + (step as usize >> 3);
+                        let bit_index = 7 - (step & 7);
+
+                        let value = if byte_index < self.eeprom.len() {
+                            (self.eeprom[byte_index] >> bit_index) & 1
+                        } else {
+                            0
+                        };
+
+                        if *bits_left == 0 {
+                            *state = EepromState::Idle;
+                        }
+                        value
                     }
-                    value
+                }
+            }
+            _ => 1,
+        };
+
+        self.last_read_bit.set(bit);
+
+        bit
+    }
+
+    fn write(&mut self, addr: u32, value: u8) {
+        if addr & 1 == 1 {
+            return;
+        }
+
+        let bit = value & 1;
+        let mut state = self.state.borrow_mut();
+
+        match *state {
+            EepromState::Idle => {
+                // Latch first bit of command
+                *state = EepromState::Command { first_bit: bit };
+            }
+            EepromState::Command { first_bit } => {
+                let command = (first_bit << 1) | bit;
+                let addr_bit_size = if self.backup_type == BackupType::Eeprom4k {
+                    6
+                } else {
+                    14
                 };
 
-                if addr < self.boundary {
-                    println!("EEPROM Write Command: Address = {:08x}, Data = {:08x}", addr, data);
-                    let byte_base = (addr as usize) * 8;
-                    if byte_base + 8 <= self.eeprom.len() {
-                        for i in 0..8 {
-                            self.eeprom[byte_base + i] = ((data >> (8 * (7 - i))) & 0xFF) as u8;
+                match command {
+                    0b10 => {
+                        // WRITE command
+                        *state = EepromState::WriteAddress {
+                            addr: 0,
+                            bits_left: addr_bit_size,
                         }
                     }
-                } else {
-                    println!("EEPROM write address out of bounds: {:08x}", addr);
+                    0b11 => {
+                        // READ command
+                        *state = EepromState::ReadAddress {
+                            addr: 0,
+                            bits_left: addr_bit_size,
+                        }
+                    }
+                    _ => *state = EepromState::Idle,
+                }
+            }
+            EepromState::WriteAddress {
+                ref mut addr,
+                ref mut bits_left,
+            } => {
+                *addr = (*addr << 1) | bit as u32; // add the bit to the address
+                *bits_left -= 1;
+
+                if *bits_left == 0 {
+                    // All bits of the address have been received
+                    // Start fetching data bits
+                    *state = EepromState::WriteData {
+                        addr: *addr,
+                        data: 0,
+                        bits_left: 64,
+                    };
+                }
+            }
+            EepromState::WriteData {
+                addr,
+                ref mut data,
+                ref mut bits_left,
+            } => {
+                *data = (*data << 1) | bit as u64; // add the bit to the data
+                *bits_left -= 1;
+
+                if *bits_left == 0 {
+                    // All bits of the data have been received
+                    // Prepare to finalize the write
+                    *state = EepromState::WriteFinalize { addr, data: *data };
+                }
+            }
+            EepromState::WriteFinalize { addr, data } => {
+                // STOP bit
+                if bit == 0 {
+                    let start = (addr as usize) * 8;
+                    if start + 8 <= self.eeprom.len() {
+                        trace!("Writing to EEPROM at address: {:08x}, data: {:016x}", addr, data);
+                        for i in 0..8 {
+                            self.eeprom[start + i] = ((data >> (56 - i * 8)) & 0xFF) as u8;
+                        }
+                    }
                 }
 
-                self.state = EepromState::Idle;
-                self.current_bits_addr.clear();
-                self.current_bits_data.clear();
+                *state = EepromState::Idle;
             }
+            EepromState::ReadAddress {
+                ref mut addr,
+                ref mut bits_left,
+            } => {
+                *addr = (*addr << 1) | bit as u32; // Add the bit to the address
+                *bits_left -= 1;
+
+                if *bits_left == 0 {
+                    // All bits of the address have been received
+                    // Start the read transfer
+                    trace!("Starting read transfer from EEPROM at address: {:08x}", *addr);
+                    *state = EepromState::ReadTransfer {
+                        addr: *addr,
+                        bits_left: 68,
+                    };
+                }
+            }
+            EepromState::ReadTransfer { .. } => {} // Not used once READ command is initiated
         }
     }
 }
