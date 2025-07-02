@@ -245,7 +245,7 @@ impl Ppu {
         (tile_count, out)
     }
 
-    pub fn render_tilemap(&self, bg_cnt: &BgCnt) -> (InternalScreenSize, Vec<Pixel>) {
+    pub fn render_tilemap(&self, bg: usize, bg_cnt: &BgCnt) -> (InternalScreenSize, Vec<Pixel>) {
         let palette = self.fetch_palette();
 
         let tileset_addr = bg_cnt.tileset_addr() as usize; // cbb
@@ -256,12 +256,20 @@ impl Ppu {
             ColorDepth::Bpp8 => 0x40,
         };
 
-        let (map_w, map_h, tiles_x, tiles_y) = match bg_cnt.screen_size() {
-            InternalScreenSize::Size256x256 => (256, 256, 32, 32),
-            InternalScreenSize::Size512x256 => (512, 256, 64, 32),
-            InternalScreenSize::Size256x512 => (256, 512, 32, 64),
-            InternalScreenSize::Size512x512 => (512, 512, 64, 64),
+        let bg_mode = self.disp_cnt.value().bg_mode();
+        let (map_w, map_h, tiles_x, tiles_y) = match bg_cnt.screen_size(bg, bg_mode) {
+            InternalScreenSize::Text256x256 => (256, 256, 32, 32),
+            InternalScreenSize::Text512x256 => (512, 256, 64, 32),
+            InternalScreenSize::Text256x512 => (256, 512, 32, 64),
+            InternalScreenSize::Text512x512 => (512, 512, 64, 64),
+
+            InternalScreenSize::Affine128x128 => (128, 128, 16, 16),
+            InternalScreenSize::Affine256x256 => (256, 256, 32, 32),
+            InternalScreenSize::Affine512x512 => (512, 512, 64, 64),
+            InternalScreenSize::Affine1024x1024 => (1024, 1024, 128, 128),
         };
+
+        let screen_size = bg_cnt.screen_size(bg, bg_mode);
 
         let mut internal_frame = vec![palette[0]; map_w * map_h];
 
@@ -270,11 +278,16 @@ impl Ppu {
                 let (block_col, block_row) = (tx / 32, ty / 32); // which 32×32 map
                 let (local_col, local_row) = (tx & 31, ty & 31); // pos inside that map
 
-                let block_index = match bg_cnt.screen_size() {
-                    InternalScreenSize::Size256x256 => 0,
-                    InternalScreenSize::Size512x256 => block_col, // 0‥1
-                    InternalScreenSize::Size256x512 => block_row, // 0‥1 (stacked)
-                    InternalScreenSize::Size512x512 => block_row * 2 + block_col, // 0‥3 (quad)
+                let block_index = match screen_size {
+                    InternalScreenSize::Text256x256 => 0,                         // SC0
+                    InternalScreenSize::Text512x256 => block_col,                 // SC0‥SC1
+                    InternalScreenSize::Text256x512 => block_row,                 // SC0‥SC1
+                    InternalScreenSize::Text512x512 => block_row * 2 + block_col, // SC0‥SC3
+
+                    InternalScreenSize::Affine128x128
+                    | InternalScreenSize::Affine256x256
+                    | InternalScreenSize::Affine512x512
+                    | InternalScreenSize::Affine1024x1024 => 0,
                 };
 
                 // fetch the tile from the tilemap
@@ -333,7 +346,7 @@ impl Ppu {
             map_w * map_h
         );
 
-        (bg_cnt.screen_size(), internal_frame)
+        (screen_size, internal_frame)
     }
 
     pub fn create_sprite_debug_map(&self) -> Vec<Sprite> {
@@ -633,14 +646,11 @@ impl Ppu {
 
         // this list is sorted by priority
         let bg_cnts = self.effective_backgrounds();
+        let bg_mode = self.disp_cnt.value().bg_mode();
 
         for (id, bg_cnt) in bg_cnts {
-            let (map_w, map_h) = match bg_cnt.screen_size() {
-                InternalScreenSize::Size256x256 => (256, 256),
-                InternalScreenSize::Size512x256 => (512, 256),
-                InternalScreenSize::Size256x512 => (256, 512),
-                InternalScreenSize::Size512x512 => (512, 512),
-            };
+            let screen_size = bg_cnt.screen_size(id, bg_mode);
+            let (map_w, map_h) = (screen_size.width(), screen_size.height());
 
             let vertical_offset = self.bg_vofs[id].value().offset();
             let horizontal_offset = self.bg_hofs[id].value().offset();
@@ -648,7 +658,7 @@ impl Ppu {
             let hoff = horizontal_offset % map_w;
             let voff = vertical_offset % map_h;
 
-            let (_, tilemap) = self.render_tilemap(&bg_cnt);
+            let (_, tilemap) = self.render_tilemap(id, &bg_cnt);
 
             for y in 0..SCREEN_HEIGHT {
                 let src_y = (y + voff) % map_h;

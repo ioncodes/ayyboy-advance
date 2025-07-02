@@ -188,22 +188,22 @@ impl Emulator {
                                 .cpu
                                 .mmio
                                 .ppu
-                                .render_tilemap(self.gba.cpu.mmio.ppu.bg_cnt[0].value()),
+                                .render_tilemap(0, self.gba.cpu.mmio.ppu.bg_cnt[0].value()),
                             self.gba
                                 .cpu
                                 .mmio
                                 .ppu
-                                .render_tilemap(self.gba.cpu.mmio.ppu.bg_cnt[1].value()),
+                                .render_tilemap(1, self.gba.cpu.mmio.ppu.bg_cnt[1].value()),
                             self.gba
                                 .cpu
                                 .mmio
                                 .ppu
-                                .render_tilemap(self.gba.cpu.mmio.ppu.bg_cnt[2].value()),
+                                .render_tilemap(2, self.gba.cpu.mmio.ppu.bg_cnt[2].value()),
                             self.gba
                                 .cpu
                                 .mmio
                                 .ppu
-                                .render_tilemap(self.gba.cpu.mmio.ppu.bg_cnt[3].value()),
+                                .render_tilemap(3, self.gba.cpu.mmio.ppu.bg_cnt[3].value()),
                         ],
                         Vec::from(self.gba.cpu.mmio.ppu.fetch_palette()),
                         PpuRegisters {

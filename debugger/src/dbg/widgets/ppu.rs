@@ -41,10 +41,10 @@ impl PpuWidget {
         PpuWidget {
             frames: Vec::new(),
             tilemaps: [
-                (InternalScreenSize::Size256x256, Vec::new()),
-                (InternalScreenSize::Size512x512, Vec::new()),
-                (InternalScreenSize::Size256x256, Vec::new()),
-                (InternalScreenSize::Size512x512, Vec::new()),
+                (InternalScreenSize::Text256x256, Vec::new()),
+                (InternalScreenSize::Text256x256, Vec::new()),
+                (InternalScreenSize::Text256x256, Vec::new()),
+                (InternalScreenSize::Text256x256, Vec::new()),
             ],
             palette: Vec::new(),
             registers: PpuRegisters::default(),
@@ -111,16 +111,9 @@ impl PpuWidget {
                         }
                     }
 
-                    let dimensions = match size {
-                        InternalScreenSize::Size256x256 => [256, 256],
-                        InternalScreenSize::Size512x512 => [512, 512],
-                        InternalScreenSize::Size256x512 => [256, 512],
-                        InternalScreenSize::Size512x256 => [512, 256],
-                    };
-
                     texture.set(
                         ColorImage {
-                            size: dimensions,
+                            size: [size.width(), size.height()],
                             pixels,
                         },
                         TextureOptions::NEAREST,
@@ -367,7 +360,12 @@ impl PpuWidget {
                 .show(ui, |ui| {
                     for (i, bg_cnt) in self.registers.bg_cnt.iter().enumerate() {
                         ui.label(
-                            RichText::new(format!("BG{}CNT Screen Size: {}", i, bg_cnt.screen_size())).monospace(),
+                            RichText::new(format!(
+                                "BG{}CNT Screen Size: {}",
+                                i,
+                                bg_cnt.screen_size(i, self.registers.disp_cnt.bg_mode())
+                            ))
+                            .monospace(),
                         );
                         ui.label(
                             RichText::new(format!("BG{}CNT Tileset Address: {:08x}", i, bg_cnt.tileset_addr()))

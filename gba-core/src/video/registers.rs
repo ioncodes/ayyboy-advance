@@ -80,19 +80,55 @@ impl DispCnt {
 
 #[derive(Copy, Clone)]
 pub enum InternalScreenSize {
-    Size256x256,
-    Size512x256,
-    Size256x512,
-    Size512x512,
+    Text256x256,
+    Text512x256,
+    Text256x512,
+    Text512x512,
+    Affine128x128,
+    Affine256x256,
+    Affine512x512,
+    Affine1024x1024,
+}
+
+impl InternalScreenSize {
+    pub fn width(&self) -> usize {
+        match self {
+            InternalScreenSize::Text256x256 => 256,
+            InternalScreenSize::Text512x256 => 512,
+            InternalScreenSize::Text256x512 => 256,
+            InternalScreenSize::Text512x512 => 512,
+            InternalScreenSize::Affine128x128 => 128,
+            InternalScreenSize::Affine256x256 => 256,
+            InternalScreenSize::Affine512x512 => 512,
+            InternalScreenSize::Affine1024x1024 => 1024,
+        }
+    }
+
+    pub fn height(&self) -> usize {
+        match self {
+            InternalScreenSize::Text256x256 => 256,
+            InternalScreenSize::Text512x256 => 256,
+            InternalScreenSize::Text256x512 => 512,
+            InternalScreenSize::Text512x512 => 512,
+            InternalScreenSize::Affine128x128 => 128,
+            InternalScreenSize::Affine256x256 => 256,
+            InternalScreenSize::Affine512x512 => 512,
+            InternalScreenSize::Affine1024x1024 => 1024,
+        }
+    }
 }
 
 impl Display for InternalScreenSize {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            InternalScreenSize::Size256x256 => write!(f, "256x256"),
-            InternalScreenSize::Size512x256 => write!(f, "512x256"),
-            InternalScreenSize::Size256x512 => write!(f, "256x512"),
-            InternalScreenSize::Size512x512 => write!(f, "512x512"),
+            InternalScreenSize::Text256x256 => write!(f, "256x256 (Text)"),
+            InternalScreenSize::Text512x256 => write!(f, "512x256 (Text)"),
+            InternalScreenSize::Text256x512 => write!(f, "256x512 (Text)"),
+            InternalScreenSize::Text512x512 => write!(f, "512x512 (Text)"),
+            InternalScreenSize::Affine128x128 => write!(f, "128x128 (Affine)"),
+            InternalScreenSize::Affine256x256 => write!(f, "256x256 (Affine)"),
+            InternalScreenSize::Affine512x512 => write!(f, "512x512 (Affine)"),
+            InternalScreenSize::Affine1024x1024 => write!(f, "1024x1024 (Affine)"),
         }
     }
 }
@@ -104,12 +140,24 @@ pub enum ColorDepth {
 }
 
 impl BgCnt {
-    pub fn screen_size(&self) -> InternalScreenSize {
-        match (*self & BgCnt::SCREEN_SIZE).bits() {
-            0b0000_0000_0000_0000 => InternalScreenSize::Size256x256,
-            0b0100_0000_0000_0000 => InternalScreenSize::Size512x256,
-            0b1000_0000_0000_0000 => InternalScreenSize::Size256x512,
-            0b1100_0000_0000_0000 => InternalScreenSize::Size512x512,
+    pub fn screen_size(&self, bg: usize, bg_mode: u8) -> InternalScreenSize {
+        match (bg_mode, (*self & BgCnt::SCREEN_SIZE).bits()) {
+            (0, 0b0000_0000_0000_0000) => InternalScreenSize::Text256x256,
+            (0, 0b0100_0000_0000_0000) => InternalScreenSize::Text512x256,
+            (0, 0b1000_0000_0000_0000) => InternalScreenSize::Text256x512,
+            (0, 0b1100_0000_0000_0000) => InternalScreenSize::Text512x512,
+            (1, 0b0000_0000_0000_0000) if bg == 2 => InternalScreenSize::Affine128x128,
+            (1, 0b0100_0000_0000_0000) if bg == 2 => InternalScreenSize::Affine256x256,
+            (1, 0b1000_0000_0000_0000) if bg == 2 => InternalScreenSize::Affine512x512,
+            (1, 0b1100_0000_0000_0000) if bg == 2 => InternalScreenSize::Affine1024x1024,
+            (1, 0b0000_0000_0000_0000) => InternalScreenSize::Text256x256,
+            (1, 0b0100_0000_0000_0000) => InternalScreenSize::Text512x256,
+            (1, 0b1000_0000_0000_0000) => InternalScreenSize::Text256x512,
+            (1, 0b1100_0000_0000_0000) => InternalScreenSize::Text512x512,
+            (_, 0b0000_0000_0000_0000) => InternalScreenSize::Affine128x128,
+            (_, 0b0100_0000_0000_0000) => InternalScreenSize::Affine256x256,
+            (_, 0b1000_0000_0000_0000) => InternalScreenSize::Affine512x512,
+            (_, 0b1100_0000_0000_0000) => InternalScreenSize::Affine1024x1024,
             _ => unreachable!(),
         }
     }
