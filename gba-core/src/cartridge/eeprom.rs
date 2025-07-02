@@ -1,8 +1,7 @@
-use log::trace;
-
 use crate::cartridge::storage::BackupType;
 use crate::cartridge::StorageChip;
 use crate::memory::device::Addressable;
+use log::trace;
 use std::cell::{Cell, RefCell};
 
 const EEPROM_4K_SIZE: u32 = 0x200; // 512 bytes
@@ -186,7 +185,12 @@ impl Addressable for Eeprom {
                 if bit == 0 {
                     let start = (addr as usize) * 8;
                     if start + 8 <= self.eeprom.len() {
-                        trace!("Writing to EEPROM at address: {:08x}, data: {:016x}", addr, data);
+                        trace!(
+                            "Writing to EEPROM at address: {:08x}, data: {:016x}",
+                            start,
+                            data.to_be()
+                        );
+
                         for i in 0..8 {
                             self.eeprom[start + i] = ((data >> (56 - i * 8)) & 0xFF) as u8;
                         }
@@ -205,7 +209,6 @@ impl Addressable for Eeprom {
                 if *bits_left == 0 {
                     // All bits of the address have been received
                     // Start the read transfer
-                    trace!("Starting read transfer from EEPROM at address: {:08x}", *addr);
                     *state = EepromState::ReadTransfer {
                         addr: *addr,
                         bits_left: 68,
