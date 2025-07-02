@@ -44,7 +44,7 @@ mod tests {
                     for faulting_idx in 0..20 {
                         let (faulting_pc, faulting_instr) = &trace[idx - faulting_idx];
                         println!(
-                            "{:08x}: {:032b} -> {}",
+                            "{:08X}: {:032b} -> {}",
                             faulting_pc,
                             cpu.mmio.read_u32(*faulting_pc),
                             faulting_instr

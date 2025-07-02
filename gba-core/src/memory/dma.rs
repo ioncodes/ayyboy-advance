@@ -102,7 +102,7 @@ impl Addressable for Dma {
             0x040000D8..=0x040000DB => self.channels[3].dst.read(addr - 0x040000D8),
             0x040000DC..=0x040000DD => self.channels[3].cnt.read(addr - 0x040000DC),
             0x040000DE..=0x040000DF => self.channels[3].ctl.read(addr - 0x040000DE),
-            _ => panic!("Invalid DMA address: {:08x}", addr),
+            _ => panic!("Invalid DMA address: {:08X}", addr),
         }
     }
 
@@ -124,7 +124,7 @@ impl Addressable for Dma {
             0x040000D8..=0x040000DB => self.channels[3].dst.write(addr - 0x040000D8, value),
             0x040000DC..=0x040000DD => self.channels[3].cnt.write(addr - 0x040000DC, value),
             0x040000DE..=0x040000DF => self.channels[3].ctl.write(addr - 0x040000DE, value),
-            _ => panic!("Invalid DMA address: {:08x}", addr),
+            _ => panic!("Invalid DMA address: {:08X}", addr),
         }
     }
 }
@@ -135,7 +135,7 @@ impl Display for Dma {
         for (i, channel) in self.channels.iter().enumerate() {
             write!(
                 f,
-                "\nChannel {} = src: {:08x}, dst: {:08x}, cnt: {:04x}, ctl: {:016b}",
+                "\nChannel {} = src: {:08X}, dst: {:08X}, cnt: {:04X}, ctl: {:016b}",
                 i,
                 channel.src.value(),
                 channel.dst.value(),

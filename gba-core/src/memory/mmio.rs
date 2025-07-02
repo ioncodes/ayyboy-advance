@@ -201,12 +201,12 @@ impl Mmio {
                 // BIOS open bus read
                 let shift = ((addr & 3) * 8) as u32;
                 let value = ((self.openbus_bios >> shift) & 0xFF) as u8;
-                warn!("Reading from BIOS open bus: {:08x} => {:02x}", addr, value);
+                warn!("Reading from BIOS open bus: {:08X} => {:02X}", addr, value);
                 value
             }
             0x0400020A..=0x0400020B => self.internal_memory[addr as usize], // Unused
             0x04000000..=0x040003FE => {
-                error!("Unmapped I/O read: {:08x}", addr);
+                error!("Unmapped I/O read: {:08X}", addr);
                 self.internal_memory[addr as usize]
             }
             0x00000000..=0x04FFFFFF => {
@@ -256,7 +256,7 @@ impl Mmio {
             0x0C000000..=0x0DFFFFFF => self.external_memory[(addr - 0x0C000000) as usize], // Mirror of 0x08000000..=0x09FFFFFF
             0x0E000000..=0x0FFFFFFF => self.storage_chip.read(addr),
             _ => {
-                error!("Reading from unmapped memory address: {:08x}", addr);
+                error!("Reading from unmapped memory address: {:08X}", addr);
                 0x69
             }
         };
@@ -264,7 +264,7 @@ impl Mmio {
         self.origin_write_length = None;
         self.last_rw_addr.push(addr);
 
-        trace!("Read {:02x} from {:08x}", value, addr);
+        trace!("Read {:02X} from {:08X}", value, addr);
 
         value
     }
@@ -289,10 +289,10 @@ impl Mmio {
     }
 
     pub fn write(&mut self, addr: u32, value: u8) {
-        trace!("Writing {:02x} to {:08x}", value, addr);
+        trace!("Writing {:02X} to {:08X}", value, addr);
 
         match addr {
-            0x00000000..=0x00003FFF => warn!("Writing to BIOS: {:02x} to {:08x}", value, addr),
+            0x00000000..=0x00003FFF => warn!("Writing to BIOS: {:02X} to {:08X}", value, addr),
             0x04000000..=0x04000056 => self.ppu.write(addr, value), // PPU I/O
             0x04000080..=0x0400008E => self.apu.write(addr, value), // APU I/O
             0x040000B0..=0x040000DF => self.dma.write(addr, value), // DMA I/O
@@ -305,7 +305,7 @@ impl Mmio {
             0x04000300 => self.io_postflg.write(value), // POSTFLG -> "After initial reset, the GBA BIOS initializes the register to 01h"
             0x04000301 => self.io_halt_cnt.write(value), // HALTCNT
             0x04000000..=0x040003FE => {
-                error!("Unmapped I/O write: {:02x} to {:08x}", value, addr);
+                error!("Unmapped I/O write: {:02X} to {:08X}", value, addr);
                 self.internal_memory[addr as usize] = value; // Unmapped I/O region
             }
             0x00000000..=0x04FFFFFF => {
@@ -354,8 +354,8 @@ impl Mmio {
                     _ => self.ppu.write(addr, value),
                 }
             }
-            0x08000000..=0x09FFFFFF => warn!("Writing to GamePak memory: {:02x} to {:08x}", value, addr),
-            0x0A000000..=0x0BFFFFFF => warn!("Writing to GamePak memory: {:02x} to {:08x}", value, addr), // Mirror of 0x08000000..=0x09FFFFFF
+            0x08000000..=0x09FFFFFF => warn!("Writing to GamePak memory: {:02X} to {:08X}", value, addr),
+            0x0A000000..=0x0BFFFFFF => warn!("Writing to GamePak memory: {:02X} to {:08X}", value, addr), // Mirror of 0x08000000..=0x09FFFFFF
             0x0D000000..=0x0DFFFFFF
                 if matches!(
                     self.storage_chip.backup_type(),
@@ -365,10 +365,10 @@ impl Mmio {
                 // TODO: I think this doesn't handle the EEPROM correctly, but it should be fine for now
                 self.storage_chip.write(addr, value);
             }
-            0x0C000000..=0x0DFFFFFF => warn!("Writing to GamePak memory: {:02x} to {:08x}", value, addr), // Mirror of 0x08000000..=0x09FFFFFF
+            0x0C000000..=0x0DFFFFFF => warn!("Writing to GamePak memory: {:02X} to {:08X}", value, addr), // Mirror of 0x08000000..=0x09FFFFFF
             0x0E000000..=0x0FFFFFFF => self.storage_chip.write(addr, value),
             _ => {
-                error!("Writing to unmapped memory address: {:08x}", addr);
+                error!("Writing to unmapped memory address: {:08X}", addr);
             }
         }
 
@@ -405,7 +405,7 @@ impl Mmio {
             0x08000000..=0x0FFFFFFF => {
                 self.external_memory[(addr - 0x08000000)..(addr - 0x08000000) + data.len()].copy_from_slice(data)
             }
-            _ => panic!("Invalid memory address: {:08x}", addr),
+            _ => panic!("Invalid memory address: {:08X}", addr),
         }
     }
 

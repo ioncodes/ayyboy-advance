@@ -809,7 +809,7 @@ impl Instruction {
                     ..Instruction::default()
                 })
             }
-            _ => Err(format!("Unknown instruction: {:08x} | {:032b}", opcode, opcode)),
+            _ => Err(format!("Unknown instruction: {:08X} | {:032b}", opcode, opcode)),
         }
     }
 
@@ -1235,7 +1235,7 @@ impl Instruction {
                 })
             }
             _ => Err(format!(
-                "Unknown instruction: {:04x} | {:016b}",
+                "Unknown instruction: {:04X} | {:016b}",
                 opcode & 0xffff,
                 opcode & 0xffff
             )),
@@ -1506,15 +1506,15 @@ impl Display for Instruction {
 impl Display for Operand {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
-            Operand::Immediate(value, option) if option.is_none() => write!(f, "0x{:04x}", value),
+            Operand::Immediate(value, option) if option.is_none() => write!(f, "0x{:04X}", value),
             Operand::Immediate(value, Some(option)) => {
-                write!(f, "0x{:04x}, {}", value, option)
+                write!(f, "0x{:04X}, {}", value, option)
             }
             Operand::Register(register, option) if option.is_none() => write!(f, "{}", register),
             Operand::Register(register, Some(option)) => write!(f, "{}, {}", register, option),
-            Operand::Offset(value) if *value > 0 => write!(f, "+0x{:04x}", value),
-            Operand::Offset(value) if *value < 0 => write!(f, "-0x{:04x}", -1 * value),
-            Operand::Offset(value) => write!(f, "0x{:04x}", value),
+            Operand::Offset(value) if *value > 0 => write!(f, "+0x{:04X}", value),
+            Operand::Offset(value) if *value < 0 => write!(f, "-0x{:04X}", -1 * value),
+            Operand::Offset(value) => write!(f, "0x{:04X}", value),
             Operand::RegisterList(registers) => {
                 let output = registers
                     .iter()

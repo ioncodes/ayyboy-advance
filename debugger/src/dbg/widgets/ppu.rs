@@ -259,7 +259,7 @@ impl PpuWidget {
                     );
                     ui.label(
                         RichText::new(format!(
-                            "Frame Address: {:08x}",
+                            "Frame Address: {:08X}",
                             self.registers.disp_cnt.frame_address()
                         ))
                         .monospace(),
@@ -375,11 +375,11 @@ impl PpuWidget {
                             .monospace(),
                         );
                         ui.label(
-                            RichText::new(format!("BG{}CNT Tileset Address: {:08x}", i, bg_cnt.tileset_addr()))
+                            RichText::new(format!("BG{}CNT Tileset Address: {:08X}", i, bg_cnt.tileset_addr()))
                                 .monospace(),
                         );
                         ui.label(
-                            RichText::new(format!("BG{}CNT Tilemap Address: {:08x}", i, bg_cnt.tilemap_addr()))
+                            RichText::new(format!("BG{}CNT Tilemap Address: {:08X}", i, bg_cnt.tilemap_addr()))
                                 .monospace(),
                         );
                         ui.label(RichText::new(format!("BG{}CNT Priority: {}", i, bg_cnt.priority())).monospace());

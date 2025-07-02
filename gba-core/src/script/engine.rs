@@ -21,9 +21,9 @@ impl ScriptEngine {
 
         // Helper functions
         engine.register_fn("println", |s: &str| println!("[RHAI] {}", s));
-        engine.register_fn("hex8", |value: i64| -> String { format!("{:02x}", value as u8) });
-        engine.register_fn("hex16", |value: i64| -> String { format!("{:04x}", value as u16) });
-        engine.register_fn("hex32", |value: i64| -> String { format!("{:08x}", value as u32) });
+        engine.register_fn("hex8", |value: i64| -> String { format!("{:02X}", value as u8) });
+        engine.register_fn("hex16", |value: i64| -> String { format!("{:04X}", value as u16) });
+        engine.register_fn("hex32", |value: i64| -> String { format!("{:08X}", value as u32) });
         engine.register_fn("bin8", |value: i64| -> String { format!("{:08b}", value as u8) });
         engine.register_fn("bin16", |value: i64| -> String { format!("{:016b}", value as u16) });
         engine.register_fn("bin32", |value: i64| -> String { format!("{:032b}", value as u32) });
@@ -146,12 +146,12 @@ impl ScriptEngine {
             match self.engine.call_fn::<()>(&mut scope, &ast, handler_name, ()) {
                 Ok(_) => {
                     debug!(
-                        "Executed script handler '{}' for breakpoint at 0x{:08x}",
+                        "Executed script handler '{}' for breakpoint at 0x{:08X}",
                         handler_name, address
                     );
                 }
                 Err(e) => panic!(
-                    "Failed to execute handler '{}' for breakpoint at 0x{:08x}: {}",
+                    "Failed to execute handler '{}' for breakpoint at 0x{:08X}: {}",
                     handler_name, address, e
                 ),
             }

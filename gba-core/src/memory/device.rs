@@ -141,13 +141,13 @@ where
             0x4000202 => {
                 let ack = value as u16;
                 self.0 = T::from_bits_truncate(self.0.bits() & !ack);
-                trace!("Acknowledged interrupt, IF now: {:04x}", self.0.bits());
+                trace!("Acknowledged interrupt, IF now: {:04X}", self.0.bits());
                 return;
             }
             0x4000203 => {
                 let ack = (value as u16) << 8;
                 self.0 = T::from_bits_truncate(self.0.bits() & !ack);
-                trace!("Acknowledged interrupt, IF now: {:04x}", self.0.bits());
+                trace!("Acknowledged interrupt, IF now: {:04X}", self.0.bits());
                 return;
             }
             _ => {}

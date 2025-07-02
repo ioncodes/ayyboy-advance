@@ -40,7 +40,7 @@ impl DisassemblyWidget {
                 ScrollArea::vertical().auto_shrink([false; 2]).show(ui, |ui| {
                     for line in self.disassembly.iter() {
                         ui.horizontal(|ui| {
-                            let mut addr_label = RichText::new(format!("{:08x}", line.addr)).monospace().strong();
+                            let mut addr_label = RichText::new(format!("{:08X}", line.addr)).monospace().strong();
                             let mut instr_label = RichText::new(line.instr.clone()).monospace();
                             if line.addr == self.pc {
                                 addr_label = addr_label.color(PC_COLOR);

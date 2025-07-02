@@ -101,17 +101,17 @@ impl Cpu {
             trace!("Instruction: {:?}", instruction);
 
             if self.is_thumb() {
-                trace!("Opcode: {:04x} | {:016b}", state.opcode as u16, state.opcode as u16);
+                trace!("Opcode: {:04X} | {:016b}", state.opcode as u16, state.opcode as u16);
             } else {
-                trace!("Opcode: {:08x} | {:032b}", state.opcode, state.opcode);
+                trace!("Opcode: {:08X} | {:032b}", state.opcode, state.opcode);
             }
 
             #[cfg(not(feature = "verbose_debug"))]
-            debug!("[{:08x}] {:08x}: {}", state.opcode, state.pc, instruction);
+            debug!("[{:08X}] {:08X}: {}", state.opcode, state.pc, instruction);
 
             #[cfg(feature = "verbose_debug")]
             debug!(
-                "[{:08x}] {:08x}: {: <50} [{}]",
+                "[{:08X}] {:08X}: {: <50} [{}]",
                 state.opcode,
                 state.pc,
                 format!("{}", instruction),
@@ -197,7 +197,7 @@ impl Cpu {
     #[cfg(feature = "verbose_debug")]
     fn compact_registers(&self) -> String {
         format!(
-            "r0={:08x} r1={:08x} r2={:08x} r3={:08x} r4={:08x} r5={:08x} r6={:08x} r7={:08x} r8={:08x} r9={:08x} r10={:08x} r11={:08x} r12={:08x} sp={:08x} lr={:08x} pc={:08x} cpsr={} ime={} if={:016b} ie={:016b}",
+            "r0={:08X} r1={:08X} r2={:08X} r3={:08X} r4={:08X} r5={:08X} r6={:08X} r7={:08X} r8={:08X} r9={:08X} r10={:08X} r11={:08X} r12={:08X} sp={:08X} lr={:08X} pc={:08X} cpsr={} ime={} if={:016b} ie={:016b}",
             self.read_register(&Register::R0),
             self.read_register(&Register::R1),
             self.read_register(&Register::R2),
@@ -527,7 +527,7 @@ impl Display for Cpu {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            " r0: {:08x}  r1: {:08x}  r2: {:08x}  r3: {:08x}\n",
+            " r0: {:08X}  r1: {:08X}  r2: {:08X}  r3: {:08X}\n",
             self.read_register(&Register::R0),
             self.read_register(&Register::R1),
             self.read_register(&Register::R2),
@@ -535,7 +535,7 @@ impl Display for Cpu {
         )?;
         write!(
             f,
-            " r4: {:08x}  r5: {:08x}  r6: {:08x}  r7: {:08x}\n",
+            " r4: {:08X}  r5: {:08X}  r6: {:08X}  r7: {:08X}\n",
             self.read_register(&Register::R4),
             self.read_register(&Register::R5),
             self.read_register(&Register::R6),
@@ -543,7 +543,7 @@ impl Display for Cpu {
         )?;
         write!(
             f,
-            " r8: {:08x}  r9: {:08x} r10: {:08x} r11: {:08x}\n",
+            " r8: {:08X}  r9: {:08X} r10: {:08X} r11: {:08X}\n",
             self.read_register(&Register::R8),
             self.read_register(&Register::R9),
             self.read_register(&Register::R10),
@@ -551,7 +551,7 @@ impl Display for Cpu {
         )?;
         write!(
             f,
-            "r12: {:08x} r13: {:08x} r14: {:08x} r15: {:08x}\n",
+            "r12: {:08X} r13: {:08X} r14: {:08X} r15: {:08X}\n",
             self.read_register(&Register::R12),
             self.read_register(&Register::R13),
             self.read_register(&Register::R14),

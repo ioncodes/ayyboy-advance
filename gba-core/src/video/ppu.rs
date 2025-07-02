@@ -703,7 +703,7 @@ impl Ppu {
     }
 
     fn render_background_mode3(&self, base_addr: u32) -> Frame {
-        trace!("Rendering background mode 3 @ {:08x}", base_addr);
+        trace!("Rendering background mode 3 @ {:08X}", base_addr);
 
         let mut frame = [[Pixel::Transparent; SCREEN_WIDTH]; SCREEN_HEIGHT];
 
@@ -719,7 +719,7 @@ impl Ppu {
     }
 
     fn render_background_mode4(&self, base_addr: u32) -> Frame {
-        trace!("Rendering background mode 4 @ {:08x}", base_addr);
+        trace!("Rendering background mode 4 @ {:08X}", base_addr);
 
         let mut frame = [[Pixel::Transparent; SCREEN_WIDTH]; SCREEN_HEIGHT];
 
@@ -736,7 +736,7 @@ impl Ppu {
     }
 
     fn render_background_mode5(&self, base_addr: u32) -> Frame {
-        trace!("Rendering background mode 5 @ {:08x}", base_addr);
+        trace!("Rendering background mode 5 @ {:08X}", base_addr);
 
         let mut frame = [[Pixel::Transparent; SCREEN_WIDTH]; SCREEN_HEIGHT];
 
@@ -834,7 +834,7 @@ impl Addressable for Ppu {
             // rest of the registers
             0x04000000..=0x04000056 => self.io[(addr - 0x04000000) as usize] = value,
             0x05000000..=0x07FFFFFF => {
-                trace!("Writing to VRAM address: {:08x} with value: {:02x}", addr, value);
+                trace!("Writing to VRAM address: {:08X} with value: {:02X}", addr, value);
                 self.vram[(addr - 0x05000000) as usize] = value
             }
             _ => unreachable!(),

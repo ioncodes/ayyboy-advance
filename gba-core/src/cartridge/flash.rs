@@ -38,7 +38,7 @@ impl Addressable for Flash {
                 let addr = (addr - 0x0E000000) % self.boundary;
                 self.flash[addr as usize]
             }
-            _ => unreachable!("Invalid address for Flash read: {:08x}", addr),
+            _ => unreachable!("Invalid address for Flash read: {:08X}", addr),
         }
     }
 

@@ -32,7 +32,7 @@ impl Pipeline {
 
         let state = self.states.remove(0);
         let instr = Instruction::decode(state.opcode, state.is_thumb).unwrap_or_else(|e| {
-            error!("Failed to decode instruction: {:?} at {:08x}", e, state.pc);
+            error!("Failed to decode instruction: {:?} at {:08X}", e, state.pc);
             Instruction::nop()
         });
 
@@ -63,7 +63,7 @@ impl Display for Pipeline {
             if i > 0 {
                 write!(f, ", ")?;
             }
-            write!(f, "{:08x} @ {:08x}", state.opcode, state.pc)?;
+            write!(f, "{:08X} @ {:08X}", state.opcode, state.pc)?;
         }
         write!(f, "]")
     }

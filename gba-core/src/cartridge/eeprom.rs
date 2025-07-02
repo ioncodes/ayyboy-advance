@@ -191,7 +191,7 @@ impl Addressable for Eeprom {
                     let bytes = data.to_le_bytes();
 
                     if start + bytes.len() <= self.eeprom.len() {
-                        trace!("Writing to EEPROM at address: {:08x}, data: {:02x?}", start, bytes);
+                        trace!("Writing to EEPROM at address: {:08X}, data: {:02x?}", start, bytes);
                         self.eeprom[start..start + bytes.len()].copy_from_slice(&bytes);
                     }
                 }

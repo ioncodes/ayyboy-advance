@@ -127,11 +127,11 @@ impl CpuWidget {
                 let alignment = if idx <= 9 { " " } else { "" };
                 let reg = self.cpu.registers[idx];
                 if reg.has_changed() {
-                    RichText::new(format!("{}R{}: {:08x}", alignment, idx, reg.get()))
+                    RichText::new(format!("{}R{}: {:08X}", alignment, idx, reg.get()))
                         .monospace()
                         .color(DIRTY_COLOR)
                 } else {
-                    RichText::new(format!("{}R{}: {:08x}", alignment, idx, reg.get())).monospace()
+                    RichText::new(format!("{}R{}: {:08X}", alignment, idx, reg.get())).monospace()
                 }
             };
 
@@ -176,7 +176,7 @@ impl CpuWidget {
                         ui.horizontal(|ui| {
                             ui.label(
                                 RichText::new(format!(
-                                    "{:08x} -> {:08x}, {:04x} bytes",
+                                    "{:08X} -> {:08X}, {:04X} bytes",
                                     self.cpu.dma.get().channels[i].src.value(),
                                     self.cpu.dma.get().channels[i].dst.value(),
                                     self.cpu.dma.get().channels[i].transfer_units()
@@ -217,7 +217,7 @@ impl CpuWidget {
                 ui.horizontal(|ui| {
                     ui.label(
                         RichText::new(format!(
-                            "TIMER {}: {:08x} ({:08x})",
+                            "TIMER {}: {:08X} ({:08X})",
                             i,
                             self.cpu.timers.get().timers[i].counter.value(),
                             self.cpu.timers.get().timers[i].reload.value(),
