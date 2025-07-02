@@ -5,6 +5,7 @@ use super::dma::Dma;
 use crate::arm7tdmi::decoder::TransferLength;
 use crate::arm7tdmi::timer::Timers;
 use crate::audio::apu::Apu;
+use crate::cartridge::eeprom::Eeprom;
 use crate::cartridge::flash::Flash;
 use crate::cartridge::sram::Sram;
 use crate::cartridge::storage::BackupType;
@@ -52,6 +53,7 @@ impl Mmio {
         let storage_chip: Box<dyn StorageChip> = match backup_type {
             BackupType::Sram => Box::new(Sram::new()),
             BackupType::Flash512k | BackupType::Flash1m => Box::new(Flash::new(backup_type.clone(), has_rtc)),
+            BackupType::Eeprom4k | BackupType::Eeprom64k => Box::new(Eeprom::new(backup_type.clone())),
             _ => {
                 error!("Unsupported backup type: {}, defaulting to SRAM", backup_type);
                 Box::new(Sram::new())
@@ -242,6 +244,15 @@ impl Mmio {
             }
             0x08000000..=0x09FFFFFF => self.external_memory[(addr - 0x08000000) as usize],
             0x0A000000..=0x0BFFFFFF => self.external_memory[(addr - 0x0A000000) as usize], // Mirror of 0x08000000..=0x09FFFFFF
+            0x0D000000..=0x0DFFFFFF
+                if matches!(
+                    self.storage_chip.backup_type(),
+                    BackupType::Eeprom4k | BackupType::Eeprom64k
+                ) =>
+            {
+                // TODO: I think this doesn't handle the EEPROM correctly, but it should be fine for now
+                self.storage_chip.read(addr)
+            }
             0x0C000000..=0x0DFFFFFF => self.external_memory[(addr - 0x0C000000) as usize], // Mirror of 0x08000000..=0x09FFFFFF
             0x0E000000..=0x0FFFFFFF => self.storage_chip.read(addr),
             _ => {
@@ -345,6 +356,15 @@ impl Mmio {
             }
             0x08000000..=0x09FFFFFF => warn!("Writing to GamePak memory: {:02x} to {:08x}", value, addr),
             0x0A000000..=0x0BFFFFFF => warn!("Writing to GamePak memory: {:02x} to {:08x}", value, addr), // Mirror of 0x08000000..=0x09FFFFFF
+            0x0D000000..=0x0DFFFFFF
+                if matches!(
+                    self.storage_chip.backup_type(),
+                    BackupType::Eeprom4k | BackupType::Eeprom64k
+                ) =>
+            {
+                // TODO: I think this doesn't handle the EEPROM correctly, but it should be fine for now
+                self.storage_chip.write(addr, value);
+            }
             0x0C000000..=0x0DFFFFFF => warn!("Writing to GamePak memory: {:02x} to {:08x}", value, addr), // Mirror of 0x08000000..=0x09FFFFFF
             0x0E000000..=0x0FFFFFFF => self.storage_chip.write(addr, value),
             _ => {

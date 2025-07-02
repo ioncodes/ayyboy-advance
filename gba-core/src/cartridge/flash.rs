@@ -6,24 +6,24 @@ const FLASH_512K_SIZE: u32 = 0x10000; // 64 KiB
 const FLASH_1M_SIZE: u32 = 0x20000; // 128 KiB
 
 pub struct Flash {
-    pub external_memory: Box<[u8; FLASH_1M_SIZE as usize]>,
-    pub backup_type: BackupType,
+    flash: Vec<u8>,
+    backup_type: BackupType,
     boundary: u32,
     _has_rtc: bool,
 }
 
 impl Flash {
     pub fn new(backup_type: BackupType, has_rtc: bool) -> Self {
-        let external_memory = Box::<[u8; FLASH_1M_SIZE as usize]>::new_zeroed();
+        let flash_size = if backup_type == BackupType::Flash512k {
+            FLASH_512K_SIZE
+        } else {
+            FLASH_1M_SIZE
+        };
 
         Flash {
-            external_memory: unsafe { external_memory.assume_init() },
+            flash: vec![0; flash_size as usize],
             backup_type,
-            boundary: if matches!(backup_type, BackupType::Flash512k { .. }) {
-                FLASH_512K_SIZE
-            } else {
-                FLASH_1M_SIZE
-            },
+            boundary: flash_size,
             _has_rtc: has_rtc,
         }
     }
@@ -36,7 +36,7 @@ impl Addressable for Flash {
             0x0E000001 => self.backup_type.device_id(),
             0x0E000002..=0x0FFFFFFF => {
                 let addr = (addr - 0x0E000000) % self.boundary;
-                self.external_memory[addr as usize]
+                self.flash[addr as usize]
             }
             _ => unreachable!("Invalid address for Flash read: {:08x}", addr),
         }
@@ -46,7 +46,7 @@ impl Addressable for Flash {
         match addr {
             0x0E000002..=0x0FFFFFFF => {
                 let addr = (addr - 0x0E000000) % self.boundary;
-                self.external_memory[addr as usize] = value;
+                self.flash[addr as usize] = value;
             }
             _ => {}
         }
@@ -56,5 +56,9 @@ impl Addressable for Flash {
 impl StorageChip for Flash {
     fn size(&self) -> usize {
         self.boundary as usize
+    }
+
+    fn backup_type(&self) -> BackupType {
+        self.backup_type
     }
 }
