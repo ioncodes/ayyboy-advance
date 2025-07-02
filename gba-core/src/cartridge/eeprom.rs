@@ -86,7 +86,10 @@ impl Addressable for Eeprom {
                         0
                     } else {
                         let step = 63 - *bits_left;
-                        let byte_index = (addr as usize) * 8 + (step as usize >> 3);
+                        let start = (addr as usize) * 8;
+
+                        // reverse the byte order so that LE storage is streamed MSB‐first
+                        let byte_index = start + (7 - ((step as usize) >> 3));
                         let bit_index = 7 - (step & 7);
 
                         let value = if byte_index < self.eeprom.len() {
@@ -184,7 +187,8 @@ impl Addressable for Eeprom {
                 // STOP bit
                 if bit == 0 {
                     let start = (addr as usize) * 8;
-                    let bytes = data.to_be_bytes();
+                    // write in little-endian order
+                    let bytes = data.to_le_bytes();
 
                     if start + bytes.len() <= self.eeprom.len() {
                         trace!("Writing to EEPROM at address: {:08x}, data: {:02x?}", start, bytes);
