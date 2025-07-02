@@ -270,31 +270,46 @@ impl Ppu {
         };
 
         let screen_size = bg_cnt.screen_size(bg, bg_mode);
+        let is_text_mode = matches!(
+            screen_size,
+            InternalScreenSize::Text256x256
+                | InternalScreenSize::Text512x256
+                | InternalScreenSize::Text256x512
+                | InternalScreenSize::Text512x512
+        );
 
         let mut internal_frame = vec![palette[0]; map_w * map_h];
 
         for ty in 0..tiles_y {
             for tx in 0..tiles_x {
-                let (block_col, block_row) = (tx / 32, ty / 32); // which 32×32 map
-                let (local_col, local_row) = (tx & 31, ty & 31); // pos inside that map
+                let addr = if is_text_mode {
+                    let (block_col, block_row) = (tx / 32, ty / 32); // which 32×32 map
+                    let (local_col, local_row) = (tx & 31, ty & 31); // pos inside that map
 
-                let block_index = match screen_size {
-                    InternalScreenSize::Text256x256 => 0,                         // SC0
-                    InternalScreenSize::Text512x256 => block_col,                 // SC0‥SC1
-                    InternalScreenSize::Text256x512 => block_row,                 // SC0‥SC1
-                    InternalScreenSize::Text512x512 => block_row * 2 + block_col, // SC0‥SC3
+                    let block_index = match screen_size {
+                        InternalScreenSize::Text256x256 => 0,                         // SC0
+                        InternalScreenSize::Text512x256 => block_col,                 // SC0‥SC1
+                        InternalScreenSize::Text256x512 => block_row,                 // SC0‥SC1
+                        InternalScreenSize::Text512x512 => block_row * 2 + block_col, // SC0‥SC3
 
-                    InternalScreenSize::Affine128x128
-                    | InternalScreenSize::Affine256x256
-                    | InternalScreenSize::Affine512x512
-                    | InternalScreenSize::Affine1024x1024 => 0,
+                        InternalScreenSize::Affine128x128
+                        | InternalScreenSize::Affine256x256
+                        | InternalScreenSize::Affine512x512
+                        | InternalScreenSize::Affine1024x1024 => 0,
+                    };
+
+                    // fetch the tile from the tilemap
+                    (tilemap_addr + (block_index * TILEMAP_ENTRY_SIZE) + (local_row * 32 + local_col) * 2) as u32
+                } else {
+                    (tilemap_addr + (ty * tiles_x + tx)) as u32
                 };
 
-                // fetch the tile from the tilemap
-                let addr = tilemap_addr as u32
-                    + (block_index * TILEMAP_ENTRY_SIZE) as u32
-                    + (local_row * 32 + local_col) as u32 * 2; // 2 bytes per tile index
-                let tile_info = TileInfo::from_bits_truncate(self.read_u16(addr));
+                let entry = if is_text_mode {
+                    self.read_u16(addr as u32)
+                } else {
+                    self.read(addr as u32) as u16
+                };
+                let tile_info = TileInfo::from_bits_truncate(entry);
 
                 // fetch the tile data from the tileset
                 let tile_addr = tileset_addr + tile_info.tile_id() * tile_size;
