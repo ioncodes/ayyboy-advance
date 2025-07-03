@@ -782,9 +782,14 @@ impl Ppu {
     }
 
     fn extract_rgb(rgb: u16) -> Pixel {
-        let r = ((rgb & 0b0000_0000_0001_1111) as u8) << 3;
-        let g = (((rgb & 0b0000_0011_1110_0000) >> 5) as u8) << 3;
-        let b = (((rgb & 0b0111_1100_0000_0000) >> 10) as u8) << 3;
+        let r5 = (rgb & 0x001F) as u8;
+        let g5 = ((rgb >> 5) & 0x001F) as u8;
+        let b5 = ((rgb >> 10) & 0x001F) as u8;
+
+        let r = (r5 << 3) | (r5 >> 2);
+        let g = (g5 << 3) | (g5 >> 2);
+        let b = (b5 << 3) | (b5 >> 2);
+
         Pixel::Rgb(r, g, b)
     }
 }

@@ -3,7 +3,7 @@ use crate::cartridge::database::TITLE_DATABASE;
 use crate::cartridge::storage::BackupType;
 use crate::memory::mmio::Mmio;
 use crate::script::engine::ScriptEngine;
-use log::{error, info};
+use log::info;
 use std::path::Path;
 
 pub struct Gba {
@@ -15,7 +15,6 @@ pub struct Gba {
 impl Gba {
     pub fn new(rom_data: &[u8], elf_data: &[u8]) -> Self {
         let game_title = String::from_utf8_lossy(&rom_data[0xa0..0xa0 + 12]).to_string(); // use as backup
-        info!("Game Title: {}", game_title);
 
         let crc32 = crc32fast::hash(rom_data);
         let crc32 = format!("{:08x}", crc32);
@@ -24,13 +23,14 @@ impl Gba {
             .get(&crc32)
             .map(|&(backup_type, has_rtc, game_title)| (backup_type.into(), has_rtc, game_title.to_string()))
             .unwrap_or_else(|| {
-                error!(
+                eprintln!(
                     "CRC32 '{}' not found in database, using default save type and title.",
                     crc32
                 );
                 (BackupType::Sram, false, game_title.clone())
             });
-        info!("Save Type: {}", save_type);
+        println!("Save Type: {}", save_type);
+        println!("Game Title: {}", rom_title);
 
         let mut mmio = Mmio::new(save_type, has_rtc);
         mmio.load(0x00000000, include_bytes!("../../external/gba_bios.bin"));
