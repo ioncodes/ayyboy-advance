@@ -2,11 +2,11 @@ use crate::arm7tdmi::cpu::Cpu;
 use crate::arm7tdmi::decoder::Instruction;
 use crate::script::proxy::Proxy;
 use core::panic;
-use log::*;
-use rhai::{Dynamic, Engine, Map, Scope, AST};
+use rhai::{AST, Dynamic, Engine, Map, Scope};
 use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
+use tracing::*;
 
 pub struct ScriptEngine {
     engine: Engine,
@@ -112,7 +112,7 @@ impl ScriptEngine {
         match self.engine.call_fn::<Dynamic>(&mut scope, &ast, "setup", ()) {
             Ok(result) => {
                 if self.parse_breakpoints(result) {
-                    info!(
+                    info!(target: "rhai",
                         "Loaded {} breakpoint(s) from script {}",
                         self.breakpoint_handlers.len(),
                         script_path.display()
@@ -145,7 +145,7 @@ impl ScriptEngine {
             // call the handler
             match self.engine.call_fn::<()>(&mut scope, &ast, handler_name, ()) {
                 Ok(_) => {
-                    debug!(
+                    debug!(target: "rhai",
                         "Executed script handler '{}' for breakpoint at 0x{:08X}",
                         handler_name, address
                     );
@@ -164,14 +164,14 @@ impl ScriptEngine {
                 let addr_str = addr_key.to_string();
 
                 if !addr_str.starts_with("0x") {
-                    error!("Invalid breakpoint address format: {}", addr_str);
+                    error!(target: "rhai", "Invalid breakpoint address format: {}", addr_str);
                     continue;
                 }
 
                 let addr_value = match u32::from_str_radix(&addr_str[2..], 16) {
                     Ok(value) => value,
                     Err(_) => {
-                        error!("Can't parse breakpoint address: {}", addr_str);
+                        error!(target: "rhai", "Can't parse breakpoint address: {}", addr_str);
                         continue;
                     }
                 };
@@ -179,16 +179,16 @@ impl ScriptEngine {
                 // Extract handler function name
                 if let Some(handler_name) = handler_value.clone().try_cast::<String>() {
                     self.breakpoint_handlers.insert(addr_value, handler_name.clone());
-                    debug!("Added breakpoint at {} with handler '{}'", addr_str, handler_name);
+                    debug!(target: "rhai", "Added breakpoint at {} with handler '{}'", addr_str, handler_name);
                 } else {
-                    error!("Handler for address {} is not a function name string", addr_str);
+                    error!(target: "rhai", "Handler for address {} is not a function name string", addr_str);
                 }
             }
 
             self.loaded = true;
             true
         } else {
-            error!("setup() did not return a map");
+            error!(target: "rhai", "setup() did not return a map");
             false
         }
     }

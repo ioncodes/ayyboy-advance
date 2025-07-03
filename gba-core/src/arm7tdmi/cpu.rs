@@ -9,8 +9,8 @@ use crate::arm7tdmi::handlers::Handlers;
 use crate::memory::device::IoRegister;
 use crate::memory::mmio::Mmio;
 use crate::memory::registers::Interrupt;
-use log::*;
 use std::fmt::Display;
+use tracing::*;
 
 pub struct Cpu {
     pub registers: Registers,
@@ -41,7 +41,7 @@ impl Cpu {
         }
 
         self.pipeline.advance(self.get_pc(), self.is_thumb(), &mut self.mmio);
-        trace!("Pipeline: {}", self.pipeline);
+        trace!(target: "pipeline", "Pipeline: {}", self.pipeline);
 
         let vblank_available =
             self.mmio.io_if.contains_flags(Interrupt::VBLANK) && self.mmio.io_ie.contains_flags(Interrupt::VBLANK);
@@ -56,7 +56,7 @@ impl Cpu {
             && !self.registers.cpsr.contains(Psr::I)
             && self.pipeline.is_full()
         {
-            trace!("IRQ available, switching to IRQ mode");
+            trace!(target: "irq", "IRQ available, switching to IRQ mode");
 
             // copy CPSR to SPSR and switch to IRQ mode
             self.write_to_spsr(ProcessorMode::Irq, self.registers.cpsr);
@@ -89,28 +89,24 @@ impl Cpu {
         // We need to check this AFTER the IRQ check, or else we will never enter
         // another IRQ during halt
         if halt_cnt == 0 {
-            trace!("CPU is halted");
+            trace!(target: "cpu", "CPU is halted");
             return Err(CpuError::CpuPaused);
         }
 
         if let Some((instruction, state)) = self.pipeline.pop() {
             self.symbolizer.find(state.pc).map(|symbol| {
-                trace!("Found matching symbols @ PC: {}", symbol.join(", "));
+                trace!(target: "symbols", "Found matching symbols @ PC: {}", symbol.join(", "));
             });
 
             trace!("Instruction: {:?}", instruction);
 
             if self.is_thumb() {
-                trace!("Opcode: {:04X} | {:016b}", state.opcode as u16, state.opcode as u16);
+                trace!(target: "cpu", "Opcode: {:04X} | {:016b}", state.opcode as u16, state.opcode as u16);
             } else {
-                trace!("Opcode: {:08X} | {:032b}", state.opcode, state.opcode);
+                trace!(target: "cpu", "Opcode: {:08X} | {:032b}", state.opcode, state.opcode);
             }
 
-            #[cfg(not(feature = "verbose_debug"))]
-            debug!("[{:08X}] {:08X}: {}", state.opcode, state.pc, instruction);
-
-            #[cfg(feature = "verbose_debug")]
-            debug!(
+            debug!(target: "cpu",
                 "[{:08X}] {:08X}: {: <50} [{}]",
                 state.opcode,
                 state.pc,
@@ -154,7 +150,7 @@ impl Cpu {
                 Opcode::Swi => Handlers::software_interrupt(&instruction, self),
             }
 
-            trace!("\n{}", self);
+            trace!(target: "cpu", "\n{}", self);
 
             // do not increment PC if the pipeline has been flushed by an instruction
             if !self.pipeline.is_empty() {
@@ -194,7 +190,6 @@ impl Cpu {
         self.mmio.disable_bios_access();
     }
 
-    #[cfg(feature = "verbose_debug")]
     fn compact_registers(&self) -> String {
         format!(
             "r0={:08X} r1={:08X} r2={:08X} r3={:08X} r4={:08X} r5={:08X} r6={:08X} r7={:08X} r8={:08X} r9={:08X} r10={:08X} r11={:08X} r12={:08X} sp={:08X} lr={:08X} pc={:08X} cpsr={} ime={} if={:016b} ie={:016b}",
@@ -215,11 +210,7 @@ impl Cpu {
             self.read_register(&Register::R14),
             self.read_register(&Register::R15),
             self.registers.cpsr,
-            if *self.mmio.io_ime.value() != 0 {
-                1
-            } else {
-                0
-            },
+            if *self.mmio.io_ime.value() != 0 { 1 } else { 0 },
             self.mmio.io_if.value(),
             self.mmio.io_ie.value(),
         )
@@ -474,7 +465,7 @@ impl Cpu {
         let current_mode = self.get_processor_mode();
         self.registers.cpsr =
             Psr::from_bits_truncate((self.registers.cpsr.bits() & !Psr::M.bits()) | ((mode as u32) & Psr::M.bits()));
-        trace!("Switched from {} to {}", current_mode, mode);
+        trace!(target: "cpu", "Switched from {} to {}", current_mode, mode);
     }
 
     pub fn write_to_current_spsr(&mut self, value: Psr) {
@@ -484,7 +475,7 @@ impl Cpu {
 
     pub fn write_to_spsr(&mut self, mode: ProcessorMode, value: Psr) {
         if mode == ProcessorMode::User || mode == ProcessorMode::System {
-            error!("Attempted to write to User/System SPSR");
+            error!(target: "cpu", "Attempted to write to User/System SPSR");
             return;
         }
 
@@ -506,7 +497,7 @@ impl Cpu {
     pub fn read_from_spsr(&self, mode: ProcessorMode) -> Psr {
         match mode {
             ProcessorMode::User | ProcessorMode::System => {
-                error!("Attempted to read from User/System SPSR");
+                error!(target: "cpu", "Attempted to read from User/System SPSR");
                 self.registers.cpsr
             }
             ProcessorMode::Fiq => self.registers.spsr[0],
@@ -568,19 +559,39 @@ impl Display for Cpu {
             f,
             "spsr[0]: {}{{{},{}}}\nspsr[1]: {}{{{},{}}}\nspsr[2]: {}{{{},{}}}\nspsr[3]: {}{{{},{}}}\nspsr[4]: {}{{{},{}}}\n",
             self.registers.spsr[0],
-            if self.registers.spsr[0].contains(Psr::T) { "Thumb" } else { "Arm" },
+            if self.registers.spsr[0].contains(Psr::T) {
+                "Thumb"
+            } else {
+                "Arm"
+            },
             self.registers.spsr[0].mode(),
             self.registers.spsr[1],
-            if self.registers.spsr[1].contains(Psr::T) { "Thumb" } else { "Arm" },
+            if self.registers.spsr[1].contains(Psr::T) {
+                "Thumb"
+            } else {
+                "Arm"
+            },
             self.registers.spsr[1].mode(),
             self.registers.spsr[2],
-            if self.registers.spsr[2].contains(Psr::T) { "Thumb" } else { "Arm" },
+            if self.registers.spsr[2].contains(Psr::T) {
+                "Thumb"
+            } else {
+                "Arm"
+            },
             self.registers.spsr[2].mode(),
             self.registers.spsr[3],
-            if self.registers.spsr[3].contains(Psr::T) { "Thumb" } else { "Arm" },
+            if self.registers.spsr[3].contains(Psr::T) {
+                "Thumb"
+            } else {
+                "Arm"
+            },
             self.registers.spsr[3].mode(),
             self.registers.spsr[4],
-            if self.registers.spsr[4].contains(Psr::T) { "Thumb" } else { "Arm" },
+            if self.registers.spsr[4].contains(Psr::T) {
+                "Thumb"
+            } else {
+                "Arm"
+            },
             self.registers.spsr[4].mode()
         )?;
         write!(

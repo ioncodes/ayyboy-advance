@@ -5,16 +5,16 @@ use super::dma::Dma;
 use crate::arm7tdmi::decoder::TransferLength;
 use crate::arm7tdmi::timer::Timers;
 use crate::audio::apu::Apu;
+use crate::cartridge::StorageChip;
 use crate::cartridge::eeprom::Eeprom;
 use crate::cartridge::flash::Flash;
 use crate::cartridge::sram::Sram;
 use crate::cartridge::storage::BackupType;
-use crate::cartridge::StorageChip;
 use crate::input::joypad::Joypad;
 use crate::memory::registers::{AddrControl, DmaTrigger, Interrupt};
 use crate::video::ppu::{Ppu, PpuEvent};
 use crate::video::registers::DispStat;
-use log::*;
+use tracing::*;
 
 const EWRAM_SIZE: u32 = 0x40000; // 256 KiB
 const IWRAM_SIZE: u32 = 0x8000; // 32 KiB
@@ -55,7 +55,7 @@ impl Mmio {
             BackupType::Flash512k | BackupType::Flash1m => Box::new(Flash::new(backup_type.clone(), has_rtc)),
             BackupType::Eeprom4k | BackupType::Eeprom64k => Box::new(Eeprom::new(backup_type.clone())),
             _ => {
-                error!("Unsupported backup type: {}, defaulting to SRAM", backup_type);
+                error!(target: "mmio", "Unsupported backup type: {}, defaulting to SRAM", backup_type);
                 Box::new(Sram::new())
             }
         };
@@ -87,12 +87,12 @@ impl Mmio {
 
         if events.contains(&PpuEvent::VBlank) && self.ppu.disp_stat.contains_flags(DispStat::VBLANK_IRQ_ENABLE) {
             self.io_if.set_flags(Interrupt::VBLANK);
-            trace!("VBLANK interrupt raised");
+            trace!(target: "irq", "VBLANK interrupt raised");
         }
 
         if events.contains(&PpuEvent::HBlank) && self.ppu.disp_stat.contains_flags(DispStat::HBLANK_IRQ_ENABLE) {
             self.io_if.set_flags(Interrupt::HBLANK);
-            trace!("HBLANK interrupt raised");
+            trace!(target: "irq", "HBLANK interrupt raised");
         }
 
         self.transfer_dma(&events);
@@ -108,7 +108,7 @@ impl Mmio {
                     || (self.dma.channels[channel].trigger() == DmaTrigger::HBlank
                         && events.contains(&PpuEvent::HBlank)))
             {
-                trace!("DMA transfer on channel {}", channel);
+                debug!(target: "mmio", "DMA transfer on channel {}", channel);
 
                 let src = self.dma.channels[channel].src.value();
                 let dst = self.dma.channels[channel].dst.value();
@@ -201,12 +201,12 @@ impl Mmio {
                 // BIOS open bus read
                 let shift = ((addr & 3) * 8) as u32;
                 let value = ((self.openbus_bios >> shift) & 0xFF) as u8;
-                warn!("Reading from BIOS open bus: {:08X} => {:02X}", addr, value);
+                warn!(target: "mmio", "Reading from BIOS open bus: {:08X} => {:02X}", addr, value);
                 value
             }
             0x0400020A..=0x0400020B => self.internal_memory[addr as usize], // Unused
             0x04000000..=0x040003FE => {
-                error!("Unmapped I/O read: {:08X}", addr);
+                error!(target: "mmio", "Unmapped I/O read: {:08X}", addr);
                 self.internal_memory[addr as usize]
             }
             0x00000000..=0x04FFFFFF => {
@@ -256,7 +256,7 @@ impl Mmio {
             0x0C000000..=0x0DFFFFFF => self.external_memory[(addr - 0x0C000000) as usize], // Mirror of 0x08000000..=0x09FFFFFF
             0x0E000000..=0x0FFFFFFF => self.storage_chip.read(addr),
             _ => {
-                error!("Reading from unmapped memory address: {:08X}", addr);
+                error!(target: "mmio", "Reading from unmapped memory address: {:08X}", addr);
                 0x69
             }
         };
@@ -264,7 +264,7 @@ impl Mmio {
         self.origin_write_length = None;
         self.last_rw_addr.push(addr);
 
-        trace!("Read {:02X} from {:08X}", value, addr);
+        trace!(target: "mmio", "Read {:02X} from {:08X}", value, addr);
 
         value
     }
@@ -289,10 +289,10 @@ impl Mmio {
     }
 
     pub fn write(&mut self, addr: u32, value: u8) {
-        trace!("Writing {:02X} to {:08X}", value, addr);
+        trace!(target: "mmio", "Writing {:02X} to {:08X}", value, addr);
 
         match addr {
-            0x00000000..=0x00003FFF => warn!("Writing to BIOS: {:02X} to {:08X}", value, addr),
+            0x00000000..=0x00003FFF => warn!(target: "mmio", "Writing to BIOS: {:02X} to {:08X}", value, addr),
             0x04000000..=0x04000056 => self.ppu.write(addr, value), // PPU I/O
             0x04000080..=0x0400008E => self.apu.write(addr, value), // APU I/O
             0x040000B0..=0x040000DF => self.dma.write(addr, value), // DMA I/O
@@ -305,7 +305,7 @@ impl Mmio {
             0x04000300 => self.io_postflg.write(value), // POSTFLG -> "After initial reset, the GBA BIOS initializes the register to 01h"
             0x04000301 => self.io_halt_cnt.write(value), // HALTCNT
             0x04000000..=0x040003FE => {
-                error!("Unmapped I/O write: {:02X} to {:08X}", value, addr);
+                error!(target: "mmio", "Unmapped I/O write: {:02X} to {:08X}", value, addr);
                 self.internal_memory[addr as usize] = value; // Unmapped I/O region
             }
             0x00000000..=0x04FFFFFF => {
@@ -354,8 +354,12 @@ impl Mmio {
                     _ => self.ppu.write(addr, value),
                 }
             }
-            0x08000000..=0x09FFFFFF => warn!("Writing to GamePak memory: {:02X} to {:08X}", value, addr),
-            0x0A000000..=0x0BFFFFFF => warn!("Writing to GamePak memory: {:02X} to {:08X}", value, addr), // Mirror of 0x08000000..=0x09FFFFFF
+            0x08000000..=0x09FFFFFF => {
+                warn!(target: "mmio", "Writing to GamePak memory: {:02X} to {:08X}", value, addr)
+            }
+            0x0A000000..=0x0BFFFFFF => {
+                warn!(target: "mmio", "Writing to GamePak memory: {:02X} to {:08X}", value, addr)
+            } // Mirror of 0x08000000..=0x09FFFFFF
             0x0D000000..=0x0DFFFFFF
                 if matches!(
                     self.storage_chip.backup_type(),
@@ -365,10 +369,12 @@ impl Mmio {
                 // TODO: I think this doesn't handle the EEPROM correctly, but it should be fine for now
                 self.storage_chip.write(addr, value);
             }
-            0x0C000000..=0x0DFFFFFF => warn!("Writing to GamePak memory: {:02X} to {:08X}", value, addr), // Mirror of 0x08000000..=0x09FFFFFF
+            0x0C000000..=0x0DFFFFFF => {
+                warn!(target: "mmio", "Writing to GamePak memory: {:02X} to {:08X}", value, addr)
+            } // Mirror of 0x08000000..=0x09FFFFFF
             0x0E000000..=0x0FFFFFFF => self.storage_chip.write(addr, value),
             _ => {
-                error!("Writing to unmapped memory address: {:08X}", addr);
+                error!(target: "mmio", "Writing to unmapped memory address: {:08X}", addr);
             }
         }
 

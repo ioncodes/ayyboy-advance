@@ -1,9 +1,6 @@
-use std::fmt::Display;
-
-use bitflags::bitflags;
-use log::warn;
-
 use super::{FRAME_0_ADDRESS, FRAME_1_ADDRESS, TILEMAP_ENTRY_SIZE, TILESET_ENTRY_SIZE};
+use bitflags::bitflags;
+use tracing::warn;
 
 bitflags! {
     #[derive(Default, Copy, Clone)]
@@ -56,7 +53,7 @@ pub enum Dimension {
     TwoDimensional,
 }
 
-impl Display for Dimension {
+impl std::fmt::Display for Dimension {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Dimension::OneDimensional => write!(f, "1D"),
@@ -127,7 +124,7 @@ impl InternalScreenSize {
     }
 }
 
-impl Display for InternalScreenSize {
+impl std::fmt::Display for InternalScreenSize {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             InternalScreenSize::Text256x256 => write!(f, "256x256 (Text)"),
@@ -148,7 +145,7 @@ pub enum ColorDepth {
     Bpp8,
 }
 
-impl Display for ColorDepth {
+impl std::fmt::Display for ColorDepth {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             ColorDepth::Bpp4 => write!(f, "4bpp"),
@@ -253,7 +250,7 @@ impl ObjAttribute0 {
 
     pub fn disabled(&self) -> bool {
         if self.contains(ObjAttribute0::ROTATION_SCALING) {
-            warn!("DISABLE flag cannot be used with rotation/scaling");
+            warn!(target: "ppu", "DISABLE flag cannot be used with rotation/scaling");
         }
 
         self.contains(ObjAttribute0::DISABLE_OR_DBL_SIZE)
@@ -284,7 +281,7 @@ pub enum ObjSize {
     Vertical32x64,
 }
 
-impl Display for ObjSize {
+impl std::fmt::Display for ObjSize {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             ObjSize::Square8x8 => write!(f, "8x8"),

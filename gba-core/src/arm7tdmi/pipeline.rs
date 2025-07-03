@@ -1,7 +1,7 @@
 use super::decoder::Instruction;
 use crate::memory::mmio::Mmio;
-use log::*;
 use std::fmt::Display;
+use tracing::*;
 
 pub struct State {
     pub pc: u32,
@@ -32,7 +32,7 @@ impl Pipeline {
 
         let state = self.states.remove(0);
         let instr = Instruction::decode(state.opcode, state.is_thumb).unwrap_or_else(|e| {
-            error!("Failed to decode instruction: {:?} at {:08X}", e, state.pc);
+            error!(target: "pipeline", "Failed to decode instruction: {:?} at {:08X}", e, state.pc);
             Instruction::nop()
         });
 

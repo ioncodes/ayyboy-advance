@@ -12,10 +12,12 @@ use clap::Parser;
 use crossbeam_channel::{self, Receiver, Sender};
 use eframe::NativeOptions;
 use gba_core::video::{Frame, SCREEN_HEIGHT, SCREEN_WIDTH};
-use log::LevelFilter;
 use renderer::Renderer;
 use shadow_rs::shadow;
-use simple_logger::SimpleLogger;
+use tracing::Level;
+use tracing_subscriber::Layer;
+use tracing_subscriber::layer::SubscriberExt;
+use tracing_subscriber::util::SubscriberInitExt;
 
 shadow!(build_info);
 
@@ -29,6 +31,10 @@ struct Args {
     #[arg(long)]
     debug: bool,
 
+    /// Targets to enable logging for
+    #[arg(long, default_value = "cpu,mmio,storage,ppu,irq,pipeline,rhai")]
+    targets: String,
+
     /// Path to a custom script file
     #[arg(long)]
     script: Option<String>,
@@ -41,20 +47,21 @@ struct Args {
 fn main() {
     let args = Args::parse();
 
-    SimpleLogger::new()
-        .with_level(LevelFilter::Off)
-        .with_module_level(
-            "gba_core",
-            if args.trace {
-                LevelFilter::Trace
-            } else if args.debug {
-                LevelFilter::Debug
-            } else {
-                LevelFilter::Info
-            },
-        )
-        .init()
-        .unwrap();
+    let level = if args.trace {
+        Level::TRACE
+    } else if args.debug {
+        Level::DEBUG
+    } else {
+        Level::INFO
+    };
+
+    let mut targets = tracing_subscriber::filter::Targets::new();
+    for target in args.targets.split(',') {
+        targets = targets.with_target(target.trim(), level);
+    }
+
+    let fmt_layer = tracing_subscriber::fmt::layer().without_time().with_filter(targets);
+    tracing_subscriber::registry().with(fmt_layer).init();
 
     let (display_tx, display_rx): (Sender<Frame>, Receiver<Frame>) = crossbeam_channel::bounded(1);
     let (dbg_req_tx, dbg_req_rx) = crossbeam_channel::bounded(25);

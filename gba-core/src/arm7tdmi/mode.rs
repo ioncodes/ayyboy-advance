@@ -1,5 +1,5 @@
-use log::error;
 use std::fmt::Display;
+use tracing::error;
 
 #[derive(Debug, Clone, Copy, PartialEq, Hash, Eq)]
 pub enum ProcessorMode {
@@ -24,7 +24,7 @@ impl ProcessorMode {
             0b11011 => ProcessorMode::Undefined,
             0b11111 => ProcessorMode::System,
             _ => {
-                error!("Invalid processor mode: {:08b}", value);
+                error!(target: "cpu", "Invalid processor mode: {:08b}", value);
                 ProcessorMode::Invalid
             }
         }

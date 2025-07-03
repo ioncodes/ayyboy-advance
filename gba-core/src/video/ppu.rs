@@ -1,11 +1,11 @@
 use super::registers::{BgCnt, BgOffset, ColorDepth, DispCnt, DispStat, ObjShape};
 use super::tile::Tile;
-use super::{Frame, Pixel, PALETTE_ADDR_END, PALETTE_ADDR_START, PALETTE_TOTAL_ENTRIES, SCREEN_HEIGHT, SCREEN_WIDTH};
+use super::{Frame, PALETTE_ADDR_END, PALETTE_ADDR_START, PALETTE_TOTAL_ENTRIES, Pixel, SCREEN_HEIGHT, SCREEN_WIDTH};
 use crate::memory::device::{Addressable, IoRegister};
+use crate::video::TILEMAP_ENTRY_SIZE;
 use crate::video::registers::{Dimension, InternalScreenSize, ObjAttribute0, ObjAttribute1, ObjAttribute2, ObjSize};
 use crate::video::tile::TileInfo;
-use crate::video::TILEMAP_ENTRY_SIZE;
-use log::*;
+use tracing::*;
 
 #[derive(PartialEq)]
 pub enum PpuEvent {
@@ -100,7 +100,7 @@ impl Ppu {
 
     pub fn get_frame(&self) -> Frame {
         let lcd_control = self.disp_cnt.value();
-        trace!("Grabbing internal frame buffer for PPU mode: {}", lcd_control.bg_mode());
+        trace!(target: "ppu", "Grabbing internal frame buffer for PPU mode: {}", lcd_control.bg_mode());
 
         let blit_sprites = |frame: &mut Frame, sprite_frame: &Vec<(usize, Pixel)>| {
             let bg2cnt = self.bg_cnt[2].value();
@@ -156,10 +156,7 @@ impl Ppu {
     pub fn get_background_frame(&self, mode: usize, base_addr: u32) -> Frame {
         match mode {
             0 => self.render_background_mode0(&vec![(5, Pixel::Transparent); SCREEN_WIDTH * SCREEN_HEIGHT]),
-            1..=2 => {
-                error!("Background mode {} is not supported", mode);
-                self.render_background_mode0(&vec![(5, Pixel::Transparent); SCREEN_WIDTH * SCREEN_HEIGHT])
-            }
+            1..=2 => self.render_background_mode0(&vec![(5, Pixel::Transparent); SCREEN_WIDTH * SCREEN_HEIGHT]),
             3 => self.render_background_mode3(base_addr),
             4 => self.render_background_mode4(base_addr),
             5 => self.render_background_mode5(base_addr),
@@ -658,7 +655,7 @@ impl Ppu {
     }
 
     fn render_background_mode0(&self, sprite_frame: &Vec<(usize, Pixel)>) -> Frame {
-        trace!("Rendering background mode 0");
+        trace!(target: "ppu", "Rendering background mode 0");
 
         let palette = self.fetch_palette();
         let mut frame = [[palette[0]; SCREEN_WIDTH]; SCREEN_HEIGHT];
@@ -703,7 +700,7 @@ impl Ppu {
     }
 
     fn render_background_mode3(&self, base_addr: u32) -> Frame {
-        trace!("Rendering background mode 3 @ {:08X}", base_addr);
+        trace!(target: "ppu", "Rendering background mode 3 @ {:08X}", base_addr);
 
         let mut frame = [[Pixel::Transparent; SCREEN_WIDTH]; SCREEN_HEIGHT];
 
@@ -719,7 +716,7 @@ impl Ppu {
     }
 
     fn render_background_mode4(&self, base_addr: u32) -> Frame {
-        trace!("Rendering background mode 4 @ {:08X}", base_addr);
+        trace!(target: "ppu", "Rendering background mode 4 @ {:08X}", base_addr);
 
         let mut frame = [[Pixel::Transparent; SCREEN_WIDTH]; SCREEN_HEIGHT];
 
@@ -736,7 +733,7 @@ impl Ppu {
     }
 
     fn render_background_mode5(&self, base_addr: u32) -> Frame {
-        trace!("Rendering background mode 5 @ {:08X}", base_addr);
+        trace!(target: "ppu", "Rendering background mode 5 @ {:08X}", base_addr);
 
         let mut frame = [[Pixel::Transparent; SCREEN_WIDTH]; SCREEN_HEIGHT];
 
@@ -839,7 +836,7 @@ impl Addressable for Ppu {
             // rest of the registers
             0x04000000..=0x04000056 => self.io[(addr - 0x04000000) as usize] = value,
             0x05000000..=0x07FFFFFF => {
-                trace!("Writing to VRAM address: {:08X} with value: {:02X}", addr, value);
+                trace!(target: "ppu", "Writing to VRAM address: {:08X} with value: {:02X}", addr, value);
                 self.vram[(addr - 0x05000000) as usize] = value
             }
             _ => unreachable!(),

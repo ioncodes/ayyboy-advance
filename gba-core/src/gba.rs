@@ -3,8 +3,8 @@ use crate::cartridge::database::TITLE_DATABASE;
 use crate::cartridge::storage::BackupType;
 use crate::memory::mmio::Mmio;
 use crate::script::engine::ScriptEngine;
-use log::info;
 use std::path::Path;
+use tracing::info;
 
 pub struct Gba {
     pub cpu: Cpu,
@@ -55,7 +55,7 @@ impl Gba {
 
         self.script_engine = Some(engine);
 
-        info!("Successfully loaded script: {}", path.display());
+        info!(target: "rhai", "Successfully loaded script: {}", path.display());
     }
 
     pub fn try_execute_breakpoint(&mut self, address: u32, pc: u32) {

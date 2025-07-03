@@ -3,12 +3,12 @@ use super::decoder::{Condition, Instruction, Opcode, Operand, ShiftSource, Shift
 use super::registers::Psr;
 use crate::arm7tdmi::decoder::{Direction, Indexing, Register, TransferLength};
 use crate::arm7tdmi::mode::ProcessorMode;
-use log::*;
+use tracing::*;
 
 macro_rules! check_condition {
     ($cpu:expr, $instr:expr) => {
         if !Handlers::check_condition($cpu, &$instr.condition) {
-            trace!("Skipping instruction due to condition");
+            trace!(target: "interpreter", "Skipping instruction due to condition");
             return;
         }
     };
@@ -350,7 +350,7 @@ impl Handlers {
                             //   LDRH Rd,[odd]   -->  LDRH Rd,[odd-1] ROR 8  ;read to bit0-7 and bit24-31
                             //   LDRSH Rd,[odd]  -->  LDRSB Rd,[odd]         ;sign-expand BYTE value
                             let value = cpu.mmio.read(address); // Bits 0-7
-                                                                // TODO: value as i8 as u32
+                            // TODO: value as i8 as u32
                             value as u32
                         } else {
                             let value = cpu.mmio.read_u16(aligned_address) as u32;

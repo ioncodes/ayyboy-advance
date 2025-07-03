@@ -1,5 +1,5 @@
-use bitflags::{bitflags, Flags};
-use log::warn;
+use bitflags::{Flags, bitflags};
+use tracing::warn;
 
 bitflags! {
     #[derive(Default, Copy, Clone)]
@@ -75,7 +75,7 @@ impl DmaControl {
             1 => AddrControl::Decrement,
             2 => AddrControl::Fixed,
             3 => {
-                warn!("DMA source address control set to Reload, this is not a valid state");
+                warn!(target: "mmio", "DMA source address control set to Reload, this is not a valid state");
                 AddrControl::Reload
             }
             _ => unreachable!(),

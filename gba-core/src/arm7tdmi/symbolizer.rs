@@ -1,6 +1,6 @@
 use goblin::Object;
-use log::info;
 use std::collections::HashMap;
+use tracing::info;
 
 pub struct Symbolizer {
     symbols: HashMap<u32, Vec<String>>,
@@ -31,7 +31,7 @@ impl Symbolizer {
                 map
             });
 
-        info!("Loaded {} symbols", symbols.len());
+        info!(target: "symbols", "Loaded {} symbols", symbols.len());
 
         Symbolizer { symbols }
     }
