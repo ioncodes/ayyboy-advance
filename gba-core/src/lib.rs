@@ -1,5 +1,4 @@
 #![feature(new_zeroed_alloc)]
-#![feature(let_chains)]
 
 pub mod arm7tdmi;
 pub mod audio;
