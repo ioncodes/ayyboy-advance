@@ -11,8 +11,8 @@ ayyboy's big brother
 ## Setup
 ```bash
 # place BIOS in external/gba_bios.bin
-cargo build --release      # disables all logs at compile time
-cargo build --profile dev  # logs all levels <=INFO by default, opt-level 3 for performance
+cargo build --release      # full optimizations
+cargo build --profile dev  # opt-level 3, retains debug checks - nice to debug overflows, etc.
 ```
 
 ## Usage
@@ -20,11 +20,12 @@ cargo build --profile dev  # logs all levels <=INFO by default, opt-level 3 for 
 Usage: ayydbg.exe [OPTIONS] --rom <ROM>
 
 Options:
-      --trace            Enable trace-level logging (highest verbosity, incl. cpu dump and mmio events)
-      --debug            Enable debug-level logging (mostly just cpu instructions)
-      --script <SCRIPT>  Path to a custom script file
-      --rom <ROM>        Path to the ROM file
-  -h, --help             Print help
+      --trace              Enable trace-level logging (highest verbosity, incl. cpu dump and mmio events)
+      --debug              Enable debug-level logging (mostly just cpu instructions)
+      --targets <TARGETS>  Targets to enable logging for [default: cpu,mmio,storage,ppu,irq,pipeline,rhai]
+      --script <SCRIPT>    Path to a custom script file
+      --rom <ROM>          Path to the ROM file
+  -h, --help               Print help
 ```
 
 ### Scripting
@@ -35,7 +36,14 @@ ayyboy advance support's [Rhai](https://rhai.rs/) scripts. These scripts allow y
 Refer to the [`scripts` folder](https://github.com/ioncodes/ayyboy-advance/tree/master/scripts) for examples. In particular, `dump_swi.rhai` is noteworthy as it logs every BIOS call.
 
 ### Screenshot Database
-`rom-db` runs every `.zip` and `.gba` found in a given folder and takes a few screenshots every now and then. These are saved in `rom-db-ui/public/screenshots`:
+`rom-db` runs a given `.zip` or `.gba` and takes a few screenshots every now and then. Collection can be performed with:
+
+```bash
+bash external/collect_screemshots.sh <rom-folder>                # edit script to change max process number
+bash external/clean_screenshots.sh rom-db-ui/public/screenshots  # delete duplicates, white and black images
+```
+
+The screenshots are saved in `rom-db-ui/public/screenshots`. Build the frontend using:
 ```bash
 # inside of rom-db-ui
 npm install

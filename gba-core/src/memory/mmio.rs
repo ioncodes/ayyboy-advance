@@ -108,14 +108,17 @@ impl Mmio {
                     || (self.dma.channels[channel].trigger() == DmaTrigger::HBlank
                         && events.contains(&PpuEvent::HBlank)))
             {
-                debug!(target: "mmio", "DMA transfer on channel {}", channel);
-
                 let src = self.dma.channels[channel].src.value();
                 let dst = self.dma.channels[channel].dst.value();
                 if dst == 0x040000A0 || dst == 0x040000A4 {
                     // TODO: WE SKIP SOUND DMA FOR NOW
                     continue;
                 }
+
+                debug!(target: "mmio", "DMA transfer on channel {}, src: {:08X}, dst: {:08X}, units: {}, size: {}",
+                    channel, src, dst,
+                    self.dma.channels[channel].transfer_units(),
+                    self.dma.channels[channel].transfer_size());
 
                 let units = self.dma.channels[channel].transfer_units();
                 let unit_size = self.dma.channels[channel].transfer_size() as u16;
