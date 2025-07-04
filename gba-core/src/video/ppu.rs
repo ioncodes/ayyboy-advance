@@ -3,7 +3,10 @@ use super::tile::Tile;
 use super::{Frame, PALETTE_ADDR_END, PALETTE_ADDR_START, PALETTE_TOTAL_ENTRIES, Pixel, SCREEN_HEIGHT, SCREEN_WIDTH};
 use crate::memory::device::{Addressable, IoRegister};
 use crate::video::TILEMAP_ENTRY_SIZE;
-use crate::video::registers::{Dimension, InternalScreenSize, ObjAttribute0, ObjAttribute1, ObjAttribute2, ObjSize};
+use crate::video::registers::{
+    Dimension, InternalScreenSize, ObjAttribute0, ObjAttribute1, ObjAttribute2, ObjSize, WindowControl,
+    WindowDimensions,
+};
 use crate::video::tile::TileInfo;
 use tracing::*;
 
@@ -46,6 +49,12 @@ pub struct Ppu {
     pub bg_cnt: [IoRegister<BgCnt>; 4],
     pub bg_hofs: [IoRegister<BgOffset>; 4],
     pub bg_vofs: [IoRegister<BgOffset>; 4],
+    pub win0_h: IoRegister<WindowDimensions>,
+    pub win1_h: IoRegister<WindowDimensions>,
+    pub win0_v: IoRegister<WindowDimensions>,
+    pub win1_v: IoRegister<WindowDimensions>,
+    pub winin: IoRegister<WindowControl>,
+    pub winout: IoRegister<WindowControl>,
 }
 
 impl Ppu {
@@ -64,6 +73,12 @@ impl Ppu {
             bg_cnt: [IoRegister::default(); 4],
             bg_hofs: [IoRegister::default(); 4],
             bg_vofs: [IoRegister::default(); 4],
+            win0_h: IoRegister::default(),
+            win1_h: IoRegister::default(),
+            win0_v: IoRegister::default(),
+            win1_v: IoRegister::default(),
+            winin: IoRegister::default(),
+            winout: IoRegister::default(),
         }
     }
 
@@ -826,8 +841,17 @@ impl Addressable for Ppu {
             0x0400001A..=0x0400001B => self.bg_vofs[2].read(addr), // BG2VOFS
             0x0400001C..=0x0400001D => self.bg_hofs[3].read(addr), // BG3HOFS
             0x0400001E..=0x0400001F => self.bg_vofs[3].read(addr), // BG3VOFS
+            0x04000040..=0x04000041 => self.win0_h.read(addr),     // WIN0H
+            0x04000042..=0x04000043 => self.win1_h.read(addr),     // WIN1H
+            0x04000044..=0x04000045 => self.win0_v.read(addr),     // WIN0V
+            0x04000046..=0x04000047 => self.win1_v.read(addr),     // WIN1V
+            0x04000048..=0x04000049 => self.winin.read(addr),      // WININ
+            0x0400004A..=0x0400004B => self.winout.read(addr),     // WINOUT
             // rest of the registers
-            0x04000000..=0x04000056 => self.io[(addr - 0x04000000) as usize],
+            0x04000000..=0x04000056 => {
+                error!(target: "ppu", "Reading from unmapped I/O address: {:08X}", addr);
+                self.io[(addr - 0x04000000) as usize]
+            }
             0x05000000..=0x07FFFFFF => self.vram[(addr - 0x05000000) as usize],
             _ => unreachable!(),
         }
@@ -850,8 +874,17 @@ impl Addressable for Ppu {
             0x0400001A..=0x0400001B => self.bg_vofs[2].write(addr, value), // BG2VOFS
             0x0400001C..=0x0400001D => self.bg_hofs[3].write(addr, value), // BG3HOFS
             0x0400001E..=0x0400001F => self.bg_vofs[3].write(addr, value), // BG3VOFS
+            0x04000040..=0x04000041 => self.win0_h.write(addr, value),   // WIN0H
+            0x04000042..=0x04000043 => self.win1_h.write(addr, value),   // WIN1H
+            0x04000044..=0x04000045 => self.win0_v.write(addr, value),   // WIN0V
+            0x04000046..=0x04000047 => self.win1_v.write(addr, value),   // WIN1V
+            0x04000048..=0x04000049 => self.winin.write(addr, value),    // WININ
+            0x0400004A..=0x0400004B => self.winout.write(addr, value),   // WINOUT
             // rest of the registers
-            0x04000000..=0x04000056 => self.io[(addr - 0x04000000) as usize] = value,
+            0x04000000..=0x04000056 => {
+                error!(target: "ppu", "Writing to unmapped I/O address: {:08X} with value: {:02X}", addr, value);
+                self.io[(addr - 0x04000000) as usize] = value
+            }
             0x05000000..=0x07FFFFFF => {
                 trace!(target: "ppu", "Writing to VRAM address: {:08X} with value: {:02X}", addr, value);
                 self.vram[(addr - 0x05000000) as usize] = value

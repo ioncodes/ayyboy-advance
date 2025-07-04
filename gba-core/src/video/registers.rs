@@ -369,3 +369,58 @@ impl ObjAttribute2 {
         ((self.bits() & ObjAttribute2::PALLETE.bits()) >> 12) as usize
     }
 }
+
+bitflags! {
+    #[derive(Default, Copy, Clone)]
+    pub struct WindowDimensions: u16 {
+        const X2 = 0b0000_0000_1111_1111;
+        const X1 = 0b1111_1111_0000_0000;
+    }
+}
+
+impl WindowDimensions {
+    pub fn x1(&self) -> usize {
+        (self.bits() & WindowDimensions::X1.bits()) as usize >> 8
+    }
+
+    pub fn x2(&self) -> usize {
+        (self.bits() & WindowDimensions::X2.bits()) as usize
+    }
+
+    pub fn length(&self) -> usize {
+        self.x2() - self.x1()
+    }
+}
+
+bitflags! {
+    #[derive(Default, Copy, Clone)]
+    pub struct WindowControl: u16 {
+        const WIN0_BG_ENABLE_BITS = 0b0000_0000_0000_1111;
+        const WIN0_OBJ_ENABLE_BIT = 0b0000_0000_0001_0000;
+        const WIN0_COLOR_SPECIAL  = 0b0000_0000_0010_0000;
+        const UNUSED0             = 0b0000_0000_1100_0000;
+        const WIN1_BG_ENABLE_BITS = 0b0000_1111_0000_0000;
+        const WIN1_OBJ_ENABLE_BIT = 0b0001_0000_0000_0000;
+        const WIN1_COLOR_SPECIAL  = 0b0010_0000_0000_0000;
+        const UNUSED1             = 0b1100_0000_0000_0000;
+    }
+}
+
+impl WindowControl {
+    pub fn obj_enabled_win0(&self) -> bool {
+        self.contains(WindowControl::WIN0_OBJ_ENABLE_BIT)
+    }
+
+    pub fn obj_enabled_win1(&self) -> bool {
+        self.contains(WindowControl::WIN1_OBJ_ENABLE_BIT)
+    }
+
+    pub fn is_bg_enabled(&self, bg: usize) -> bool {
+        if bg > 3 {
+            panic!("Invalid background index: {}", bg);
+        }
+
+        let mask = 1 << bg;
+        WindowControl::WIN0_BG_ENABLE_BITS.bits() & mask != 0
+    }
+}
