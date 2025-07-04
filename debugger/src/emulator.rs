@@ -57,8 +57,7 @@ impl Emulator {
             gba.load_rhai_script(script_path);
         }
 
-        let save_base_path = Path::new("saves").join(gba.rom_title.clone());
-        std::fs::create_dir_all(&save_base_path).expect("Failed to create save directory");
+        let save_base_path = Path::new("saves");
         gba.load_devices(&save_base_path);
 
         Self {
@@ -103,6 +102,9 @@ impl Emulator {
                 frame_rendered = false;
             }
         }
+
+        let save_base_path = Path::new("saves");
+        self.gba.save_devices(&save_base_path);
     }
 
     fn process_debug_events(&mut self) -> EventResult {

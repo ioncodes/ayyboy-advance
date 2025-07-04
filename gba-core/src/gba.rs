@@ -10,6 +10,7 @@ pub struct Gba {
     pub cpu: Cpu,
     pub script_engine: Option<ScriptEngine>,
     pub rom_title: String,
+    pub crc32: String,
 }
 
 impl Gba {
@@ -44,6 +45,7 @@ impl Gba {
             cpu,
             script_engine: None,
             rom_title,
+            crc32,
         }
     }
 
@@ -66,7 +68,10 @@ impl Gba {
 
     pub fn save_devices(&self, base_path: &Path) {
         let storage_data = self.cpu.mmio.storage_chip.aggregate_storage();
-        let storage_path = base_path.join("storage.bin");
+        let storage_path = base_path.join(&self.crc32);
+        std::fs::create_dir_all(&storage_path).expect("Failed to create save directory");
+
+        let storage_path = storage_path.join("storage.bin");
 
         if let Err(e) = std::fs::write(&storage_path, &storage_data) {
             error!(target: "storage", "Failed to save data: {}", e);
@@ -76,7 +81,10 @@ impl Gba {
     }
 
     pub fn load_devices(&mut self, base_path: &Path) {
-        let storage_path = base_path.join("storage.bin");
+        let storage_path = base_path.join(&self.crc32);
+        std::fs::create_dir_all(&storage_path).expect("Failed to create save directory");
+
+        let storage_path = storage_path.join("storage.bin");
 
         if let Ok(data) = std::fs::read(&storage_path) {
             self.cpu.mmio.storage_chip.load_storage(&data);

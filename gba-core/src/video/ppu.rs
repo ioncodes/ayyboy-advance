@@ -102,61 +102,43 @@ impl Ppu {
         let lcd_control = self.disp_cnt.value();
         trace!(target: "ppu", "Grabbing internal frame buffer for PPU mode: {}", lcd_control.bg_mode());
 
-        let blit_sprites = |frame: &mut Frame, sprite_frame: &Vec<(usize, Pixel)>| {
-            let bg2cnt = self.bg_cnt[2].value();
-            let palettes = self.fetch_palette();
+        let sprite_layer = self.render_sprites();
 
-            for (y, row) in frame.iter_mut().enumerate() {
-                for (x, pixel) in row.iter_mut().enumerate() {
-                    let sprite_idx = y * SCREEN_WIDTH + x;
-
-                    // skip if the pixel is transparent
-                    if sprite_frame[sprite_idx].1 == Pixel::Transparent {
-                        continue;
+        let bg_layers = match lcd_control.bg_mode() {
+            0 => self.render_background_mode0_layers(),
+            1..=2 => self.render_background_mode0_layers(), // TODO: should prob not deal with these modes inside of mode0
+            3..=5 => {
+                let mut layers = vec![[[Pixel::Transparent; SCREEN_WIDTH]; SCREEN_HEIGHT]; 4];
+                match lcd_control.bg_mode() {
+                    3 => {
+                        layers[2] = self.render_background_mode3(self.bg_cnt[0].value().tileset_addr() as u32);
                     }
-
-                    // blit sprite pixel if:
-                    // 1. the sprite priority is less than or equal to the background priority OR
-                    // 2. the bg pixel matches the first palette color (which indicates transparency/backdrop)
-                    if sprite_frame[sprite_idx].0 <= bg2cnt.priority()
-                        || (sprite_frame[sprite_idx].0 > bg2cnt.priority() && *pixel == palettes[0])
-                    {
-                        *pixel = sprite_frame[sprite_idx].1;
+                    4 => {
+                        layers[2] = self.render_background_mode4(self.bg_cnt[0].value().tileset_addr() as u32);
                     }
+                    5 => {
+                        layers[2] = self.render_background_mode5(self.bg_cnt[0].value().tileset_addr() as u32);
+                    }
+                    _ => unreachable!(),
                 }
-            }
-        };
-
-        let sprite_frame = self.render_sprites();
-
-        let frame = match lcd_control.bg_mode() {
-            0 => self.render_background_mode0(&sprite_frame),
-            1..=2 => self.render_background_mode0(&sprite_frame), // TODO: should prob not deal with these modes inside of mode0
-            3 => {
-                let mut frame = self.render_background_mode3(lcd_control.frame_address());
-                blit_sprites(&mut frame, &sprite_frame);
-                frame
-            }
-            4 => {
-                let mut frame = self.render_background_mode4(lcd_control.frame_address());
-                blit_sprites(&mut frame, &sprite_frame);
-                frame
-            }
-            5 => {
-                let mut frame = self.render_background_mode5(lcd_control.frame_address());
-                blit_sprites(&mut frame, &sprite_frame);
-                frame
+                layers
             }
             _ => unreachable!(),
         };
 
-        frame
+        self.compose_layers(&bg_layers, &sprite_layer)
     }
 
     pub fn get_background_frame(&self, mode: usize, base_addr: u32) -> Frame {
         match mode {
-            0 => self.render_background_mode0(&vec![(5, Pixel::Transparent); SCREEN_WIDTH * SCREEN_HEIGHT]),
-            1..=2 => self.render_background_mode0(&vec![(5, Pixel::Transparent); SCREEN_WIDTH * SCREEN_HEIGHT]),
+            0 => {
+                let layers = self.render_background_mode0_layers();
+                self.compose_layers(&layers, &vec![(5, Pixel::Transparent); SCREEN_WIDTH * SCREEN_HEIGHT])
+            }
+            1..=2 => {
+                let layers = self.render_background_mode0_layers();
+                self.compose_layers(&layers, &vec![(5, Pixel::Transparent); SCREEN_WIDTH * SCREEN_HEIGHT])
+            }
             3 => self.render_background_mode3(base_addr),
             4 => self.render_background_mode4(base_addr),
             5 => self.render_background_mode5(base_addr),
@@ -654,17 +636,26 @@ impl Ppu {
         frame
     }
 
-    fn render_background_mode0(&self, sprite_frame: &Vec<(usize, Pixel)>) -> Frame {
-        trace!(target: "ppu", "Rendering background mode 0");
+    fn render_background_mode0_layers(&self) -> Vec<Frame> {
+        trace!(target: "ppu", "Rendering background mode 0 layers");
 
-        let palette = self.fetch_palette();
-        let mut frame = [[palette[0]; SCREEN_WIDTH]; SCREEN_HEIGHT];
-
-        // this list is sorted by priority
-        let bg_cnts = self.effective_backgrounds();
+        let mut layers = vec![[[Pixel::Transparent; SCREEN_WIDTH]; SCREEN_HEIGHT]; 4];
         let bg_mode = self.disp_cnt.value().bg_mode();
 
-        for (id, bg_cnt) in bg_cnts {
+        for id in 0..4 {
+            let enabled = match id {
+                0 => self.disp_cnt.contains_flags(DispCnt::BG0_ON),
+                1 => self.disp_cnt.contains_flags(DispCnt::BG1_ON),
+                2 => self.disp_cnt.contains_flags(DispCnt::BG2_ON),
+                3 => self.disp_cnt.contains_flags(DispCnt::BG3_ON),
+                _ => false,
+            };
+
+            if !enabled {
+                continue;
+            }
+
+            let bg_cnt = self.bg_cnt[id].value();
             let screen_size = bg_cnt.screen_size(id, bg_mode);
             let (map_w, map_h) = (screen_size.width(), screen_size.height());
 
@@ -683,20 +674,13 @@ impl Ppu {
                     let color = tilemap[src_y * map_w + src_x];
                     // Instead of checking (0,0,0), we rely on whether color is Transparent.
                     if color != Pixel::Transparent {
-                        frame[y][x] = color;
-                    }
-
-                    let sprite_idx = y * SCREEN_WIDTH + x;
-                    if sprite_frame[sprite_idx].0 <= bg_cnt.priority()
-                        && sprite_frame[sprite_idx].1 != Pixel::Transparent
-                    {
-                        frame[y][x] = sprite_frame[sprite_idx].1;
+                        layers[id][y][x] = color;
                     }
                 }
             }
         }
 
-        frame
+        layers
     }
 
     fn render_background_mode3(&self, base_addr: u32) -> Frame {
@@ -748,34 +732,39 @@ impl Ppu {
         frame
     }
 
-    fn effective_backgrounds(&self) -> Vec<(usize, BgCnt)> {
-        // we need to return a list of (index, BgCnt), or else we wont know which BGxCNT is which
-        // this is important for later once we access the scroll registers as well
-        // we also sort this list by priority, so that we can render the backgrounds in the correct order
-        let mut bg_cnts = vec![];
+    fn compose_layers(&self, bg_layers: &Vec<Frame>, sprite_frame: &Vec<(usize, Pixel)>) -> Frame {
+        assert_eq!(bg_layers.len(), 4, "Expected 4 background layers");
 
-        // check which backgrounds are enabled
-        if self.disp_cnt.contains_flags(DispCnt::BG0_ON) {
-            bg_cnts.push((0, *self.bg_cnt[0].value()));
+        let palette = self.fetch_palette();
+        let backdrop = palette[0];
+        let mut frame = [[backdrop; SCREEN_WIDTH]; SCREEN_HEIGHT];
+
+        for y in 0..SCREEN_HEIGHT {
+            for x in 0..SCREEN_WIDTH {
+                let mut color = backdrop;
+                let mut best_priority = 5usize;
+
+                for id in 0..4 {
+                    let layer_color = bg_layers[id][y][x];
+                    if layer_color != Pixel::Transparent {
+                        let priority = self.bg_cnt[id].value().priority();
+                        if priority <= best_priority {
+                            best_priority = priority;
+                            color = layer_color;
+                        }
+                    }
+                }
+
+                let sprite = sprite_frame[y * SCREEN_WIDTH + x];
+                if sprite.1 != Pixel::Transparent && sprite.0 <= best_priority {
+                    frame[y][x] = sprite.1;
+                } else {
+                    frame[y][x] = color;
+                }
+            }
         }
 
-        if self.disp_cnt.contains_flags(DispCnt::BG1_ON) {
-            bg_cnts.push((1, *self.bg_cnt[1].value()));
-        }
-
-        if self.disp_cnt.contains_flags(DispCnt::BG2_ON) {
-            bg_cnts.push((2, *self.bg_cnt[2].value()));
-        }
-
-        if self.disp_cnt.contains_flags(DispCnt::BG3_ON) {
-            bg_cnts.push((3, *self.bg_cnt[3].value()));
-        }
-
-        // sort by the provided priority, 0 is highest priority
-        bg_cnts.sort_by(|a, b| a.1.priority().cmp(&b.1.priority()));
-        bg_cnts.reverse(); // reverse to have the highest priority first
-
-        bg_cnts
+        frame
     }
 
     fn extract_rgb(rgb: u16) -> Pixel {

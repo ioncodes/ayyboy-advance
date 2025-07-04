@@ -6,8 +6,6 @@ mod emulator;
 mod event;
 mod renderer;
 
-use std::path::Path;
-
 use crate::emulator::Emulator;
 use crate::renderer::SCALE;
 use clap::Parser;
@@ -75,9 +73,6 @@ fn main() {
 
     std::thread::spawn(move || {
         emulator.run(exit_rx);
-
-        let save_base_path = Path::new("saves").join(emulator.gba.rom_title.clone());
-        emulator.gba.save_devices(&save_base_path);
     });
 
     let native_options = NativeOptions {
