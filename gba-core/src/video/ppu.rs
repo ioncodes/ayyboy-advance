@@ -288,7 +288,7 @@ impl Ppu {
                 let tile_info = TileInfo::from_bits_truncate(entry);
 
                 // fetch the tile data from the tileset
-                let tile_addr = tileset_addr + tile_info.tile_id() * tile_size;
+                let tile_addr = tileset_addr + tile_info.tile_id(is_text_mode) * tile_size;
                 let tile_data = {
                     let mut tile_data = vec![0u8; tile_size];
                     for i in 0..tile_size {
@@ -306,12 +306,14 @@ impl Ppu {
                 let mut tile = Tile::from_bytes(&tile_data, palette_bank);
 
                 // flip the tile if needed
-                if tile_info.contains(TileInfo::FLIP_X) {
-                    tile.flip_x();
-                }
+                if is_text_mode {
+                    if tile_info.contains(TileInfo::FLIP_X) {
+                        tile.flip_x();
+                    }
 
-                if tile_info.contains(TileInfo::FLIP_Y) {
-                    tile.flip_y();
+                    if tile_info.contains(TileInfo::FLIP_Y) {
+                        tile.flip_y();
+                    }
                 }
 
                 // render the tile to the internal frame buffer
@@ -598,11 +600,13 @@ impl Ppu {
                     let mut tile = Tile::from_bytes(&tile_data[..tile_size], pal_slice);
 
                     // flip the tile if needed
-                    if attr1.x_flip() {
-                        tile.flip_x();
-                    }
-                    if attr1.y_flip() {
-                        tile.flip_y();
+                    if !attr0.is_affine() {
+                        if attr1.x_flip() {
+                            tile.flip_x();
+                        }
+                        if attr1.y_flip() {
+                            tile.flip_y();
+                        }
                     }
 
                     // screen-space top-left of this 8x8 tile

@@ -121,8 +121,9 @@ bitflags! {
 }
 
 impl TileInfo {
-    pub fn tile_id(&self) -> usize {
-        (self.bits() & TileInfo::TILE_ID.bits()) as usize
+    pub fn tile_id(&self, is_text_mode: bool) -> usize {
+        // in affine only 8 bits, not 10 (text mode)
+        (self.bits() & TileInfo::TILE_ID.bits()) as usize & if is_text_mode { 0b11_1111_1111 } else { 0b00_1111_1111 }
     }
 
     pub fn flip_x(&self) -> bool {

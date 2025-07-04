@@ -263,6 +263,10 @@ impl ObjAttribute0 {
             ColorDepth::Bpp4
         }
     }
+
+    pub fn is_affine(&self) -> bool {
+        self.contains(ObjAttribute0::ROTATION_SCALING)
+    }
 }
 
 #[derive(Debug, PartialEq, Clone, Copy)]
