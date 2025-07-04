@@ -758,24 +758,30 @@ impl Ppu {
             for x in 0..SCREEN_WIDTH {
                 let mut color = backdrop;
                 let mut best_priority = 5;
+                let mut selected_layer = 5; // 0-3 for BG layers, 4 for sprite, 5 for backdrop
 
-                // Check background layers
-                for id in start_bg..=end_bg {
+                // Check background layers (BG3 to BG0 for lower priority in ties)
+                for id in (start_bg..=end_bg).rev() {
                     let layer_color = bg_layers[id][y][x];
                     if layer_color != Pixel::Transparent {
                         let priority = bg_priorities[id];
-                        if priority <= best_priority {
+                        if priority < best_priority || (priority == best_priority && id < selected_layer) {
                             best_priority = priority;
                             color = layer_color;
+                            selected_layer = id;
                         }
                     }
                 }
 
-                // Check sprite layer
+                // Check sprite layer (highest priority in ties)
                 let sprite_idx = sprite_row_start + x;
                 let (sprite_priority, sprite_color) = sprite_frame[sprite_idx];
-                if sprite_color != Pixel::Transparent && sprite_priority <= best_priority {
-                    frame_row[x] = sprite_color;
+                if sprite_color != Pixel::Transparent {
+                    if sprite_priority < best_priority || (sprite_priority == best_priority && selected_layer != 4) {
+                        frame_row[x] = sprite_color;
+                    } else {
+                        frame_row[x] = color;
+                    }
                 } else {
                     frame_row[x] = color;
                 }
