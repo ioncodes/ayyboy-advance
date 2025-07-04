@@ -254,7 +254,7 @@ impl Ppu {
                 | InternalScreenSize::Text512x512
         );
 
-        let mut internal_frame = vec![palette[0]; map_w * map_h];
+        let mut internal_frame = vec![Pixel::Transparent; map_w * map_h];
 
         for ty in 0..tiles_y {
             for tx in 0..tiles_x {
@@ -297,11 +297,17 @@ impl Ppu {
                     tile_data
                 };
 
+                let palette_index = if tile_size == 0x20 {
+                    tile_info.palette() * 16
+                } else {
+                    tile_info.palette() * 256
+                };
+
                 // extract the tile pixels using the given palette bank
                 let palette_bank = if tile_size == 0x20 {
-                    &palette[tile_info.palette() * 16..][..16]
+                    &palette[palette_index..][..16] // 4bpp
                 } else {
-                    &palette[..256]
+                    &palette[palette_index..][..256] // 8bpp
                 };
                 let mut tile = Tile::from_bytes(&tile_data, palette_bank);
 
