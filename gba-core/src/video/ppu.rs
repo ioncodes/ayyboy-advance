@@ -10,6 +10,13 @@ use crate::video::registers::{
 use crate::video::tile::TileInfo;
 use tracing::*;
 
+#[derive(Clone, Copy, PartialEq)]
+enum WindowRegion {
+    Win0,
+    Win1,
+    Outside,
+}
+
 #[derive(PartialEq)]
 pub enum PpuEvent {
     VBlank,
@@ -751,6 +758,30 @@ impl Ppu {
         frame
     }
 
+    fn point_in_window(&self, x: usize, y: usize, h: &WindowDimensions, v: &WindowDimensions) -> bool {
+        let (x1, x2) = (h.x1(), h.x2());
+        let (y1, y2) = (v.x1(), v.x2());
+
+        let inside_x = if x1 <= x2 { x >= x1 && x < x2 } else { x >= x1 || x < x2 };
+        let inside_y = if y1 <= y2 { y >= y1 && y < y2 } else { y >= y1 || y < y2 };
+
+        inside_x && inside_y
+    }
+
+    fn window_region_for_pixel(&self, x: usize, y: usize) -> WindowRegion {
+        let disp = self.disp_cnt.value();
+
+        if disp.contains(DispCnt::WIN0_ON) && self.point_in_window(x, y, self.win0_h.value(), self.win0_v.value()) {
+            return WindowRegion::Win0;
+        }
+
+        if disp.contains(DispCnt::WIN1_ON) && self.point_in_window(x, y, self.win1_h.value(), self.win1_v.value()) {
+            return WindowRegion::Win1;
+        }
+
+        WindowRegion::Outside
+    }
+
     fn compose_layers(&self, bg_layers: &Vec<Frame>, sprite_frame: &Vec<(usize, Pixel)>) -> Frame {
         assert_eq!(bg_layers.len(), 4, "Expected 4 background layers");
 
@@ -758,6 +789,51 @@ impl Ppu {
         let backdrop = palette[0];
         let mut frame = [[backdrop; SCREEN_WIDTH]; SCREEN_HEIGHT];
 
+        let winin = self.winin.value();
+        let winout = self.winout.value();
+
+        let win0_on = self.disp_cnt.value().contains(DispCnt::WIN0_ON);
+        let win1_on = self.disp_cnt.value().contains(DispCnt::WIN1_ON);
+        let objwin_on = self.disp_cnt.value().contains(DispCnt::OBJ_WIN_ON);
+        let windows_active = win0_on || win1_on || objwin_on;
+
+        let master_bg = [
+            self.disp_cnt.value().contains(DispCnt::BG0_ON),
+            self.disp_cnt.value().contains(DispCnt::BG1_ON),
+            self.disp_cnt.value().contains(DispCnt::BG2_ON),
+            self.disp_cnt.value().contains(DispCnt::BG3_ON),
+        ];
+        let master_obj = self.disp_cnt.value().contains(DispCnt::OBJ_ON);
+
+        let bg_enabled = |region: WindowRegion, id: usize| -> bool {
+            if !master_bg[id] {
+                return false;
+            }
+
+            if !windows_active {
+                return true;
+            }
+
+            match region {
+                WindowRegion::Win0 => winin.is_bg_enabled_win0(id),
+                WindowRegion::Win1 => winin.is_bg_enabled_win1(id),
+                WindowRegion::Outside => winout.is_bg_enabled_out(id),
+            }
+        };
+
+        let obj_enabled = |region: WindowRegion| -> bool {
+            if !master_obj {
+                return false;
+            }
+            if !windows_active {
+                return true;
+            }
+            match region {
+                WindowRegion::Win0 => winin.obj_enabled_win0(),
+                WindowRegion::Win1 => winin.obj_enabled_win1(),
+                WindowRegion::Outside => winout.obj_enabled_out(),
+            }
+        };
         let bg_mode = self.disp_cnt.value().bg_mode();
 
         let bg_priorities = [
@@ -775,13 +851,19 @@ impl Ppu {
             let frame_row = &mut frame[y];
 
             for x in 0..SCREEN_WIDTH {
+                let region = self.window_region_for_pixel(x, y);
+
                 // Default to backdrop color
                 let mut best_color = backdrop;
-                let mut best_priority = 5;
-                let mut best_order = 5; // OBJ=0, BG0=1, BG1=2, BG2=3, BG3=4, backdrop=5
+                let mut best_priority = 5usize;
+                let mut best_order = 5usize; // OBJ=0, BG0=1, BG1=2, BG2=3, BG3=4, backdrop=5
 
                 // Check background layers
                 for id in start_bg..=end_bg {
+                    if !bg_enabled(region, id) {
+                        continue;
+                    }
+
                     let layer_color = bg_layers[id][y][x];
                     if layer_color != Pixel::Transparent {
                         let priority = bg_priorities[id];
@@ -797,7 +879,7 @@ impl Ppu {
                 // Check sprite layer
                 let sprite_idx = sprite_row_start + x;
                 let (sprite_priority, sprite_color) = sprite_frame[sprite_idx];
-                if sprite_color != Pixel::Transparent {
+                if obj_enabled(region) && sprite_color != Pixel::Transparent {
                     if sprite_priority < best_priority || (sprite_priority == best_priority && 0 < best_order) {
                         best_color = sprite_color;
                     }

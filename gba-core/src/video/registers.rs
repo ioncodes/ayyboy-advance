@@ -393,7 +393,7 @@ impl WindowDimensions {
 }
 
 bitflags! {
-    #[derive(Default, Copy, Clone)]
+    #[derive(Default, Copy, Clone, PartialEq)]
     pub struct WindowControl: u16 {
         const WIN0_BG_ENABLE_BITS = 0b0000_0000_0000_1111;
         const WIN0_OBJ_ENABLE_BIT = 0b0000_0000_0001_0000;
@@ -415,12 +415,29 @@ impl WindowControl {
         self.contains(WindowControl::WIN1_OBJ_ENABLE_BIT)
     }
 
-    pub fn is_bg_enabled(&self, bg: usize) -> bool {
+    pub fn obj_enabled_out(&self) -> bool {
+        self.obj_enabled_win0()
+    }
+
+    pub fn is_bg_enabled_win0(&self, bg: usize) -> bool {
         if bg > 3 {
             panic!("Invalid background index: {}", bg);
         }
 
         let mask = 1 << bg;
-        WindowControl::WIN0_BG_ENABLE_BITS.bits() & mask != 0
+        self.bits() & mask != 0
+    }
+
+    pub fn is_bg_enabled_win1(&self, bg: usize) -> bool {
+        if bg > 3 {
+            panic!("Invalid background index: {}", bg);
+        }
+
+        let mask = 1 << bg;
+        (self.bits() >> 8) & mask != 0
+    }
+
+    pub fn is_bg_enabled_out(&self, id: usize) -> bool {
+        self.is_bg_enabled_win0(id)
     }
 }
