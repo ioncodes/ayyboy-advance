@@ -3,14 +3,14 @@ use super::event::ResponseEvent;
 use crate::event::RequestEvent;
 use chrono::Utc;
 use crossbeam_channel::{Receiver, Sender};
-use eframe::egui::{vec2, CentralPanel, Color32, ColorImage, Context, Image, TextureHandle, TextureOptions};
+use eframe::egui::{CentralPanel, Color32, ColorImage, Context, Image, TextureHandle, TextureOptions, vec2};
 use eframe::{App, CreationContext};
 use egui::{Align2, Key, RichText, Window};
 use egui_extras::{Column, TableBuilder};
 use egui_toast::{Toast, ToastKind, ToastOptions, Toasts};
 use gba_core::input::registers::KeyInput;
 use gba_core::video::{Frame, Pixel, SCREEN_HEIGHT, SCREEN_WIDTH};
-use image::{imageops, ImageBuffer, Rgb, RgbImage};
+use image::{ImageBuffer, Rgb, RgbImage, imageops};
 
 // TODO: make it a bit smaller for when im on my macbook
 #[cfg(target_os = "macos")]
@@ -25,6 +25,7 @@ pub struct Renderer {
     debugger: Debugger,
     display_rx: Receiver<Frame>,
     backend_tx: Sender<RequestEvent>,
+    exit_tx: Sender<()>,
     toasts: Toasts,
     running: bool,
 }
@@ -32,7 +33,7 @@ pub struct Renderer {
 impl Renderer {
     pub fn new(
         cc: &CreationContext, display_rx: Receiver<Frame>, backend_tx: Sender<RequestEvent>,
-        backend_rx: Receiver<ResponseEvent>,
+        backend_rx: Receiver<ResponseEvent>, exit_tx: Sender<()>,
     ) -> Renderer {
         // TODO: debugger is currently designed for big screens
         // so scale everything down a bit in case im on my macbook
@@ -66,6 +67,7 @@ impl Renderer {
             backend_tx,
             toasts,
             running: false,
+            exit_tx,
         }
     }
 
@@ -260,5 +262,10 @@ impl App for Renderer {
         self.toasts.show(ctx);
 
         ctx.request_repaint();
+    }
+
+    fn on_exit(&mut self, _gl: Option<&eframe::glow::Context>) {
+        // Send exit signal to the emulator thread to ensure components can save their state
+        self.exit_tx.send(()).unwrap();
     }
 }

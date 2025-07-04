@@ -6,6 +6,8 @@ mod emulator;
 mod event;
 mod renderer;
 
+use std::path::Path;
+
 use crate::emulator::Emulator;
 use crate::renderer::SCALE;
 use clap::Parser;
@@ -66,12 +68,16 @@ fn main() {
     let (display_tx, display_rx): (Sender<Frame>, Receiver<Frame>) = crossbeam_channel::bounded(1);
     let (dbg_req_tx, dbg_req_rx) = crossbeam_channel::bounded(25);
     let (dbg_resp_tx, dbg_resp_rx) = crossbeam_channel::bounded(25);
+    let (exit_tx, exit_rx) = crossbeam_channel::bounded(1);
 
     let mut emulator = Emulator::new(display_tx, dbg_req_rx, dbg_resp_tx, args.script, args.rom);
     let rom_title = emulator.gba.rom_title.clone();
 
     std::thread::spawn(move || {
-        emulator.run();
+        emulator.run(exit_rx);
+
+        let save_base_path = Path::new("saves").join(emulator.gba.rom_title.clone());
+        emulator.gba.save_devices(&save_base_path);
     });
 
     let native_options = NativeOptions {
@@ -85,6 +91,14 @@ fn main() {
     let _ = eframe::run_native(
         &format!("ayyboy advance [{}] - {}", build_info::SHORT_COMMIT, rom_title),
         native_options,
-        Box::new(move |cc| Ok(Box::new(Renderer::new(cc, display_rx, dbg_req_tx, dbg_resp_rx)))),
+        Box::new(move |cc| {
+            Ok(Box::new(Renderer::new(
+                cc,
+                display_rx,
+                dbg_req_tx,
+                dbg_resp_rx,
+                exit_tx,
+            )))
+        }),
     );
 }

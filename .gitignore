@@ -12,3 +12,4 @@ rom-db-ui/screenshots/
 .zed/
 # Local Netlify folder
 .netlify
+saves/

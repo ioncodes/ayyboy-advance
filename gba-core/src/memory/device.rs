@@ -166,3 +166,8 @@ impl<T: Default> Default for IoRegister<T> {
         IoRegister(T::default())
     }
 }
+
+pub trait Saveable {
+    fn aggregate_storage(&self) -> Vec<u8>;
+    fn load_storage(&mut self, data: &[u8]);
+}

@@ -2,7 +2,7 @@ use crossbeam_channel::{Receiver, Sender};
 use gba_core::arm7tdmi::decoder::{Instruction, Register};
 use gba_core::cartridge::storage::BackupType;
 use gba_core::gba::Gba;
-use gba_core::video::{Frame, FRAME_0_ADDRESS, FRAME_1_ADDRESS};
+use gba_core::video::{FRAME_0_ADDRESS, FRAME_1_ADDRESS, Frame};
 use lazy_static::lazy_static;
 use std::fs::File;
 use std::io::{Cursor, Read};
@@ -57,6 +57,10 @@ impl Emulator {
             gba.load_rhai_script(script_path);
         }
 
+        let save_base_path = Path::new("saves").join(gba.rom_title.clone());
+        std::fs::create_dir_all(&save_base_path).expect("Failed to create save directory");
+        gba.load_devices(&save_base_path);
+
         Self {
             gba,
             display_tx,
@@ -65,12 +69,16 @@ impl Emulator {
         }
     }
 
-    pub fn run(&mut self) {
+    pub fn run(&mut self, exit_rx: Receiver<()>) {
         let mut frame_rendered = false;
         let mut tick = false;
         let mut step = false;
 
         loop {
+            if exit_rx.try_recv().is_ok() {
+                break;
+            }
+
             match self.process_debug_events() {
                 EventResult::Break => tick = false,
                 EventResult::Continue => tick = true,

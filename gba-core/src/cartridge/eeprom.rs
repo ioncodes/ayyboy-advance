@@ -1,6 +1,6 @@
 use crate::cartridge::StorageChip;
 use crate::cartridge::storage::BackupType;
-use crate::memory::device::Addressable;
+use crate::memory::device::{Addressable, Saveable};
 use std::cell::{Cell, RefCell};
 use tracing::debug;
 
@@ -230,5 +230,24 @@ impl StorageChip for Eeprom {
 
     fn backing_storage(&self) -> Vec<u8> {
         self.eeprom.clone()
+    }
+}
+
+impl Saveable for Eeprom {
+    fn aggregate_storage(&self) -> Vec<u8> {
+        self.eeprom.clone()
+    }
+
+    fn load_storage(&mut self, data: &[u8]) {
+        if data.len() != self.eeprom.len() {
+            panic!(
+                "Invalid EEPROM data length: expected {}, got {}",
+                self.eeprom.len(),
+                data.len()
+            );
+        }
+
+        self.eeprom.copy_from_slice(data);
+        debug!(target: "storage", "EEPROM loaded with {} bytes", data.len());
     }
 }

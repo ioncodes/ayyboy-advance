@@ -63,4 +63,26 @@ impl Gba {
             engine.handle_breakpoint(address, pc, &mut self.cpu);
         }
     }
+
+    pub fn save_devices(&self, base_path: &Path) {
+        let storage_data = self.cpu.mmio.storage_chip.aggregate_storage();
+        let storage_path = base_path.join("storage.bin");
+
+        if let Err(e) = std::fs::write(&storage_path, &storage_data) {
+            error!(target: "storage", "Failed to save data: {}", e);
+        } else {
+            info!(target: "storage", "Data saved to {}", storage_path.display());
+        }
+    }
+
+    pub fn load_devices(&mut self, base_path: &Path) {
+        let storage_path = base_path.join("storage.bin");
+
+        if let Ok(data) = std::fs::read(&storage_path) {
+            self.cpu.mmio.storage_chip.load_storage(&data);
+            info!(target: "storage", "Save data loaded from {}", storage_path.display());
+        } else {
+            error!(target: "storage", "Failed to read save data from {}", storage_path.display());
+        }
+    }
 }

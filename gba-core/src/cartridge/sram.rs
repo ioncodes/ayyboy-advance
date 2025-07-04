@@ -1,6 +1,8 @@
-use crate::cartridge::storage::BackupType;
+use tracing::debug;
+
 use crate::cartridge::StorageChip;
-use crate::memory::device::Addressable;
+use crate::cartridge::storage::BackupType;
+use crate::memory::device::{Addressable, Saveable};
 
 const SRAM_SIZE: u32 = 0x8000; // 32 KiB
 
@@ -53,5 +55,20 @@ impl StorageChip for Sram {
 
     fn backing_storage(&self) -> Vec<u8> {
         self.sram.clone()
+    }
+}
+
+impl Saveable for Sram {
+    fn aggregate_storage(&self) -> Vec<u8> {
+        self.sram.clone()
+    }
+
+    fn load_storage(&mut self, data: &[u8]) {
+        if data.len() != SRAM_SIZE as usize {
+            panic!("Invalid SRAM data size: expected {}, got {}", SRAM_SIZE, data.len());
+        }
+
+        debug!(target: "storage", "Loading SRAM with {} bytes", data.len());
+        self.sram.copy_from_slice(data);
     }
 }

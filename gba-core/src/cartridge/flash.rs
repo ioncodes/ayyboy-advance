@@ -1,6 +1,6 @@
 use crate::cartridge::StorageChip;
 use crate::cartridge::storage::BackupType;
-use crate::memory::device::Addressable;
+use crate::memory::device::{Addressable, Saveable};
 use tracing::debug;
 
 const FLASH_512K_SIZE: u32 = 0x10000; // 64 KiB
@@ -73,5 +73,24 @@ impl StorageChip for Flash {
 
     fn backing_storage(&self) -> Vec<u8> {
         self.flash.clone()
+    }
+}
+
+impl Saveable for Flash {
+    fn aggregate_storage(&self) -> Vec<u8> {
+        self.flash.clone()
+    }
+
+    fn load_storage(&mut self, data: &[u8]) {
+        if data.len() != self.flash.len() {
+            panic!(
+                "Invalid Flash data length: expected {}, got {}",
+                self.flash.len(),
+                data.len()
+            );
+        }
+
+        debug!(target: "storage", "Loading Flash data of length: {}", data.len());
+        self.flash.copy_from_slice(data);
     }
 }
