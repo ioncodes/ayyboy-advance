@@ -1,6 +1,7 @@
-use crate::cartridge::storage::BackupType;
 use crate::cartridge::StorageChip;
+use crate::cartridge::storage::BackupType;
 use crate::memory::device::Addressable;
+use tracing::debug;
 
 const FLASH_512K_SIZE: u32 = 0x10000; // 64 KiB
 const FLASH_1M_SIZE: u32 = 0x20000; // 128 KiB
@@ -32,8 +33,16 @@ impl Flash {
 impl Addressable for Flash {
     fn read(&self, addr: u32) -> u8 {
         match addr {
-            0x0E000000 => self.backup_type.manufacturer_id(),
-            0x0E000001 => self.backup_type.device_id(),
+            0x0E000000 => {
+                let id = self.backup_type.manufacturer_id();
+                debug!(target: "storage", "Spoofed Flash Manufacturer ID: {:02X}", id);
+                id
+            }
+            0x0E000001 => {
+                let id = self.backup_type.device_id();
+                debug!(target: "storage", "Spoofed Flash Device ID: {:02X}", id);
+                id
+            }
             0x0E000002..=0x0FFFFFFF => {
                 let addr = (addr - 0x0E000000) % self.boundary;
                 self.flash[addr as usize]

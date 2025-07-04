@@ -45,14 +45,21 @@ fn dump_bios_function() {
         "0x2a": "SoundGetJumpList",
     };
 
-    let lr = emu.read_register("lr");
-    let bios_func = `0x${hex8(emu.read_u8(lr - 2))}`;
-    println(`BIOS: ${BIOS_FUNC_LUT.get(bios_func)} (${bios_func})`);
+    let r12 = emu.read_register("r12"); // LDRB R12, [LR, -#$0002]
+    let bios_func = `0x${hex8(emu.read_u8(r12))}`;
+    let bios_func_name = BIOS_FUNC_LUT.get(bios_func);
+    
+    if bios_func_name == () {
+        println(`Unknown BIOS function: ${bios_func}`);
+        return;
+    }
+
+    println(`BIOS: ${bios_func_name} (${bios_func})`);
 }
 
 fn setup() {
     let breakpoints = #{
-        "0x8": "dump_bios_function"
+        "0x144": "dump_bios_function"
     };
     breakpoints
 }

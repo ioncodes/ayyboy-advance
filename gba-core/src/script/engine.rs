@@ -20,7 +20,7 @@ impl ScriptEngine {
         let mut engine = Engine::new();
 
         // Helper functions
-        engine.register_fn("println", |s: &str| println!("[RHAI] {}", s));
+        engine.register_fn("println", |s: &str| info!(target: "rhai", "{}", s));
         engine.register_fn("hex8", |value: i64| -> String { format!("{:02X}", value as u8) });
         engine.register_fn("hex16", |value: i64| -> String { format!("{:04X}", value as u16) });
         engine.register_fn("hex32", |value: i64| -> String { format!("{:08X}", value as u32) });

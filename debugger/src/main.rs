@@ -32,7 +32,7 @@ struct Args {
     debug: bool,
 
     /// Targets to enable logging for
-    #[arg(long, default_value = "cpu,mmio,storage,ppu,irq,pipeline,rhai")]
+    #[arg(long, default_value = "cpu,mmio,cartridge,storage,ppu,irq,pipeline,rhai")]
     targets: String,
 
     /// Path to a custom script file
