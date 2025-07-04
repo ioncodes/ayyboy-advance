@@ -741,18 +741,29 @@ impl Ppu {
 
         let bg_mode = self.disp_cnt.value().bg_mode();
 
+        let bg_priorities = [
+            self.bg_cnt[0].value().priority(),
+            self.bg_cnt[1].value().priority(),
+            self.bg_cnt[2].value().priority(),
+            self.bg_cnt[3].value().priority(),
+        ];
+
+        // Determine which backgrounds to process based on mode
+        let (start_bg, end_bg) = if bg_mode >= 3 { (2, 2) } else { (0, 3) };
+
         for y in 0..SCREEN_HEIGHT {
+            let sprite_row_start = y * SCREEN_WIDTH;
+            let frame_row = &mut frame[y];
+
             for x in 0..SCREEN_WIDTH {
                 let mut color = backdrop;
                 let mut best_priority = 5;
 
-                // if bg_mode >= 3, we only consider layer 2
-                let id_range = if bg_mode >= 3 { 2..=2 } else { 0..=3 };
-
-                for id in id_range {
+                // Check background layers
+                for id in start_bg..=end_bg {
                     let layer_color = bg_layers[id][y][x];
                     if layer_color != Pixel::Transparent {
-                        let priority = self.bg_cnt[id].value().priority();
+                        let priority = bg_priorities[id];
                         if priority <= best_priority {
                             best_priority = priority;
                             color = layer_color;
@@ -760,11 +771,13 @@ impl Ppu {
                     }
                 }
 
-                let sprite = sprite_frame[y * SCREEN_WIDTH + x];
-                if sprite.1 != Pixel::Transparent && sprite.0 <= best_priority {
-                    frame[y][x] = sprite.1;
+                // Check sprite layer
+                let sprite_idx = sprite_row_start + x;
+                let (sprite_priority, sprite_color) = sprite_frame[sprite_idx];
+                if sprite_color != Pixel::Transparent && sprite_priority <= best_priority {
+                    frame_row[x] = sprite_color;
                 } else {
-                    frame[y][x] = color;
+                    frame_row[x] = color;
                 }
             }
         }
