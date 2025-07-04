@@ -204,7 +204,7 @@ impl Mmio {
                 // BIOS open bus read
                 let shift = ((addr & 3) * 8) as u32;
                 let value = ((self.openbus_bios >> shift) & 0xFF) as u8;
-                warn!(target: "mmio", "Reading from BIOS open bus: {:08X} => {:02X}", addr, value);
+                debug!(target: "mmio", "Reading from BIOS open bus: {:08X} => {:02X}", addr, value);
                 value
             }
             0x0400020A..=0x0400020B => self.internal_memory[addr as usize], // Unused
@@ -295,7 +295,7 @@ impl Mmio {
         trace!(target: "mmio", "Writing {:02X} to {:08X}", value, addr);
 
         match addr {
-            0x00000000..=0x00003FFF => warn!(target: "mmio", "Writing to BIOS: {:02X} to {:08X}", value, addr),
+            0x00000000..=0x00003FFF => debug!(target: "mmio", "Writing to BIOS: {:02X} to {:08X}", value, addr),
             0x04000000..=0x04000056 => self.ppu.write(addr, value), // PPU I/O
             0x04000080..=0x0400008E => self.apu.write(addr, value), // APU I/O
             0x040000B0..=0x040000DF => self.dma.write(addr, value), // DMA I/O
@@ -358,10 +358,10 @@ impl Mmio {
                 }
             }
             0x08000000..=0x09FFFFFF => {
-                warn!(target: "mmio", "Writing to GamePak memory: {:02X} to {:08X}", value, addr)
+                debug!(target: "mmio", "Writing to GamePak memory: {:02X} to {:08X}", value, addr)
             }
             0x0A000000..=0x0BFFFFFF => {
-                warn!(target: "mmio", "Writing to GamePak memory: {:02X} to {:08X}", value, addr)
+                debug!(target: "mmio", "Writing to GamePak memory: {:02X} to {:08X}", value, addr)
             } // Mirror of 0x08000000..=0x09FFFFFF
             0x0D000000..=0x0DFFFFFF
                 if matches!(
@@ -373,7 +373,7 @@ impl Mmio {
                 self.storage_chip.write(addr, value);
             }
             0x0C000000..=0x0DFFFFFF => {
-                warn!(target: "mmio", "Writing to GamePak memory: {:02X} to {:08X}", value, addr)
+                debug!(target: "mmio", "Writing to GamePak memory: {:02X} to {:08X}", value, addr)
             } // Mirror of 0x08000000..=0x09FFFFFF
             0x0E000000..=0x0FFFFFFF => self.storage_chip.write(addr, value),
             _ => {

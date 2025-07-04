@@ -297,17 +297,11 @@ impl Ppu {
                     tile_data
                 };
 
-                let palette_index = if tile_size == 0x20 {
-                    tile_info.palette() * 16
-                } else {
-                    tile_info.palette() * 256
-                };
-
                 // extract the tile pixels using the given palette bank
                 let palette_bank = if tile_size == 0x20 {
-                    &palette[palette_index..][..16] // 4bpp
+                    &palette[tile_info.palette() * 16..][..16]
                 } else {
-                    &palette[palette_index..][..256] // 8bpp
+                    &palette[..256]
                 };
                 let mut tile = Tile::from_bytes(&tile_data, palette_bank);
 
@@ -762,35 +756,35 @@ impl Ppu {
             let frame_row = &mut frame[y];
 
             for x in 0..SCREEN_WIDTH {
-                let mut color = backdrop;
+                // Default to backdrop color
+                let mut best_color = backdrop;
                 let mut best_priority = 5;
-                let mut selected_layer = 5; // 0-3 for BG layers, 4 for sprite, 5 for backdrop
+                let mut best_order = 5; // OBJ=0, BG0=1, BG1=2, BG2=3, BG3=4, backdrop=5
 
-                // Check background layers (BG3 to BG0 for lower priority in ties)
-                for id in (start_bg..=end_bg).rev() {
+                // Check background layers
+                for id in start_bg..=end_bg {
                     let layer_color = bg_layers[id][y][x];
                     if layer_color != Pixel::Transparent {
                         let priority = bg_priorities[id];
-                        if priority < best_priority || (priority == best_priority && id < selected_layer) {
+                        let order = id + 1; // BG0=1 .. BG3=4
+                        if priority < best_priority || (priority == best_priority && order < best_order) {
                             best_priority = priority;
-                            color = layer_color;
-                            selected_layer = id;
+                            best_order = order;
+                            best_color = layer_color;
                         }
                     }
                 }
 
-                // Check sprite layer (highest priority in ties)
+                // Check sprite layer
                 let sprite_idx = sprite_row_start + x;
                 let (sprite_priority, sprite_color) = sprite_frame[sprite_idx];
                 if sprite_color != Pixel::Transparent {
-                    if sprite_priority < best_priority || (sprite_priority == best_priority && selected_layer != 4) {
-                        frame_row[x] = sprite_color;
-                    } else {
-                        frame_row[x] = color;
+                    if sprite_priority < best_priority || (sprite_priority == best_priority && 0 < best_order) {
+                        best_color = sprite_color;
                     }
-                } else {
-                    frame_row[x] = color;
                 }
+
+                frame_row[x] = best_color;
             }
         }
 

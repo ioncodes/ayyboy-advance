@@ -1,3 +1,4 @@
+use crate::dbg::widgets::TRANSPARENT_COLOR;
 use crate::event::RequestEvent;
 use crossbeam_channel::Sender;
 use egui::{CollapsingHeader, Color32, ColorImage, Context, Image, RichText, TextureHandle, TextureOptions, Window};
@@ -76,7 +77,7 @@ impl PpuWidget {
 
         let update_texture = |texture: &mut Option<TextureHandle>, frame: &Frame| {
             if let Some(texture) = texture {
-                let mut pixels = vec![Color32::BLACK; SCREEN_WIDTH * SCREEN_HEIGHT];
+                let mut pixels = vec![TRANSPARENT_COLOR; SCREEN_WIDTH * SCREEN_HEIGHT];
                 for y in 0..SCREEN_HEIGHT {
                     for x in 0..SCREEN_WIDTH {
                         let color = frame[y][x];
@@ -104,7 +105,7 @@ impl PpuWidget {
         let update_tilemap_texture =
             |texture: &mut Option<TextureHandle>, size: InternalScreenSize, colors: &[Pixel]| {
                 if let Some(texture) = texture {
-                    let mut pixels = vec![Color32::BLACK; colors.len()];
+                    let mut pixels = vec![TRANSPARENT_COLOR; colors.len()];
                     for (i, color) in colors.iter().enumerate() {
                         if let Pixel::Rgb(r, g, b) = color {
                             pixels[i] = Color32::from_rgba_premultiplied(*r, *g, *b, 255);
