@@ -739,12 +739,17 @@ impl Ppu {
         let backdrop = palette[0];
         let mut frame = [[backdrop; SCREEN_WIDTH]; SCREEN_HEIGHT];
 
+        let bg_mode = self.disp_cnt.value().bg_mode();
+
         for y in 0..SCREEN_HEIGHT {
             for x in 0..SCREEN_WIDTH {
                 let mut color = backdrop;
-                let mut best_priority = 5usize;
+                let mut best_priority = 5;
 
-                for id in 0..4 {
+                // if bg_mode >= 3, we only consider layer 2
+                let id_range = if bg_mode >= 3 { 2..=2 } else { 0..=3 };
+
+                for id in id_range {
                     let layer_color = bg_layers[id][y][x];
                     if layer_color != Pixel::Transparent {
                         let priority = self.bg_cnt[id].value().priority();
