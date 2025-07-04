@@ -111,13 +111,13 @@ impl Ppu {
                 let mut layers = vec![[[Pixel::Transparent; SCREEN_WIDTH]; SCREEN_HEIGHT]; 4];
                 match lcd_control.bg_mode() {
                     3 => {
-                        layers[2] = self.render_background_mode3(self.bg_cnt[0].value().tileset_addr() as u32);
+                        layers[2] = self.render_background_mode3(lcd_control.frame_address());
                     }
                     4 => {
-                        layers[2] = self.render_background_mode4(self.bg_cnt[0].value().tileset_addr() as u32);
+                        layers[2] = self.render_background_mode4(lcd_control.frame_address());
                     }
                     5 => {
-                        layers[2] = self.render_background_mode5(self.bg_cnt[0].value().tileset_addr() as u32);
+                        layers[2] = self.render_background_mode5(lcd_control.frame_address());
                     }
                     _ => unreachable!(),
                 }
