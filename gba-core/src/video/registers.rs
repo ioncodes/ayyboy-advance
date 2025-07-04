@@ -441,3 +441,99 @@ impl WindowControl {
         self.is_bg_enabled_win0(id)
     }
 }
+
+pub enum Sfx {
+    None,
+    AlphaBlend,
+    IncreaseBrightness,
+    DecreaseBrightness,
+}
+
+bitflags! {
+    #[derive(Default, Copy, Clone)]
+    pub struct BldCnt: u16 {
+        const BG0_1ST_TARGET = 0b0000_0000_0000_0001;
+        const BG1_1ST_TARGET = 0b0000_0000_0000_0010;
+        const BG2_1ST_TARGET = 0b0000_0000_0000_0100;
+        const BG3_1ST_TARGET = 0b0000_0000_0000_1000;
+        const OBJ_1ST_TARGET = 0b0000_0000_0001_0000;
+        const BD_1ST_TARGET  = 0b0000_0000_0010_0000;
+        const SFX            = 0b0000_0000_1100_0000;
+        const BG0_2ND_TARGET = 0b0000_0001_0000_0000;
+        const BG1_2ND_TARGET = 0b0000_0010_0000_0000;
+        const BG2_2ND_TARGET = 0b0000_0100_0000_0000;
+        const BG3_2ND_TARGET = 0b0000_1000_0000_0000;
+        const OBJ_2ND_TARGET = 0b0001_0000_0000_0000;
+        const BD_2ND_TARGET  = 0b0010_0000_0000_0000;
+        const UNUSED         = 0b1100_0000_0000_0000;
+    }
+}
+
+impl BldCnt {
+    pub fn first_target(&self) -> u8 {
+        let target = self.bits() & 0b0000_0000_0000_1111;
+        match target {
+            0b0000_0000_0000_0001 => 0, // BG0
+            0b0000_0000_0000_0010 => 1, // BG1
+            0b0000_0000_0000_0100 => 2, // BG2
+            0b0000_0000_0000_1000 => 3, // BG3
+            0b0000_0000_0001_0000 => 4, // OBJ
+            0b0000_0000_0010_0000 => 5, // BD
+            _ => unreachable!(),
+        }
+    }
+
+    pub fn second_target(&self) -> u8 {
+        let target = (self.bits() >> 8) & 0b0000_0001_1111;
+        match target {
+            0b0000_0001 => 0, // BG0
+            0b0000_0010 => 1, // BG1
+            0b0000_0100 => 2, // BG2
+            0b0000_1000 => 3, // BG3
+            0b0001_0000 => 4, // OBJ
+            0b0010_0000 => 5, // BD
+            _ => unreachable!(),
+        }
+    }
+
+    pub fn sfx(&self) -> Sfx {
+        match (self.bits() & Self::SFX.bits()) >> 6 {
+            0 => Sfx::None,
+            1 => Sfx::AlphaBlend,
+            2 => Sfx::IncreaseBrightness,
+            3 => Sfx::DecreaseBrightness,
+            _ => unreachable!("Invalid SFX bits"),
+        }
+    }
+}
+
+bitflags! {
+    #[derive(Default, Copy, Clone)]
+    pub struct BldAlpha: u16 {
+        const EVA = 0b0000_0000_0000_1111;
+        const EVB = 0b0000_1111_0000_0000;
+    }
+}
+
+impl BldAlpha {
+    pub fn eva(&self) -> u8 {
+        (self.bits() & BldAlpha::EVA.bits()) as u8
+    }
+
+    pub fn evb(&self) -> u8 {
+        ((self.bits() & BldAlpha::EVB.bits()) >> 8) as u8
+    }
+}
+
+bitflags! {
+    #[derive(Default, Copy, Clone)]
+    pub struct BldY: u16 {
+        const EVY = 0b0000_0000_0000_1111;
+    }
+}
+
+impl BldY {
+    pub fn evy(&self) -> u8 {
+        (self.bits() & BldY::EVY.bits()) as u8
+    }
+}

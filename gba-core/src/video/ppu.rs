@@ -4,8 +4,8 @@ use super::{Frame, PALETTE_ADDR_END, PALETTE_ADDR_START, PALETTE_TOTAL_ENTRIES, 
 use crate::memory::device::{Addressable, IoRegister};
 use crate::video::TILEMAP_ENTRY_SIZE;
 use crate::video::registers::{
-    Dimension, InternalScreenSize, ObjAttribute0, ObjAttribute1, ObjAttribute2, ObjSize, WindowControl,
-    WindowDimensions,
+    BldAlpha, BldCnt, BldY, Dimension, InternalScreenSize, ObjAttribute0, ObjAttribute1, ObjAttribute2, ObjSize,
+    WindowControl, WindowDimensions,
 };
 use crate::video::tile::TileInfo;
 use tracing::*;
@@ -62,6 +62,9 @@ pub struct Ppu {
     pub win1_v: IoRegister<WindowDimensions>,
     pub winin: IoRegister<WindowControl>,
     pub winout: IoRegister<WindowControl>,
+    pub bld_cnt: IoRegister<BldCnt>,
+    pub bld_alpha: IoRegister<BldAlpha>,
+    pub bld_y: IoRegister<BldY>,
 }
 
 impl Ppu {
@@ -86,6 +89,9 @@ impl Ppu {
             win1_v: IoRegister::default(),
             winin: IoRegister::default(),
             winout: IoRegister::default(),
+            bld_cnt: IoRegister::default(),
+            bld_alpha: IoRegister::default(),
+            bld_y: IoRegister::default(),
         }
     }
 
@@ -825,9 +831,11 @@ impl Ppu {
             if !master_obj {
                 return false;
             }
+
             if !windows_active {
                 return true;
             }
+
             match region {
                 WindowRegion::Win0 => winin.obj_enabled_win0(),
                 WindowRegion::Win1 => winin.obj_enabled_win1(),
@@ -929,6 +937,9 @@ impl Addressable for Ppu {
             0x04000046..=0x04000047 => self.win1_v.read(addr),     // WIN1V
             0x04000048..=0x04000049 => self.winin.read(addr),      // WININ
             0x0400004A..=0x0400004B => self.winout.read(addr),     // WINOUT
+            0x04000050..=0x04000051 => self.bld_cnt.read(addr),    // BLDCNT
+            0x04000052..=0x04000053 => self.bld_alpha.read(addr),  // BLDALPHA
+            0x04000054..=0x04000054 => self.bld_y.read(addr),      // BLDY
             // rest of the registers
             0x04000000..=0x04000056 => {
                 error!(target: "ppu", "Reading from unmapped I/O address: {:08X}", addr);
@@ -962,6 +973,9 @@ impl Addressable for Ppu {
             0x04000046..=0x04000047 => self.win1_v.write(addr, value),   // WIN1V
             0x04000048..=0x04000049 => self.winin.write(addr, value),    // WININ
             0x0400004A..=0x0400004B => self.winout.write(addr, value),   // WINOUT
+            0x04000050..=0x04000051 => self.bld_cnt.write(addr, value),  // BLDCNT
+            0x04000052..=0x04000053 => self.bld_alpha.write(addr, value), // BLDALPHA
+            0x04000054..=0x04000054 => self.bld_y.write(addr, value),    // BLDY
             // rest of the registers
             0x04000000..=0x04000056 => {
                 error!(target: "ppu", "Writing to unmapped I/O address: {:08X} with value: {:02X}", addr, value);
