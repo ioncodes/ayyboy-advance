@@ -29,9 +29,9 @@ impl Pixel {
             (Pixel::Rgb(r1, g1, b1), Pixel::Rgb(r2, g2, b2)) => {
                 let eva = eva.min(16) as u16;
                 let evb = evb.min(16) as u16;
-                let r = (r1 as u16 * eva + r2 as u16 * evb) / 16;
-                let g = (g1 as u16 * eva + g2 as u16 * evb) / 16;
-                let b = (b1 as u16 * eva + b2 as u16 * evb) / 16;
+                let r = ((r1 as u16 * eva + r2 as u16 * evb) / 16).min(255);
+                let g = ((g1 as u16 * eva + g2 as u16 * evb) / 16).min(255);
+                let b = ((b1 as u16 * eva + b2 as u16 * evb) / 16).min(255);
                 Pixel::Rgb(r as u8, g as u8, b as u8)
             }
             _ => self,
