@@ -505,6 +505,30 @@ impl BldCnt {
             _ => unreachable!("Invalid SFX bits"),
         }
     }
+
+    pub fn is_first_target(&self, layer: usize) -> bool {
+        match layer {
+            0 => self.contains(BldCnt::BG0_1ST_TARGET),
+            1 => self.contains(BldCnt::BG1_1ST_TARGET),
+            2 => self.contains(BldCnt::BG2_1ST_TARGET),
+            3 => self.contains(BldCnt::BG3_1ST_TARGET),
+            4 => self.contains(BldCnt::OBJ_1ST_TARGET),
+            5 => self.contains(BldCnt::BD_1ST_TARGET),
+            _ => false,
+        }
+    }
+
+    pub fn is_second_target(&self, layer: usize) -> bool {
+        match layer {
+            0 => self.contains(BldCnt::BG0_2ND_TARGET),
+            1 => self.contains(BldCnt::BG1_2ND_TARGET),
+            2 => self.contains(BldCnt::BG2_2ND_TARGET),
+            3 => self.contains(BldCnt::BG3_2ND_TARGET),
+            4 => self.contains(BldCnt::OBJ_2ND_TARGET),
+            5 => self.contains(BldCnt::BD_2ND_TARGET),
+            _ => false,
+        }
+    }
 }
 
 bitflags! {

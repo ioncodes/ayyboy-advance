@@ -4,7 +4,7 @@ use super::{Frame, PALETTE_ADDR_END, PALETTE_ADDR_START, PALETTE_TOTAL_ENTRIES, 
 use crate::memory::device::{Addressable, IoRegister};
 use crate::video::TILEMAP_ENTRY_SIZE;
 use crate::video::registers::{
-    BldAlpha, BldCnt, BldY, Dimension, InternalScreenSize, ObjAttribute0, ObjAttribute1, ObjAttribute2, ObjSize,
+    BldAlpha, BldCnt, BldY, Dimension, InternalScreenSize, ObjAttribute0, ObjAttribute1, ObjAttribute2, ObjSize, Sfx,
     WindowControl, WindowDimensions,
 };
 use crate::video::tile::TileInfo;
@@ -861,12 +861,13 @@ impl Ppu {
             for x in 0..SCREEN_WIDTH {
                 let region = self.window_region_for_pixel(x, y);
 
-                // Default to backdrop color
-                let mut best_color = backdrop;
-                let mut best_priority = 5usize;
-                let mut best_order = 5usize; // OBJ=0, BG0=1, BG1=2, BG2=3, BG3=4, backdrop=5
+                // Collect visible surfaces at this pixel
+                let mut surfaces: Vec<(usize, Pixel, usize, usize)> = Vec::new();
 
-                // Check background layers
+                // Backdrop always present
+                surfaces.push((5, backdrop, 4, 5));
+
+                // Background layers
                 for id in start_bg..=end_bg {
                     if !bg_enabled(region, id) {
                         continue;
@@ -876,24 +877,53 @@ impl Ppu {
                     if layer_color != Pixel::Transparent {
                         let priority = bg_priorities[id];
                         let order = id + 1; // BG0=1 .. BG3=4
-                        if priority < best_priority || (priority == best_priority && order < best_order) {
-                            best_priority = priority;
-                            best_order = order;
-                            best_color = layer_color;
-                        }
+                        surfaces.push((id, layer_color, priority, order));
                     }
                 }
 
-                // Check sprite layer
+                // Sprite layer
                 let sprite_idx = sprite_row_start + x;
                 let (sprite_priority, sprite_color) = sprite_frame[sprite_idx];
                 if obj_enabled(region) && sprite_color != Pixel::Transparent {
-                    if sprite_priority < best_priority || (sprite_priority == best_priority && 0 < best_order) {
-                        best_color = sprite_color;
-                    }
+                    surfaces.push((4, sprite_color, sprite_priority, 0));
                 }
 
-                frame_row[x] = best_color;
+                // Sort by priority then order
+                surfaces.sort_by(|a, b| match a.2.cmp(&b.2) {
+                    std::cmp::Ordering::Equal => a.3.cmp(&b.3),
+                    ord => ord,
+                });
+
+                let (top_layer, top_color, _, _) = surfaces[0];
+                let second = surfaces.get(1).copied().unwrap_or((5, Pixel::Transparent, 4, 5));
+                let (second_layer, second_color, _, _) = second;
+
+                let bld_cnt = self.bld_cnt.value();
+                let final_color = match bld_cnt.sfx() {
+                    Sfx::AlphaBlend => {
+                        if bld_cnt.is_first_target(top_layer) && bld_cnt.is_second_target(second_layer) {
+                            top_color.blend(second_color, self.bld_alpha.value().eva(), self.bld_alpha.value().evb())
+                        } else {
+                            top_color
+                        }
+                    }
+                    Sfx::IncreaseBrightness => {
+                        if bld_cnt.is_first_target(top_layer) {
+                            top_color.brighten(self.bld_y.value().evy())
+                        } else {
+                            top_color
+                        }
+                    }
+                    Sfx::DecreaseBrightness => {
+                        if bld_cnt.is_first_target(top_layer) {
+                            top_color.darken(self.bld_y.value().evy())
+                        } else {
+                            top_color
+                        }
+                    }
+                    Sfx::None => top_color,
+                };
+                frame_row[x] = final_color;
             }
         }
 
