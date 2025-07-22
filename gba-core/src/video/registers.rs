@@ -534,30 +534,30 @@ impl BldCnt {
 bitflags! {
     #[derive(Default, Copy, Clone)]
     pub struct BldAlpha: u16 {
-        const EVA = 0b0000_0000_0000_1111;
-        const EVB = 0b0000_1111_0000_0000;
+        const EVA = 0b0000_0000_0001_1111;
+        const EVB = 0b0001_1111_0000_0000;
     }
 }
 
 impl BldAlpha {
     pub fn eva(&self) -> u8 {
-        (self.bits() & BldAlpha::EVA.bits()) as u8
+        ((self.bits() & BldAlpha::EVA.bits()) as u8).min(16)
     }
 
     pub fn evb(&self) -> u8 {
-        ((self.bits() & BldAlpha::EVB.bits()) >> 8) as u8
+        (((self.bits() & BldAlpha::EVB.bits()) >> 8) as u8).min(16)
     }
 }
 
 bitflags! {
     #[derive(Default, Copy, Clone)]
     pub struct BldY: u16 {
-        const EVY = 0b0000_0000_0000_1111;
+        const EVY = 0b0000_0001_1111;
     }
 }
 
 impl BldY {
     pub fn evy(&self) -> u8 {
-        (self.bits() & BldY::EVY.bits()) as u8
+        ((self.bits() & BldY::EVY.bits()) as u8).min(16)
     }
 }
