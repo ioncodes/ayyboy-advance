@@ -561,3 +561,38 @@ impl BldY {
         ((self.bits() & BldY::EVY.bits()) as u8).min(16)
     }
 }
+
+bitflags! {
+    #[derive(Default, Copy, Clone)]
+    pub struct BgAffineParam: u16 {
+        const FRACTION = 0b0000_0000_1111_1111;
+        const INTEGER  = 0b0111_1111_0000_0000;
+        const SIGN     = 0b1000_0000_0000_0000;
+    }
+}
+
+bitflags! {
+    #[derive(Default, Copy, Clone)]
+    pub struct BgRefPointLow: u16 {
+        const VALUE = 0xFFFF;
+    }
+}
+
+bitflags! {
+    #[derive(Default, Copy, Clone)]
+    pub struct BgRefPointHigh: u16 {
+        const INT_HIGH = 0b0000_0111_1111_1111;
+        const SIGN     = 0b0000_1000_0000_0000;
+        const UNUSED   = 0b1111_0000_0000_0000;
+    }
+}
+
+impl BgRefPointHigh {
+    pub fn full_value(&self, low: &BgRefPointLow) -> i32 {
+        let mut value = ((self.bits() as u32 & 0x0FFF) << 16) | low.bits() as u32;
+        if self.contains(Self::SIGN) {
+            value |= 0xF000_0000;
+        }
+        value as i32
+    }
+}

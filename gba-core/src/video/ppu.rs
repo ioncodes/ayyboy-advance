@@ -4,8 +4,8 @@ use super::{Frame, PALETTE_ADDR_END, PALETTE_ADDR_START, PALETTE_TOTAL_ENTRIES, 
 use crate::memory::device::{Addressable, IoRegister};
 use crate::video::TILEMAP_ENTRY_SIZE;
 use crate::video::registers::{
-    BldAlpha, BldCnt, BldY, Dimension, InternalScreenSize, ObjAttribute0, ObjAttribute1, ObjAttribute2, ObjSize, Sfx,
-    WindowControl, WindowDimensions,
+    BgAffineParam, BgRefPointHigh, BgRefPointLow, BldAlpha, BldCnt, BldY, Dimension, InternalScreenSize, ObjAttribute0,
+    ObjAttribute1, ObjAttribute2, ObjSize, Sfx, WindowControl, WindowDimensions,
 };
 use crate::video::tile::TileInfo;
 use tracing::*;
@@ -56,14 +56,14 @@ pub struct Ppu {
     pub bg_cnt: [IoRegister<BgCnt>; 4],
     pub bg_hofs: [IoRegister<BgOffset>; 4],
     pub bg_vofs: [IoRegister<BgOffset>; 4],
-    pub bg_pa: [IoRegister<u16>; 2],
-    pub bg_pb: [IoRegister<u16>; 2],
-    pub bg_pc: [IoRegister<u16>; 2],
-    pub bg_pd: [IoRegister<u16>; 2],
-    pub bg_refx_l: [IoRegister<u16>; 2],
-    pub bg_refx_h: [IoRegister<u16>; 2],
-    pub bg_refy_l: [IoRegister<u16>; 2],
-    pub bg_refy_h: [IoRegister<u16>; 2],
+    pub bg_pa: [IoRegister<BgAffineParam>; 2],
+    pub bg_pb: [IoRegister<BgAffineParam>; 2],
+    pub bg_pc: [IoRegister<BgAffineParam>; 2],
+    pub bg_pd: [IoRegister<BgAffineParam>; 2],
+    pub bg_refx_l: [IoRegister<BgRefPointLow>; 2],
+    pub bg_refx_h: [IoRegister<BgRefPointHigh>; 2],
+    pub bg_refy_l: [IoRegister<BgRefPointLow>; 2],
+    pub bg_refy_h: [IoRegister<BgRefPointHigh>; 2],
     pub win0_h: IoRegister<WindowDimensions>,
     pub win1_h: IoRegister<WindowDimensions>,
     pub win0_v: IoRegister<WindowDimensions>,
@@ -719,20 +719,12 @@ impl Ppu {
 
             if is_affine {
                 let i = id - 2; // BG2=0, BG3=1
-                let pa = self.bg_pa[i].0 as i16 as i32;
-                let pb = self.bg_pb[i].0 as i16 as i32;
-                let pc = self.bg_pc[i].0 as i16 as i32;
-                let pd = self.bg_pd[i].0 as i16 as i32;
-                let refx = {
-                    let low = self.bg_refx_l[i].0 as u32;
-                    let high = (self.bg_refx_h[i].0 & 0x0FFF) as u32;
-                    ((high << 16) | low) as i32
-                };
-                let refy = {
-                    let low = self.bg_refy_l[i].0 as u32;
-                    let high = (self.bg_refy_h[i].0 & 0x0FFF) as u32;
-                    ((high << 16) | low) as i32
-                };
+                let pa = self.bg_pa[i].value().bits() as i32;
+                let pb = self.bg_pb[i].value().bits() as i32;
+                let pc = self.bg_pc[i].value().bits() as i32;
+                let pd = self.bg_pd[i].value().bits() as i32;
+                let refx = self.bg_refx_h[i].value().full_value(self.bg_refx_l[i].value());
+                let refy = self.bg_refy_h[i].value().full_value(self.bg_refy_l[i].value());
                 let wrap = !bg_cnt.contains(BgCnt::DISPLAY_OVERFLOW);
 
                 for y in 0..SCREEN_HEIGHT {
