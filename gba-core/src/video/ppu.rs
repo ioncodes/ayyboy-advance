@@ -56,6 +56,14 @@ pub struct Ppu {
     pub bg_cnt: [IoRegister<BgCnt>; 4],
     pub bg_hofs: [IoRegister<BgOffset>; 4],
     pub bg_vofs: [IoRegister<BgOffset>; 4],
+    pub bg_pa: [IoRegister<u16>; 2],
+    pub bg_pb: [IoRegister<u16>; 2],
+    pub bg_pc: [IoRegister<u16>; 2],
+    pub bg_pd: [IoRegister<u16>; 2],
+    pub bg_refx_l: [IoRegister<u16>; 2],
+    pub bg_refx_h: [IoRegister<u16>; 2],
+    pub bg_refy_l: [IoRegister<u16>; 2],
+    pub bg_refy_h: [IoRegister<u16>; 2],
     pub win0_h: IoRegister<WindowDimensions>,
     pub win1_h: IoRegister<WindowDimensions>,
     pub win0_v: IoRegister<WindowDimensions>,
@@ -83,6 +91,14 @@ impl Ppu {
             bg_cnt: [IoRegister::default(); 4],
             bg_hofs: [IoRegister::default(); 4],
             bg_vofs: [IoRegister::default(); 4],
+            bg_pa: [IoRegister::default(); 2],
+            bg_pb: [IoRegister::default(); 2],
+            bg_pc: [IoRegister::default(); 2],
+            bg_pd: [IoRegister::default(); 2],
+            bg_refx_l: [IoRegister::default(); 2],
+            bg_refx_h: [IoRegister::default(); 2],
+            bg_refy_l: [IoRegister::default(); 2],
+            bg_refy_h: [IoRegister::default(); 2],
             win0_h: IoRegister::default(),
             win1_h: IoRegister::default(),
             win0_v: IoRegister::default(),
@@ -691,22 +707,69 @@ impl Ppu {
             let screen_size = bg_cnt.screen_size(id, bg_mode);
             let (map_w, map_h) = (screen_size.width(), screen_size.height());
 
-            let vertical_offset = self.bg_vofs[id].value().offset();
-            let horizontal_offset = self.bg_hofs[id].value().offset();
-
-            let hoff = horizontal_offset % map_w;
-            let voff = vertical_offset % map_h;
+            let is_affine = matches!(
+                screen_size,
+                InternalScreenSize::Affine128x128
+                    | InternalScreenSize::Affine256x256
+                    | InternalScreenSize::Affine512x512
+                    | InternalScreenSize::Affine1024x1024
+            );
 
             let (_, tilemap) = self.render_tilemap(id, &bg_cnt);
 
-            for y in 0..SCREEN_HEIGHT {
-                let src_y = (y + voff) % map_h;
-                for x in 0..SCREEN_WIDTH {
-                    let src_x = (x + hoff) % map_w;
-                    let color = tilemap[src_y * map_w + src_x];
-                    // Instead of checking (0,0,0), we rely on whether color is Transparent.
-                    if color != Pixel::Transparent {
-                        layers[id][y][x] = color;
+            if is_affine {
+                let i = id - 2; // BG2=0, BG3=1
+                let pa = self.bg_pa[i].0 as i16 as i32;
+                let pb = self.bg_pb[i].0 as i16 as i32;
+                let pc = self.bg_pc[i].0 as i16 as i32;
+                let pd = self.bg_pd[i].0 as i16 as i32;
+                let refx = {
+                    let low = self.bg_refx_l[i].0 as u32;
+                    let high = (self.bg_refx_h[i].0 & 0x0FFF) as u32;
+                    ((high << 16) | low) as i32
+                };
+                let refy = {
+                    let low = self.bg_refy_l[i].0 as u32;
+                    let high = (self.bg_refy_h[i].0 & 0x0FFF) as u32;
+                    ((high << 16) | low) as i32
+                };
+                let wrap = !bg_cnt.contains(BgCnt::DISPLAY_OVERFLOW);
+
+                for y in 0..SCREEN_HEIGHT {
+                    for x in 0..SCREEN_WIDTH {
+                        let fx = refx + pa * x as i32 + pb * y as i32;
+                        let fy = refy + pc * x as i32 + pd * y as i32;
+                        let mut sx = (fx >> 8) as i32;
+                        let mut sy = (fy >> 8) as i32;
+
+                        if wrap {
+                            sx = sx.rem_euclid(map_w as i32);
+                            sy = sy.rem_euclid(map_h as i32);
+                        } else if sx < 0 || sx >= map_w as i32 || sy < 0 || sy >= map_h as i32 {
+                            continue;
+                        }
+
+                        let color = tilemap[(sy as usize) * map_w + (sx as usize)];
+                        if color != Pixel::Transparent {
+                            layers[id][y][x] = color;
+                        }
+                    }
+                }
+            } else {
+                let vertical_offset = self.bg_vofs[id].value().offset();
+                let horizontal_offset = self.bg_hofs[id].value().offset();
+
+                let hoff = horizontal_offset % map_w;
+                let voff = vertical_offset % map_h;
+
+                for y in 0..SCREEN_HEIGHT {
+                    let src_y = (y + voff) % map_h;
+                    for x in 0..SCREEN_WIDTH {
+                        let src_x = (x + hoff) % map_w;
+                        let color = tilemap[src_y * map_w + src_x];
+                        if color != Pixel::Transparent {
+                            layers[id][y][x] = color;
+                        }
                     }
                 }
             }
@@ -946,30 +1009,46 @@ impl Ppu {
 impl Addressable for Ppu {
     fn read(&self, addr: u32) -> u8 {
         match addr {
-            0x04000000..=0x04000001 => self.disp_cnt.read(addr),   // DISPCNT
-            0x04000004..=0x04000005 => self.disp_stat.read(addr),  // DISPSTAT
-            0x04000006..=0x04000007 => self.scanline.read(addr),   // VCOUNT
-            0x04000008..=0x04000009 => self.bg_cnt[0].read(addr),  // BG0CNT
-            0x0400000A..=0x0400000B => self.bg_cnt[1].read(addr),  // BG1CNT
-            0x0400000C..=0x0400000D => self.bg_cnt[2].read(addr),  // BG2CNT
-            0x0400000E..=0x0400000F => self.bg_cnt[3].read(addr),  // BG3CNT
-            0x04000010..=0x04000011 => self.bg_hofs[0].read(addr), // BG0HOFS
-            0x04000012..=0x04000013 => self.bg_vofs[0].read(addr), // BG0VOFS
-            0x04000014..=0x04000015 => self.bg_hofs[1].read(addr), // BG1HOFS
-            0x04000016..=0x04000017 => self.bg_vofs[1].read(addr), // BG1VOFS
-            0x04000018..=0x04000019 => self.bg_hofs[2].read(addr), // BG2HOFS
-            0x0400001A..=0x0400001B => self.bg_vofs[2].read(addr), // BG2VOFS
-            0x0400001C..=0x0400001D => self.bg_hofs[3].read(addr), // BG3HOFS
-            0x0400001E..=0x0400001F => self.bg_vofs[3].read(addr), // BG3VOFS
-            0x04000040..=0x04000041 => self.win0_h.read(addr),     // WIN0H
-            0x04000042..=0x04000043 => self.win1_h.read(addr),     // WIN1H
-            0x04000044..=0x04000045 => self.win0_v.read(addr),     // WIN0V
-            0x04000046..=0x04000047 => self.win1_v.read(addr),     // WIN1V
-            0x04000048..=0x04000049 => self.winin.read(addr),      // WININ
-            0x0400004A..=0x0400004B => self.winout.read(addr),     // WINOUT
-            0x04000050..=0x04000051 => self.bld_cnt.read(addr),    // BLDCNT
-            0x04000052..=0x04000053 => self.bld_alpha.read(addr),  // BLDALPHA
-            0x04000054..=0x04000054 => self.bld_y.read(addr),      // BLDY
+            0x04000000..=0x04000001 => self.disp_cnt.read(addr),     // DISPCNT
+            0x04000004..=0x04000005 => self.disp_stat.read(addr),    // DISPSTAT
+            0x04000006..=0x04000007 => self.scanline.read(addr),     // VCOUNT
+            0x04000008..=0x04000009 => self.bg_cnt[0].read(addr),    // BG0CNT
+            0x0400000A..=0x0400000B => self.bg_cnt[1].read(addr),    // BG1CNT
+            0x0400000C..=0x0400000D => self.bg_cnt[2].read(addr),    // BG2CNT
+            0x0400000E..=0x0400000F => self.bg_cnt[3].read(addr),    // BG3CNT
+            0x04000010..=0x04000011 => self.bg_hofs[0].read(addr),   // BG0HOFS
+            0x04000012..=0x04000013 => self.bg_vofs[0].read(addr),   // BG0VOFS
+            0x04000014..=0x04000015 => self.bg_hofs[1].read(addr),   // BG1HOFS
+            0x04000016..=0x04000017 => self.bg_vofs[1].read(addr),   // BG1VOFS
+            0x04000018..=0x04000019 => self.bg_hofs[2].read(addr),   // BG2HOFS
+            0x0400001A..=0x0400001B => self.bg_vofs[2].read(addr),   // BG2VOFS
+            0x0400001C..=0x0400001D => self.bg_hofs[3].read(addr),   // BG3HOFS
+            0x0400001E..=0x0400001F => self.bg_vofs[3].read(addr),   // BG3VOFS
+            0x04000020..=0x04000021 => self.bg_pa[0].read(addr),     // BG2PA
+            0x04000022..=0x04000023 => self.bg_pb[0].read(addr),     // BG2PB
+            0x04000024..=0x04000025 => self.bg_pc[0].read(addr),     // BG2PC
+            0x04000026..=0x04000027 => self.bg_pd[0].read(addr),     // BG2PD
+            0x04000028..=0x04000029 => self.bg_refx_l[0].read(addr), // BG2X_L
+            0x0400002A..=0x0400002B => self.bg_refx_h[0].read(addr), // BG2X_H
+            0x0400002C..=0x0400002D => self.bg_refy_l[0].read(addr), // BG2Y_L
+            0x0400002E..=0x0400002F => self.bg_refy_h[0].read(addr), // BG2Y_H
+            0x04000030..=0x04000031 => self.bg_pa[1].read(addr),     // BG3PA
+            0x04000032..=0x04000033 => self.bg_pb[1].read(addr),     // BG3PB
+            0x04000034..=0x04000035 => self.bg_pc[1].read(addr),     // BG3PC
+            0x04000036..=0x04000037 => self.bg_pd[1].read(addr),     // BG3PD
+            0x04000038..=0x04000039 => self.bg_refx_l[1].read(addr), // BG3X_L
+            0x0400003A..=0x0400003B => self.bg_refx_h[1].read(addr), // BG3X_H
+            0x0400003C..=0x0400003D => self.bg_refy_l[1].read(addr), // BG3Y_L
+            0x0400003E..=0x0400003F => self.bg_refy_h[1].read(addr), // BG3Y_H
+            0x04000040..=0x04000041 => self.win0_h.read(addr),       // WIN0H
+            0x04000042..=0x04000043 => self.win1_h.read(addr),       // WIN1H
+            0x04000044..=0x04000045 => self.win0_v.read(addr),       // WIN0V
+            0x04000046..=0x04000047 => self.win1_v.read(addr),       // WIN1V
+            0x04000048..=0x04000049 => self.winin.read(addr),        // WININ
+            0x0400004A..=0x0400004B => self.winout.read(addr),       // WINOUT
+            0x04000050..=0x04000051 => self.bld_cnt.read(addr),      // BLDCNT
+            0x04000052..=0x04000053 => self.bld_alpha.read(addr),    // BLDALPHA
+            0x04000054..=0x04000054 => self.bld_y.read(addr),        // BLDY
             // rest of the registers
             0x04000000..=0x04000056 => {
                 error!(target: "ppu", "Reading from unmapped I/O address: {:08X}", addr);
@@ -997,6 +1076,22 @@ impl Addressable for Ppu {
             0x0400001A..=0x0400001B => self.bg_vofs[2].write(addr, value), // BG2VOFS
             0x0400001C..=0x0400001D => self.bg_hofs[3].write(addr, value), // BG3HOFS
             0x0400001E..=0x0400001F => self.bg_vofs[3].write(addr, value), // BG3VOFS
+            0x04000020..=0x04000021 => self.bg_pa[0].write(addr, value), // BG2PA
+            0x04000022..=0x04000023 => self.bg_pb[0].write(addr, value), // BG2PB
+            0x04000024..=0x04000025 => self.bg_pc[0].write(addr, value), // BG2PC
+            0x04000026..=0x04000027 => self.bg_pd[0].write(addr, value), // BG2PD
+            0x04000028..=0x04000029 => self.bg_refx_l[0].write(addr, value), // BG2X_L
+            0x0400002A..=0x0400002B => self.bg_refx_h[0].write(addr, value), // BG2X_H
+            0x0400002C..=0x0400002D => self.bg_refy_l[0].write(addr, value), // BG2Y_L
+            0x0400002E..=0x0400002F => self.bg_refy_h[0].write(addr, value), // BG2Y_H
+            0x04000030..=0x04000031 => self.bg_pa[1].write(addr, value), // BG3PA
+            0x04000032..=0x04000033 => self.bg_pb[1].write(addr, value), // BG3PB
+            0x04000034..=0x04000035 => self.bg_pc[1].write(addr, value), // BG3PC
+            0x04000036..=0x04000037 => self.bg_pd[1].write(addr, value), // BG3PD
+            0x04000038..=0x04000039 => self.bg_refx_l[1].write(addr, value), // BG3X_L
+            0x0400003A..=0x0400003B => self.bg_refx_h[1].write(addr, value), // BG3X_H
+            0x0400003C..=0x0400003D => self.bg_refy_l[1].write(addr, value), // BG3Y_L
+            0x0400003E..=0x0400003F => self.bg_refy_h[1].write(addr, value), // BG3Y_H
             0x04000040..=0x04000041 => self.win0_h.write(addr, value),   // WIN0H
             0x04000042..=0x04000043 => self.win1_h.write(addr, value),   // WIN1H
             0x04000044..=0x04000045 => self.win0_v.write(addr, value),   // WIN0V
