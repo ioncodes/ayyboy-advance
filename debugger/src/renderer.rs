@@ -11,6 +11,10 @@ use egui_toast::{Toast, ToastKind, ToastOptions, Toasts};
 use gba_core::input::registers::KeyInput;
 use gba_core::video::{Frame, Pixel, SCREEN_HEIGHT, SCREEN_WIDTH};
 use image::{ImageBuffer, Rgb, RgbImage, imageops};
+use tracing::Level;
+use tracing_subscriber::Layer;
+use tracing_subscriber::layer::SubscriberExt;
+use tracing_subscriber::util::SubscriberInitExt;
 
 // TODO: make it a bit smaller for when im on my macbook
 #[cfg(target_os = "macos")]
@@ -28,12 +32,15 @@ pub struct Renderer {
     exit_tx: Sender<()>,
     toasts: Toasts,
     running: bool,
+    log_level: Level,
+    log_targets: Vec<String>,
+    logging_enabled: bool,
 }
 
 impl Renderer {
     pub fn new(
         cc: &CreationContext, display_rx: Receiver<Frame>, backend_tx: Sender<RequestEvent>,
-        backend_rx: Receiver<ResponseEvent>, exit_tx: Sender<()>,
+        backend_rx: Receiver<ResponseEvent>, exit_tx: Sender<()>, log_level: Level, log_targets: Vec<String>,
     ) -> Renderer {
         // TODO: debugger is currently designed for big screens
         // so scale everything down a bit in case im on my macbook
@@ -68,6 +75,9 @@ impl Renderer {
             toasts,
             running: false,
             exit_tx,
+            log_level,
+            log_targets,
+            logging_enabled: false,
         }
     }
 
@@ -128,6 +138,31 @@ impl Renderer {
                     options: ToastOptions::default().duration_in_seconds(3.0),
                     ..Default::default()
                 });
+            }
+
+            // Enable logging
+            if i.key_pressed(Key::F3) && !self.logging_enabled {
+                let mut targets = tracing_subscriber::filter::Targets::new();
+                for target in &self.log_targets {
+                    targets = targets.with_target(target, self.log_level);
+                }
+
+                let fmt_layer = tracing_subscriber::fmt::layer().without_time().with_filter(targets);
+                tracing_subscriber::registry().with(fmt_layer).init();
+
+                self.toasts.add(Toast {
+                    text: format!(
+                        "{} logging enabled for targets: {}",
+                        self.log_level,
+                        self.log_targets.join(", ")
+                    )
+                    .into(),
+                    kind: ToastKind::Info,
+                    options: ToastOptions::default().duration_in_seconds(3.0),
+                    ..Default::default()
+                });
+
+                self.logging_enabled = true;
             }
 
             // Run the emulator
@@ -208,6 +243,15 @@ impl App for Renderer {
                                 });
                                 row.col(|ui| {
                                     ui.label("Take a screenshot");
+                                });
+                            });
+
+                            body.row(0.0, |mut row| {
+                                row.col(|ui| {
+                                    ui.label(RichText::new("F3").strong());
+                                });
+                                row.col(|ui| {
+                                    ui.label("Enable logging");
                                 });
                             });
 

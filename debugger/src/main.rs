@@ -15,9 +15,6 @@ use gba_core::video::{Frame, SCREEN_HEIGHT, SCREEN_WIDTH};
 use renderer::Renderer;
 use shadow_rs::shadow;
 use tracing::Level;
-use tracing_subscriber::Layer;
-use tracing_subscriber::layer::SubscriberExt;
-use tracing_subscriber::util::SubscriberInitExt;
 
 shadow!(build_info);
 
@@ -47,21 +44,14 @@ struct Args {
 fn main() {
     let args = Args::parse();
 
-    let level = if args.trace {
+    let log_level = if args.trace {
         Level::TRACE
     } else if args.debug {
         Level::DEBUG
     } else {
         Level::INFO
     };
-
-    let mut targets = tracing_subscriber::filter::Targets::new();
-    for target in args.targets.split(',') {
-        targets = targets.with_target(target.trim(), level);
-    }
-
-    let fmt_layer = tracing_subscriber::fmt::layer().without_time().with_filter(targets);
-    tracing_subscriber::registry().with(fmt_layer).init();
+    let log_targets: Vec<String> = args.targets.split(',').map(|s| s.trim().to_string()).collect();
 
     let (display_tx, display_rx): (Sender<Frame>, Receiver<Frame>) = crossbeam_channel::bounded(1);
     let (dbg_req_tx, dbg_req_rx) = crossbeam_channel::bounded(25);
@@ -93,6 +83,8 @@ fn main() {
                 dbg_req_tx,
                 dbg_resp_rx,
                 exit_tx,
+                log_level,
+                log_targets,
             )))
         }),
     );
