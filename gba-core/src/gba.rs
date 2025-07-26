@@ -86,11 +86,16 @@ impl Gba {
 
         let storage_path = storage_path.join("storage.bin");
 
-        if let Ok(data) = std::fs::read(&storage_path) {
-            self.cpu.mmio.storage_chip.load_storage(&data);
-            info!(target: "storage", "Save data loaded from {}", storage_path.display());
-        } else {
-            error!(target: "storage", "Failed to read save data from {}", storage_path.display());
+        match std::fs::read(&storage_path) {
+            Ok(data) => {
+                self.cpu.mmio.storage_chip.load_storage(&data);
+                info!(target: "storage", "Save data loaded from {}", storage_path.display());
+            }
+            Err(e) if e.kind() != std::io::ErrorKind::NotFound => {
+                error!(target: "storage", "Failed to read save data from {}", storage_path.display());
+            }
+            // File not found means no save data exists, which is fine.
+            _ => {}
         }
     }
 }

@@ -260,7 +260,7 @@ impl Mmio {
             0x0E000000..=0x0FFFFFFF => self.storage_chip.read(addr),
             _ => {
                 error!(target: "mmio", "Reading from unmapped memory address: {:08X}", addr);
-                0x69
+                0xFF
             }
         };
 

@@ -11,7 +11,7 @@ $DB$
 
 fn main() {
     let mut csv_reader =
-        Reader::from_path("../external/titledb_mame.csv").expect("Failed to read GBA cartridge database CSV file");
+        Reader::from_path("../external/titledb.csv").expect("Failed to read GBA cartridge database CSV file");
 
     let mut table = String::new();
 
@@ -42,5 +42,5 @@ fn main() {
     let output = TEMPLATE.replace("$DB$", &table);
     std::fs::write("src/cartridge/database.rs", output).expect("Failed to write cartridge database source file");
 
-    println!("cargo:rerun-if-changed=../external/titledb_mame.csv");
+    println!("cargo:rerun-if-changed=../external/titledb.csv");
 }

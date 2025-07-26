@@ -1,7 +1,7 @@
 use crate::cartridge::StorageChip;
 use crate::cartridge::storage::BackupType;
 use crate::memory::device::{Addressable, Saveable};
-use tracing::debug;
+use tracing::{debug, trace};
 
 const FLASH_512K_SIZE: u32 = 0x10000; // 64 KiB
 const FLASH_1M_SIZE: u32 = 0x20000; // 128 KiB
@@ -45,7 +45,9 @@ impl Addressable for Flash {
             }
             0x0E000002..=0x0FFFFFFF => {
                 let addr = (addr - 0x0E000000) % self.boundary;
-                self.flash[addr as usize]
+                let value = self.flash[addr as usize];
+                trace!(target: "storage", "Reading Flash at address: {:08X} with value: {:02X}", addr + 0x0E000000, value);
+                value
             }
             _ => unreachable!("Invalid address for Flash read: {:08X}", addr),
         }
@@ -54,6 +56,7 @@ impl Addressable for Flash {
     fn write(&mut self, addr: u32, value: u8) {
         match addr {
             0x0E000002..=0x0FFFFFFF => {
+                trace!(target: "storage", "Writing Flash at address: {:08X} with value: {:02X}", addr, value);
                 let addr = (addr - 0x0E000000) % self.boundary;
                 self.flash[addr as usize] = value;
             }
