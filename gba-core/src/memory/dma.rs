@@ -29,11 +29,7 @@ impl TransferChannel {
     pub fn transfer_units(&self) -> u16 {
         let max_size = if self.id == 3 { 0xFFFF } else { 0x3FFF };
         let size = self.cnt.value() & max_size;
-        if size == 0 {
-            max_size
-        } else {
-            size
-        }
+        if size == 0 { max_size } else { size }
     }
 
     pub fn transfer_size(&self) -> usize {
@@ -54,6 +50,10 @@ impl TransferChannel {
 
     pub fn is_repeat(&self) -> bool {
         self.ctl.value_as::<DmaControl>().is_repeat()
+    }
+
+    pub fn trigger_irq(&self) -> bool {
+        self.ctl.value_as::<DmaControl>().trigger_irq()
     }
 
     pub fn enable(&mut self) {

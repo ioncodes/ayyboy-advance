@@ -110,6 +110,10 @@ impl DmaControl {
         self.contains(DmaControl::ENABLE)
     }
 
+    pub fn trigger_irq(&self) -> bool {
+        self.contains(DmaControl::IRQ_UPON_COMPLETE)
+    }
+
     pub fn enable(&mut self) {
         self.insert(DmaControl::ENABLE);
     }

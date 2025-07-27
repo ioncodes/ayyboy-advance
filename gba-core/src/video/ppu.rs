@@ -707,13 +707,15 @@ impl Ppu {
             let screen_size = bg_cnt.screen_size(id, bg_mode);
             let (map_w, map_h) = (screen_size.width(), screen_size.height());
 
-            let is_affine = matches!(
-                screen_size,
-                InternalScreenSize::Affine128x128
-                    | InternalScreenSize::Affine256x256
-                    | InternalScreenSize::Affine512x512
-                    | InternalScreenSize::Affine1024x1024
-            );
+            // Advance Wars had issues with the "let i = id - 2;" causing an underflow so im checking the id here as well
+            let is_affine = id >= 2
+                && matches!(
+                    screen_size,
+                    InternalScreenSize::Affine128x128
+                        | InternalScreenSize::Affine256x256
+                        | InternalScreenSize::Affine512x512
+                        | InternalScreenSize::Affine1024x1024
+                );
 
             let (_, tilemap) = self.render_tilemap(id, &bg_cnt);
 

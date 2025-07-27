@@ -112,6 +112,18 @@ impl Mmio {
                 let dst = self.dma.channels[channel].dst.value();
                 if dst == 0x040000A0 || dst == 0x040000A4 {
                     // TODO: WE SKIP SOUND DMA FOR NOW
+                    // self.dma.channels[channel].disable();
+                    // if self.dma.channels[channel].trigger_irq() {
+                    //     let flags = match channel {
+                    //         0 => Interrupt::DMA0,
+                    //         1 => Interrupt::DMA1,
+                    //         2 => Interrupt::DMA2,
+                    //         3 => Interrupt::DMA3,
+                    //         _ => unreachable!(),
+                    //     };
+                    //     self.io_if.set_flags(flags);
+                    //     trace!(target: "irq", "DMA{} interrupt raised", channel);
+                    // }
                     continue;
                 }
 
@@ -180,6 +192,19 @@ impl Mmio {
                 // if it's a repeat transfer, we just leave it enabled
                 if !self.dma.channels[channel].is_repeat() {
                     self.dma.channels[channel].disable();
+                }
+
+                // raise interrupt if enabled
+                if self.dma.channels[channel].trigger_irq() {
+                    let flags = match channel {
+                        0 => Interrupt::DMA0,
+                        1 => Interrupt::DMA1,
+                        2 => Interrupt::DMA2,
+                        3 => Interrupt::DMA3,
+                        _ => unreachable!(),
+                    };
+                    self.io_if.set_flags(flags);
+                    trace!(target: "irq", "DMA{} interrupt raised", channel);
                 }
             }
         }
