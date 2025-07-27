@@ -95,108 +95,37 @@ impl Mmio {
             trace!(target: "irq", "HBLANK interrupt raised");
         }
 
-        self.transfer_dma(&events);
+        self.process_dma_channels(&events);
     }
 
-    pub fn transfer_dma(&mut self, events: &Vec<PpuEvent>) {
-        for channel in 0..4 {
-            if self.dma.channels[channel].is_enabled()
-                && (self.dma.channels[channel].trigger() == DmaTrigger::Immediate
-                    || self.dma.channels[channel].trigger() == DmaTrigger::Special // TODO: Special trigger is not implemented, just allow it
-                    || (self.dma.channels[channel].trigger() == DmaTrigger::VBlank
-                        && events.contains(&PpuEvent::VBlank))
-                    || (self.dma.channels[channel].trigger() == DmaTrigger::HBlank
-                        && events.contains(&PpuEvent::HBlank)))
-            {
-                let src = self.dma.channels[channel].src.value();
-                let dst = self.dma.channels[channel].dst.value();
-                if dst == 0x040000A0 || dst == 0x040000A4 {
-                    // TODO: WE SKIP SOUND DMA FOR NOW
-                    // self.dma.channels[channel].disable();
-                    // if self.dma.channels[channel].trigger_irq() {
-                    //     let flags = match channel {
-                    //         0 => Interrupt::DMA0,
-                    //         1 => Interrupt::DMA1,
-                    //         2 => Interrupt::DMA2,
-                    //         3 => Interrupt::DMA3,
-                    //         _ => unreachable!(),
-                    //     };
-                    //     self.io_if.set_flags(flags);
-                    //     trace!(target: "irq", "DMA{} interrupt raised", channel);
-                    // }
-                    continue;
+    pub fn process_dma_channels(&mut self, events: &Vec<PpuEvent>) {
+        for channel_id in 0..4 {
+            if !self.dma.channels[channel_id].is_enabled() {
+                continue;
+            }
+
+            let is_immediate_trigger = self.dma.channels[channel_id].trigger() == DmaTrigger::Immediate;
+            let is_special_trigger = self.dma.channels[channel_id].trigger() == DmaTrigger::Special;
+            let is_vblank_trigger =
+                self.dma.channels[channel_id].trigger() == DmaTrigger::VBlank && events.contains(&PpuEvent::VBlank);
+            let is_hblank_trigger =
+                self.dma.channels[channel_id].trigger() == DmaTrigger::HBlank && events.contains(&PpuEvent::HBlank);
+
+            if !is_immediate_trigger && !is_special_trigger && !is_vblank_trigger && !is_hblank_trigger {
+                continue;
+            }
+
+            let src = self.dma.channels[channel_id].src.value();
+            let dst = self.dma.channels[channel_id].dst.value();
+
+            if dst == 0x040000A0 || dst == 0x040000A4 {
+                // TODO: Skip sound DMA for now
+                if !self.dma.channels[channel_id].is_repeat() {
+                    self.dma.channels[channel_id].disable();
                 }
 
-                debug!(target: "mmio", "DMA transfer on channel {}, src: {:08X}, dst: {:08X}, units: {}, size: {}",
-                    channel, src, dst,
-                    self.dma.channels[channel].transfer_units(),
-                    self.dma.channels[channel].transfer_size());
-
-                let units = self.dma.channels[channel].transfer_units();
-                let unit_size = self.dma.channels[channel].transfer_size() as u16;
-                let src_ctrl = self.dma.channels[channel].src_addr_control();
-                let dst_ctrl = self.dma.channels[channel].dst_addr_control();
-                let initial_cnt = self.dma.channels[channel].cnt.value();
-
-                // transfer it at once
-                for i in 0..units {
-                    let offset = (i as u32) * unit_size as u32;
-
-                    let src_addr = match src_ctrl {
-                        AddrControl::Increment => src + offset,
-                        AddrControl::Decrement => src - offset,
-                        AddrControl::Fixed => src,
-                        AddrControl::Reload => unreachable!(),
-                    } & !(unit_size as u32 - 1);
-                    let dst_addr = match dst_ctrl {
-                        AddrControl::Increment => dst + offset,
-                        AddrControl::Decrement => dst - offset,
-                        AddrControl::Fixed => dst,
-                        AddrControl::Reload => dst + offset,
-                    } & !(unit_size as u32 - 1);
-
-                    if unit_size == 4 {
-                        let value = self.read_u32(src_addr);
-                        self.write_u32(dst_addr, value);
-                    } else {
-                        let value = self.read_u16(src_addr);
-                        self.write_u16(dst_addr, value);
-                    }
-                }
-
-                let final_src = match src_ctrl {
-                    AddrControl::Increment => src + units as u32 * unit_size as u32,
-                    AddrControl::Decrement => src - units as u32 * unit_size as u32,
-                    _ => src,
-                };
-
-                let calc_dst = match dst_ctrl {
-                    AddrControl::Increment => dst + units as u32 * unit_size as u32,
-                    AddrControl::Decrement => dst - units as u32 * unit_size as u32,
-                    AddrControl::Fixed | AddrControl::Reload => dst + units as u32 * unit_size as u32,
-                };
-
-                let final_dst = if dst_ctrl == AddrControl::Reload { dst } else { calc_dst };
-
-                // update registers
-                self.dma.channels[channel].src.set(final_src);
-                self.dma.channels[channel].dst.set(final_dst);
-
-                let cnt = if self.dma.channels[channel].is_repeat() {
-                    initial_cnt
-                } else {
-                    0
-                };
-                self.dma.channels[channel].cnt.set(cnt);
-
-                // if it's a repeat transfer, we just leave it enabled
-                if !self.dma.channels[channel].is_repeat() {
-                    self.dma.channels[channel].disable();
-                }
-
-                // raise interrupt if enabled
-                if self.dma.channels[channel].trigger_irq() {
-                    let flags = match channel {
+                if self.dma.channels[channel_id].trigger_irq() {
+                    let flags = match channel_id {
                         0 => Interrupt::DMA0,
                         1 => Interrupt::DMA1,
                         2 => Interrupt::DMA2,
@@ -204,9 +133,95 @@ impl Mmio {
                         _ => unreachable!(),
                     };
                     self.io_if.set_flags(flags);
-                    trace!(target: "irq", "DMA{} interrupt raised", channel);
+                    trace!(target: "irq", "DMA{} interrupt raised", channel_id);
                 }
+
+                continue;
             }
+
+            debug!(target: "mmio", "DMA transfer on channel {}, src: {:08X}, dst: {:08X}, units: {}, size: {}",
+                    channel_id, src, dst,
+                    self.dma.channels[channel_id].transfer_units(),
+                    self.dma.channels[channel_id].transfer_size());
+
+            self.transfer_dma(channel_id, src, dst);
+
+            // raise interrupt if enabled
+            if self.dma.channels[channel_id].trigger_irq() {
+                let flags = match channel_id {
+                    0 => Interrupt::DMA0,
+                    1 => Interrupt::DMA1,
+                    2 => Interrupt::DMA2,
+                    3 => Interrupt::DMA3,
+                    _ => unreachable!(),
+                };
+                self.io_if.set_flags(flags);
+                trace!(target: "irq", "DMA{} interrupt raised", channel_id);
+            }
+        }
+    }
+
+    pub fn transfer_dma(&mut self, channel_id: usize, src: u32, dst: u32) {
+        let units = self.dma.channels[channel_id].transfer_units();
+        let unit_size = self.dma.channels[channel_id].transfer_size() as u16;
+        let src_ctrl = self.dma.channels[channel_id].src_addr_control();
+        let dst_ctrl = self.dma.channels[channel_id].dst_addr_control();
+        let initial_cnt = self.dma.channels[channel_id].cnt.value();
+
+        // transfer it at once
+        for i in 0..units {
+            let offset = (i as u32) * unit_size as u32;
+
+            let src_addr = match src_ctrl {
+                AddrControl::Increment => src + offset,
+                AddrControl::Decrement => src - offset,
+                AddrControl::Fixed => src,
+                AddrControl::Reload => unreachable!(),
+            } & !(unit_size as u32 - 1);
+            let dst_addr = match dst_ctrl {
+                AddrControl::Increment => dst + offset,
+                AddrControl::Decrement => dst - offset,
+                AddrControl::Fixed => dst,
+                AddrControl::Reload => dst + offset,
+            } & !(unit_size as u32 - 1);
+
+            if unit_size == 4 {
+                let value = self.read_u32(src_addr);
+                self.write_u32(dst_addr, value);
+            } else {
+                let value = self.read_u16(src_addr);
+                self.write_u16(dst_addr, value);
+            }
+        }
+
+        let final_src = match src_ctrl {
+            AddrControl::Increment => src + units as u32 * unit_size as u32,
+            AddrControl::Decrement => src - units as u32 * unit_size as u32,
+            _ => src,
+        };
+
+        let calc_dst = match dst_ctrl {
+            AddrControl::Increment => dst + units as u32 * unit_size as u32,
+            AddrControl::Decrement => dst - units as u32 * unit_size as u32,
+            AddrControl::Fixed | AddrControl::Reload => dst + units as u32 * unit_size as u32,
+        };
+
+        let final_dst = if dst_ctrl == AddrControl::Reload { dst } else { calc_dst };
+
+        // update registers
+        self.dma.channels[channel_id].src.set(final_src);
+        self.dma.channels[channel_id].dst.set(final_dst);
+
+        let cnt = if self.dma.channels[channel_id].is_repeat() {
+            initial_cnt
+        } else {
+            0
+        };
+        self.dma.channels[channel_id].cnt.set(cnt);
+
+        // if it's a repeat transfer, we just leave it enabled
+        if !self.dma.channels[channel_id].is_repeat() {
+            self.dma.channels[channel_id].disable();
         }
     }
 
