@@ -1,7 +1,7 @@
 use crate::dbg::widgets::{PC_COLOR, R15_COLOR};
 use crate::event::RequestEvent;
 use crossbeam_channel::Sender;
-use egui::{Context, RichText, ScrollArea, Window};
+use egui::{Context, RichText, Window};
 
 pub struct DecodedInstruction {
     pub addr: u32,
@@ -36,25 +36,25 @@ impl DisassemblyWidget {
 
     pub fn render(&mut self, ctx: &Context) {
         Window::new("Disassembly").resizable(false).show(ctx, |ui| {
-            ui.vertical(|ui| {
-                ScrollArea::vertical().auto_shrink([false; 2]).show(ui, |ui| {
-                    for line in self.disassembly.iter() {
-                        ui.horizontal(|ui| {
-                            let mut addr_label = RichText::new(format!("{:08X}", line.addr)).monospace().strong();
-                            let mut instr_label = RichText::new(line.instr.clone()).monospace();
-                            if line.addr == self.pc {
-                                addr_label = addr_label.color(PC_COLOR);
-                                instr_label = instr_label.color(PC_COLOR);
-                            } else if line.addr == self.r15 {
-                                addr_label = addr_label.color(R15_COLOR);
-                                instr_label = instr_label.color(R15_COLOR);
-                            }
-                            ui.label(addr_label);
-                            ui.label(instr_label);
-                        });
-                    }
-                });
-            });
+            self.render_content(ui);
         });
+    }
+
+    pub fn render_content(&mut self, ui: &mut egui::Ui) {
+        for line in self.disassembly.iter() {
+            ui.horizontal(|ui| {
+                let mut addr_label = RichText::new(format!("{:08X}", line.addr)).monospace().strong();
+                let mut instr_label = RichText::new(line.instr.clone()).monospace();
+                if line.addr == self.pc {
+                    addr_label = addr_label.color(PC_COLOR);
+                    instr_label = instr_label.color(PC_COLOR);
+                } else if line.addr == self.r15 {
+                    addr_label = addr_label.color(R15_COLOR);
+                    instr_label = instr_label.color(R15_COLOR);
+                }
+                ui.label(addr_label);
+                ui.label(instr_label);
+            });
+        }
     }
 }

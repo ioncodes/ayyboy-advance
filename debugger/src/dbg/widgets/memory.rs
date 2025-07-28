@@ -28,6 +28,11 @@ impl MemoryWidget {
 
     pub fn render(&mut self, ctx: &Context) {
         Window::new("Memory").resizable(false).vscroll(false).show(ctx, |ui| {
+            self.render_content(ui);
+        });
+    }
+
+    pub fn render_content(&mut self, ui: &mut egui::Ui) {
             ui.horizontal(|ui| {
                 ui.with_layout(egui::Layout::left_to_right(egui::Align::TOP), |ui| {
                     ComboBox::from_label("Memory Map")
@@ -122,7 +127,6 @@ impl MemoryWidget {
                     }
                 },
             );
-        });
     }
 }
 

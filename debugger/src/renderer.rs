@@ -157,23 +157,21 @@ impl App for Renderer {
     fn update(&mut self, ctx: &Context, _frame: &mut eframe::Frame) {
         self.handle_input(ctx);
 
-        self.debugger.update(ctx);
-
+        // Update screen texture first
         match self.display_rx.try_recv() {
             Ok(frame) => self.update_screen(&frame),
             _ => {}
         }
 
-        CentralPanel::default().show(ctx, |ui| {
-            let image = Image::new(&self.screen_texture);
-            let image = image.fit_to_exact_size(vec2((SCREEN_WIDTH * SCALE) as f32, (SCREEN_HEIGHT * SCALE) as f32));
-            image.paint_at(ui, ui.ctx().screen_rect());
-        });
-
         if self.debugger.open {
-            Window::new("Screen")
-                .resizable(false)
-                .show(ctx, |ui| ui.image(&self.screen_texture));
+            self.debugger.update_data(ctx);
+            self.debugger.render_tiled_debugger(&self.screen_texture, ctx);
+        } else {
+            CentralPanel::default().show(ctx, |ui| {
+                let image = Image::new(&self.screen_texture);
+                let image = image.fit_to_exact_size(vec2((SCREEN_WIDTH * SCALE) as f32, (SCREEN_HEIGHT * SCALE) as f32));
+                image.paint_at(ui, ui.ctx().screen_rect());
+            });
         }
 
         if !self.running && !self.debugger.open {

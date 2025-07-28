@@ -55,6 +55,11 @@ impl CpuWidget {
 
     pub fn render(&mut self, ctx: &Context) {
         Window::new("CPU").resizable(false).show(ctx, |ui| {
+            self.render_content(ui);
+        });
+    }
+
+    pub fn render_content(&mut self, ui: &mut egui::Ui) {
             ui.horizontal(|ui| {
                 ui.with_layout(egui::Layout::left_to_right(egui::Align::TOP), |ui| {
                     if ui.button(format!("{} Run", egui_phosphor::regular::PLAY)).clicked() {
@@ -233,6 +238,5 @@ impl CpuWidget {
                     );
                 });
             }
-        });
     }
 }

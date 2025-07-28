@@ -22,10 +22,7 @@ pub struct PpuWidget {
     pub registers: PpuRegisters,
     pub sprites: Vec<Sprite>,
     sprite_textures: Vec<Option<TextureHandle>>,
-    tilemap0_texture: Option<TextureHandle>,
-    tilemap1_texture: Option<TextureHandle>,
-    tilemap2_texture: Option<TextureHandle>,
-    tilemap3_texture: Option<TextureHandle>,
+    tilemap_textures: [Option<TextureHandle>; 4],
     bgmode3_frame0_texture: Option<TextureHandle>,
     bgmode3_frame1_texture: Option<TextureHandle>,
     bgmode4_frame0_texture: Option<TextureHandle>,
@@ -33,6 +30,8 @@ pub struct PpuWidget {
     bgmode5_frame0_texture: Option<TextureHandle>,
     bgmode5_frame1_texture: Option<TextureHandle>,
     event_tx: Sender<RequestEvent>,
+    selected_tilemap: usize,
+    palette_scroll_offset: usize,
 }
 
 impl PpuWidget {
@@ -51,10 +50,7 @@ impl PpuWidget {
             registers: PpuRegisters::default(),
             sprites: Vec::new(),
             sprite_textures: vec![None; 128], // 128 sprites max
-            tilemap0_texture: None,
-            tilemap1_texture: None,
-            tilemap2_texture: None,
-            tilemap3_texture: None,
+            tilemap_textures: [None, None, None, None],
             bgmode3_frame0_texture: None,
             bgmode3_frame1_texture: None,
             bgmode4_frame0_texture: None,
@@ -62,6 +58,8 @@ impl PpuWidget {
             bgmode5_frame0_texture: None,
             bgmode5_frame1_texture: None,
             event_tx: tx,
+            selected_tilemap: 0,
+            palette_scroll_offset: 0,
         }
     }
 
@@ -122,10 +120,9 @@ impl PpuWidget {
                 }
             };
 
-        update_tilemap_texture(&mut self.tilemap0_texture, self.tilemaps[0].0, &self.tilemaps[0].1);
-        update_tilemap_texture(&mut self.tilemap1_texture, self.tilemaps[1].0, &self.tilemaps[1].1);
-        update_tilemap_texture(&mut self.tilemap2_texture, self.tilemaps[2].0, &self.tilemaps[2].1);
-        update_tilemap_texture(&mut self.tilemap3_texture, self.tilemaps[3].0, &self.tilemaps[3].1);
+        for i in 0..4 {
+            update_tilemap_texture(&mut self.tilemap_textures[i], self.tilemaps[i].0, &self.tilemaps[i].1);
+        }
 
         let update_sprite_texture = |texture: &mut Option<TextureHandle>, sprite: &Sprite| {
             if let Some(texture) = texture {
@@ -167,33 +164,14 @@ impl PpuWidget {
                 update_sprite_texture(texture, sprite);
             });
 
-        if self.tilemap0_texture.is_none() {
-            self.tilemap0_texture = Some(ctx.load_texture(
-                "tilemap0",
-                ColorImage::new([256, 256], Color32::BLACK),
-                TextureOptions::default(),
-            ));
-        }
-        if self.tilemap1_texture.is_none() {
-            self.tilemap1_texture = Some(ctx.load_texture(
-                "tilemap1",
-                ColorImage::new([256, 256], Color32::BLACK),
-                TextureOptions::default(),
-            ));
-        }
-        if self.tilemap2_texture.is_none() {
-            self.tilemap2_texture = Some(ctx.load_texture(
-                "tilemap2",
-                ColorImage::new([256, 256], Color32::BLACK),
-                TextureOptions::default(),
-            ));
-        }
-        if self.tilemap3_texture.is_none() {
-            self.tilemap3_texture = Some(ctx.load_texture(
-                "tilemap3",
-                ColorImage::new([256, 256], Color32::BLACK),
-                TextureOptions::default(),
-            ));
+        for i in 0..4 {
+            if self.tilemap_textures[i].is_none() {
+                self.tilemap_textures[i] = Some(ctx.load_texture(
+                    &format!("tilemap{}", i),
+                    ColorImage::new([256, 256], Color32::BLACK),
+                    TextureOptions::default(),
+                ));
+            }
         }
         if self.bgmode3_frame0_texture.is_none() {
             self.bgmode3_frame0_texture = Some(ctx.load_texture(
@@ -252,6 +230,15 @@ impl PpuWidget {
 
     pub fn render(&mut self, ctx: &Context) {
         Window::new("PPU Registers").resizable(false).show(ctx, |ui| {
+            self.render_registers_content(ui);
+        });
+
+        Window::new("PPU Video").resizable(false).show(ctx, |ui| {
+            self.render_video_content(ui);
+        });
+    }
+
+    pub fn render_registers_content(&mut self, ui: &mut egui::Ui) {
             CollapsingHeader::new("Display Control (DISP_CNT)")
                 .default_open(true)
                 .show(ui, |ui| {
@@ -407,43 +394,64 @@ impl PpuWidget {
                         }
                     }
                 });
-        });
+    }
 
-        Window::new("PPU Video").resizable(false).show(ctx, |ui| {
+    pub fn render_video_content(&mut self, ui: &mut egui::Ui) {
             CollapsingHeader::new("Tilemaps").default_open(true).show(ui, |ui| {
                 ui.horizontal(|ui| {
-                    if let Some(texture) = &self.tilemap0_texture {
-                        ui.image(texture);
-                    }
-
-                    if let Some(texture) = &self.tilemap1_texture {
-                        ui.image(texture);
-                    }
-
-                    if let Some(texture) = &self.tilemap2_texture {
-                        ui.image(texture);
-                    }
-
-                    if let Some(texture) = &self.tilemap3_texture {
-                        ui.image(texture);
+                    for i in 0..4 {
+                        ui.selectable_value(&mut self.selected_tilemap, i, format!("Tilemap {}", i));
                     }
                 });
+                
+                if let Some(texture) = &self.tilemap_textures[self.selected_tilemap] {
+                    ui.add(
+                        Image::from_texture(texture)
+                            .fit_to_exact_size(egui::vec2(200.0, 200.0))
+                            .texture_options(egui::TextureOptions::NEAREST)
+                    );
+                }
             });
 
             CollapsingHeader::new("Palette").default_open(true).show(ui, |ui| {
-                for (row_index, row) in self.palette.chunks(16).enumerate() {
+                ui.horizontal(|ui| {
+                    let prev_enabled = self.palette_scroll_offset > 0;
+                    let next_enabled = self.palette_scroll_offset + 256 < self.palette.len();
+                    
+                    ui.add_enabled_ui(prev_enabled, |ui| {
+                        if ui.button("◀ Page 1").clicked() {
+                            self.palette_scroll_offset = 0;
+                        }
+                    });
+                    
+                    let current_page = if self.palette_scroll_offset == 0 { 1 } else { 2 };
+                    ui.label(format!("Page {} | Colors {:#04X}-{:#04X}", 
+                        current_page,
+                        self.palette_scroll_offset, 
+                        (self.palette_scroll_offset + 255).min(self.palette.len().saturating_sub(1))
+                    ));
+                    
+                    ui.add_enabled_ui(next_enabled, |ui| {
+                        if ui.button("Page 2 ▶").clicked() {
+                            self.palette_scroll_offset = 256;
+                        }
+                    });
+                });
+                
+                let end_idx = (self.palette_scroll_offset + 256).min(self.palette.len());
+                let visible_palette = &self.palette[self.palette_scroll_offset..end_idx];
+                
+                for (row_index, row) in visible_palette.chunks(16).enumerate() {
                     ui.horizontal(|ui| {
                         for (col_index, color) in row.iter().enumerate() {
-                            let i = row_index * 16 + col_index;
+                            let i = self.palette_scroll_offset + row_index * 16 + col_index;
                             if let Pixel::Rgb(r, g, b) = color {
                                 let color32 = Color32::from_rgb(*r, *g, *b);
-                                ui.label(
-                                    RichText::new(format!("{:04X}", i))
-                                        .background_color(color32)
-                                        .monospace(),
-                                );
-                            } else {
-                                ui.label(RichText::new(format!("{:04X}", i)).monospace());
+                                ui.add(
+                                    egui::widgets::Button::new(format!("{:02X}", i & 0xFF))
+                                        .fill(color32)
+                                        .min_size(egui::vec2(25.0, 20.0))
+                                ).on_hover_text(format!("Index: {:#04X}, RGB: ({}, {}, {})", i, r, g, b));
                             }
                         }
                     });
@@ -519,6 +527,5 @@ impl PpuWidget {
                         }
                     });
                 });
-        });
     }
 }
