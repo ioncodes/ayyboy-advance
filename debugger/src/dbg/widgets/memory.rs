@@ -2,7 +2,9 @@ use crate::dbg::tracked_value::TrackedValue;
 use crate::dbg::widgets::DIRTY_COLOR;
 use crate::event::RequestEvent;
 use crossbeam_channel::Sender;
-use egui::{ComboBox, RichText, ScrollArea, TextStyle};
+use egui::{Color32, ComboBox, RichText, ScrollArea, TextStyle};
+
+const SIGNIFICANT_COLOR: Color32 = Color32::from_rgb(180, 180, 180); // Muted gray for addresses & headers
 
 const BYTES_PER_ROW: usize = 16;
 
@@ -62,12 +64,16 @@ impl MemoryWidget {
         ui.separator();
 
         ui.horizontal(|ui| {
-            ui.label(RichText::new("        ").monospace().strong());
+            ui.label(RichText::new("        ").monospace());
             for idx in 0..BYTES_PER_ROW {
-                ui.label(RichText::new(format!("{:02X}", idx)).monospace().strong());
+                ui.label(
+                    RichText::new(format!("{:02X}", idx))
+                        .monospace()
+                        .color(SIGNIFICANT_COLOR),
+                );
             }
             ui.add_space(5.0);
-            ui.label(RichText::new("ASCII").monospace().strong());
+            ui.label(RichText::new("ASCII").monospace().color(SIGNIFICANT_COLOR));
         });
 
         let start = self.memory_view.start() as usize;
@@ -89,7 +95,11 @@ impl MemoryWidget {
                     let chunk = &mem_slice[slice_off..slice_off + take];
 
                     ui.horizontal(|ui| {
-                        ui.label(RichText::new(format!("{:08X}", base_addr)).monospace().strong());
+                        ui.label(
+                            RichText::new(format!("{:08X}", base_addr))
+                                .monospace()
+                                .color(SIGNIFICANT_COLOR),
+                        );
 
                         for cell in chunk.iter() {
                             let mut richtext = RichText::new(format!("{:02X}", cell.get())).monospace();
