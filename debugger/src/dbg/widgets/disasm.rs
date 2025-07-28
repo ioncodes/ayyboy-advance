@@ -1,4 +1,3 @@
-use crate::dbg::widgets::{PC_COLOR, R15_COLOR};
 use crate::event::RequestEvent;
 use crossbeam_channel::Sender;
 use egui::{Color32, RichText};
@@ -163,14 +162,9 @@ impl DisassemblyWidget {
         // Check for registers (including status registers)
         if token.starts_with('r')
             || token.starts_with('R')
-            || matches!(
-                token,
-                "sp" | "lr" | "pc" | "SP" | "LR" | "PC" | "cpsr" | "spsr" | "CPSR" | "SPSR"
-            )
+            || matches!(token, "sp" | "lr" | "pc" | "cpsr" | "spsr")
             || token.starts_with("spsr_")
-            || token.starts_with("SPSR_")
             || token.starts_with("cpsr_")
-            || token.starts_with("CPSR_")
         {
             REGISTER_COLOR
         }
@@ -194,6 +188,10 @@ impl DisassemblyWidget {
         else if token.ends_with(".s") || token.ends_with("!") {
             // If it's an opcode with suffix, color the whole thing as opcode
             if token.len() > 2 { OPCODE_COLOR } else { Color32::WHITE }
+        }
+        // Check for barrel shifter (e.g., "lsl", "lsr", "asr", "ror")
+        else if matches!(token, "lsl" | "lsr" | "asr" | "ror" | "rrx") {
+            OPCODE_COLOR
         } else {
             Color32::WHITE
         }
@@ -202,50 +200,33 @@ impl DisassemblyWidget {
     pub fn render_content(&mut self, ui: &mut egui::Ui) {
         for line in self.disassembly.iter() {
             ui.horizontal(|ui| {
-                let mut addr_label = RichText::new(format!("{:08X}", line.addr))
+                let addr_label = RichText::new(format!("{:08X}", line.addr))
                     .monospace()
                     .color(ADDRESS_COLOR);
 
-                // Determine if this line should be highlighted for PC/R15
-                let highlight_color = if line.addr == self.pc {
-                    addr_label = addr_label.color(PC_COLOR);
-                    Some(PC_COLOR)
-                } else if line.addr == self.r15 {
-                    addr_label = addr_label.color(R15_COLOR);
-                    Some(R15_COLOR)
-                } else {
-                    None
-                };
-
                 ui.label(addr_label);
 
-                // Create a single RichText with colored segments to avoid spacing issues
-                if let Some(color) = highlight_color {
-                    // If highlighted, use single color for everything
-                    ui.label(RichText::new(&line.instr).monospace().color(color));
-                } else {
-                    // Create colored instruction text
-                    let colored_tokens = self.colorize_instruction(&line.instr, None);
+                // Create colored instruction text
+                let colored_tokens = self.colorize_instruction(&line.instr, None);
 
-                    // Build a single formatted string with ANSI-like color codes
-                    // Since egui doesn't support inline color changes in a single RichText,
-                    // we'll use the job system for proper coloring
-                    let mut job = egui::text::LayoutJob::default();
+                // Build a single formatted string with ANSI-like color codes
+                // Since egui doesn't support inline color changes in a single RichText,
+                // we'll use the job system for proper coloring
+                let mut job = egui::text::LayoutJob::default();
 
-                    for (token, color) in colored_tokens {
-                        job.append(
-                            &token,
-                            0.0,
-                            egui::TextFormat {
-                                font_id: egui::FontId::monospace(12.0),
-                                color,
-                                ..Default::default()
-                            },
-                        );
-                    }
-
-                    ui.label(job);
+                for (token, color) in colored_tokens {
+                    job.append(
+                        &token,
+                        0.0,
+                        egui::TextFormat {
+                            font_id: egui::FontId::monospace(12.0),
+                            color,
+                            ..Default::default()
+                        },
+                    );
                 }
+
+                ui.label(job);
             });
         }
     }

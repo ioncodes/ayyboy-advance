@@ -1516,11 +1516,39 @@ impl Display for Operand {
             Operand::Offset(value) if *value < 0 => write!(f, "-0x{:04X}", -1 * value),
             Operand::Offset(value) => write!(f, "0x{:04X}", value),
             Operand::RegisterList(registers) => {
-                let output = registers
+                if registers.is_empty() {
+                    return write!(f, "{{}}");
+                }
+
+                let mut regs: Vec<_> = registers.iter().cloned().collect();
+                regs.sort_unstable_by_key(|r| *r as u8);
+
+                let mut ranges = Vec::new();
+                let mut start = regs[0];
+                let mut end = start;
+                for reg in regs.into_iter().skip(1) {
+                    if (reg as u8) == (end as u8) + 1 {
+                        end = reg;
+                    } else {
+                        ranges.push((start, end));
+                        start = reg;
+                        end = reg;
+                    }
+                }
+                ranges.push((start, end));
+
+                let output = ranges
                     .iter()
-                    .map(|r| format!("{}", r))
-                    .collect::<Vec<String>>()
-                    .join(", ");
+                    .map(|&(s, e)| {
+                        if s == e {
+                            format!("r{}", s as u8)
+                        } else {
+                            format!("r{}-r{}", s as u8, e as u8)
+                        }
+                    })
+                    .collect::<Vec<_>>()
+                    .join(",");
+
                 write!(f, "{{{}}}", output)
             }
             _ => panic!("Unknown operand type"),
