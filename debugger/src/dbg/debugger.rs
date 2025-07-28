@@ -48,11 +48,6 @@ impl Debugger {
         }
     }
 
-    pub fn update(&mut self, ctx: &Context) {
-        self.update_data(ctx);
-        // Rendering is now handled by render_tiled_debugger in the main renderer
-    }
-
     pub fn render_tiled_debugger(&mut self, screen_texture: &egui::TextureHandle, ctx: &Context) {
         // Left sidebar - CPU and Disassembly
         SidePanel::left("cpu_disasm_panel")
@@ -102,48 +97,48 @@ impl Debugger {
             .frame(
                 egui::Frame::default()
                     .inner_margin(egui::Margin::symmetric(8, 0))
-                    .fill(ctx.style().visuals.panel_fill)
+                    .fill(ctx.style().visuals.panel_fill),
             )
             .show(ctx, |ui| {
-            // Memory section (top 60% of center panel)
-            ui.heading("Memory");
-            let total_height = ui.available_height();
-            let memory_height = total_height * 0.6;
+                // Memory section (top 60% of center panel)
+                ui.heading("Memory");
+                let total_height = ui.available_height();
+                let memory_height = total_height * 0.6;
 
-            ui.allocate_ui_with_layout(
-                egui::vec2(ui.available_width(), memory_height),
-                egui::Layout::top_down(egui::Align::LEFT),
-                |ui| {
-                    self.memory_widget.render_content(ui);
-                },
-            );
+                ui.allocate_ui_with_layout(
+                    egui::vec2(ui.available_width(), memory_height),
+                    egui::Layout::top_down(egui::Align::LEFT),
+                    |ui| {
+                        self.memory_widget.render_content(ui);
+                    },
+                );
 
-            ui.separator();
+                ui.separator();
 
-            // Game Screen section (bottom 40% of center panel)
-            ui.heading("Game Screen");
+                // Game Screen section (bottom 40% of center panel)
+                ui.heading("Game Screen");
 
-            // Center the screen in the remaining space
-            ui.with_layout(egui::Layout::top_down(egui::Align::Center), |ui| {
-                let available_size = ui.available_size();
-                let aspect_ratio = 240.0 / 160.0; // GBA screen aspect ratio
-                let max_width = available_size.x;
-                let max_height = available_size.y;
+                // Center the screen in the remaining space
+                ui.with_layout(egui::Layout::top_down(egui::Align::Center), |ui| {
+                    let available_size = ui.available_size();
+                    let aspect_ratio = 240.0 / 160.0; // GBA screen aspect ratio
+                    let max_width = available_size.x;
+                    let max_height = available_size.y;
 
-                let (width, height) = if max_width / max_height > aspect_ratio {
-                    // Limited by height
-                    (max_height * aspect_ratio, max_height)
-                } else {
-                    // Limited by width
-                    (max_width, max_width / aspect_ratio)
-                };
+                    let (width, height) = if max_width / max_height > aspect_ratio {
+                        // Limited by height
+                        (max_height * aspect_ratio, max_height)
+                    } else {
+                        // Limited by width
+                        (max_width, max_width / aspect_ratio)
+                    };
 
-                let image = egui::Image::new(screen_texture)
-                    .fit_to_exact_size(egui::vec2(width, height))
-                    .texture_options(egui::TextureOptions::NEAREST);
-                ui.add(image);
+                    let image = egui::Image::new(screen_texture)
+                        .fit_to_exact_size(egui::vec2(width, height))
+                        .texture_options(egui::TextureOptions::NEAREST);
+                    ui.add(image);
+                });
             });
-        });
     }
 
     pub fn toggle_window(&mut self) {

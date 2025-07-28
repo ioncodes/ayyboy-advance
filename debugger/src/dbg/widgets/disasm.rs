@@ -1,7 +1,7 @@
 use crate::dbg::widgets::{PC_COLOR, R15_COLOR};
 use crate::event::RequestEvent;
 use crossbeam_channel::Sender;
-use egui::{Context, RichText, Window};
+use egui::RichText;
 
 pub struct DecodedInstruction {
     pub addr: u32,
@@ -32,12 +32,6 @@ impl DisassemblyWidget {
         self.pc = pc;
         self.r15 = r15;
         let _ = self.event_tx.send(RequestEvent::UpdateDisassembly(None, 25));
-    }
-
-    pub fn render(&mut self, ctx: &Context) {
-        Window::new("Disassembly").resizable(false).show(ctx, |ui| {
-            self.render_content(ui);
-        });
     }
 
     pub fn render_content(&mut self, ui: &mut egui::Ui) {

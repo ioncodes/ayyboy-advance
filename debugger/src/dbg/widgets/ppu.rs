@@ -1,7 +1,7 @@
 use crate::dbg::widgets::TRANSPARENT_COLOR;
 use crate::event::RequestEvent;
 use crossbeam_channel::Sender;
-use egui::{CollapsingHeader, Color32, ColorImage, Context, Image, RichText, TextureHandle, TextureOptions, Window};
+use egui::{CollapsingHeader, Color32, ColorImage, Context, Image, RichText, TextureHandle, TextureOptions};
 use gba_core::video::ppu::Sprite;
 use gba_core::video::registers::{BgCnt, BgOffset, DispCnt, DispStat, InternalScreenSize, ObjSize};
 use gba_core::video::{Frame, Pixel, SCREEN_HEIGHT, SCREEN_WIDTH};
@@ -32,6 +32,7 @@ pub struct PpuWidget {
     event_tx: Sender<RequestEvent>,
     selected_tilemap: usize,
     palette_scroll_offset: usize,
+    show_all_tilemaps_popup: bool,
 }
 
 impl PpuWidget {
@@ -60,6 +61,7 @@ impl PpuWidget {
             event_tx: tx,
             selected_tilemap: 0,
             palette_scroll_offset: 0,
+            show_all_tilemaps_popup: false,
         }
     }
 
@@ -228,237 +230,229 @@ impl PpuWidget {
         let _ = self.event_tx.send(RequestEvent::UpdatePpu);
     }
 
-    pub fn render(&mut self, ctx: &Context) {
-        Window::new("PPU Registers").resizable(false).show(ctx, |ui| {
-            self.render_registers_content(ui);
-        });
-
-        Window::new("PPU Video").resizable(false).show(ctx, |ui| {
-            self.render_video_content(ui);
-        });
-    }
-
     pub fn render_registers_content(&mut self, ui: &mut egui::Ui) {
-            CollapsingHeader::new("Display Control (DISP_CNT)")
-                .default_open(true)
-                .show(ui, |ui| {
-                    ui.label(
-                        RichText::new(format!("Background Mode: {}", self.registers.disp_cnt.bg_mode())).monospace(),
-                    );
-                    ui.label(
-                        RichText::new(format!(
-                            "Frame Address: {:08X}",
-                            self.registers.disp_cnt.frame_address()
-                        ))
-                        .monospace(),
-                    );
-                    ui.label(
-                        RichText::new(format!(
-                            "OBJ Character Mapping: {}",
-                            self.registers.disp_cnt.dimension()
-                        ))
-                        .monospace(),
-                    );
-                    ui.label(
-                        RichText::new(format!(
-                            "BG 0 Enabled: {}",
-                            self.registers.disp_cnt.contains(DispCnt::BG0_ON)
-                        ))
-                        .monospace(),
-                    );
-                    ui.label(
-                        RichText::new(format!(
-                            "BG 1 Enabled: {}",
-                            self.registers.disp_cnt.contains(DispCnt::BG1_ON)
-                        ))
-                        .monospace(),
-                    );
-                    ui.label(
-                        RichText::new(format!(
-                            "BG 2 Enabled: {}",
-                            self.registers.disp_cnt.contains(DispCnt::BG2_ON)
-                        ))
-                        .monospace(),
-                    );
-                    ui.label(
-                        RichText::new(format!(
-                            "BG 3 Enabled: {}",
-                            self.registers.disp_cnt.contains(DispCnt::BG3_ON)
-                        ))
-                        .monospace(),
-                    );
-                    ui.label(
-                        RichText::new(format!(
-                            "OBJ Enabled: {}",
-                            self.registers.disp_cnt.contains(DispCnt::OBJ_ON)
-                        ))
-                        .monospace(),
-                    );
-                    ui.label(
-                        RichText::new(format!(
-                            "WIN 0 Enabled: {}",
-                            self.registers.disp_cnt.contains(DispCnt::WIN0_ON)
-                        ))
-                        .monospace(),
-                    );
-                    ui.label(
-                        RichText::new(format!(
-                            "WIN 1 Enabled: {}",
-                            self.registers.disp_cnt.contains(DispCnt::WIN1_ON)
-                        ))
-                        .monospace(),
-                    );
-                });
+        CollapsingHeader::new("Display Control (DISP_CNT)")
+            .default_open(true)
+            .show(ui, |ui| {
+                ui.label(RichText::new(format!("Background Mode: {}", self.registers.disp_cnt.bg_mode())).monospace());
+                ui.label(
+                    RichText::new(format!(
+                        "Frame Address: {:08X}",
+                        self.registers.disp_cnt.frame_address()
+                    ))
+                    .monospace(),
+                );
+                ui.label(
+                    RichText::new(format!(
+                        "OBJ Character Mapping: {}",
+                        self.registers.disp_cnt.dimension()
+                    ))
+                    .monospace(),
+                );
+                ui.label(
+                    RichText::new(format!(
+                        "BG 0 Enabled: {}",
+                        self.registers.disp_cnt.contains(DispCnt::BG0_ON)
+                    ))
+                    .monospace(),
+                );
+                ui.label(
+                    RichText::new(format!(
+                        "BG 1 Enabled: {}",
+                        self.registers.disp_cnt.contains(DispCnt::BG1_ON)
+                    ))
+                    .monospace(),
+                );
+                ui.label(
+                    RichText::new(format!(
+                        "BG 2 Enabled: {}",
+                        self.registers.disp_cnt.contains(DispCnt::BG2_ON)
+                    ))
+                    .monospace(),
+                );
+                ui.label(
+                    RichText::new(format!(
+                        "BG 3 Enabled: {}",
+                        self.registers.disp_cnt.contains(DispCnt::BG3_ON)
+                    ))
+                    .monospace(),
+                );
+                ui.label(
+                    RichText::new(format!(
+                        "OBJ Enabled: {}",
+                        self.registers.disp_cnt.contains(DispCnt::OBJ_ON)
+                    ))
+                    .monospace(),
+                );
+                ui.label(
+                    RichText::new(format!(
+                        "WIN 0 Enabled: {}",
+                        self.registers.disp_cnt.contains(DispCnt::WIN0_ON)
+                    ))
+                    .monospace(),
+                );
+                ui.label(
+                    RichText::new(format!(
+                        "WIN 1 Enabled: {}",
+                        self.registers.disp_cnt.contains(DispCnt::WIN1_ON)
+                    ))
+                    .monospace(),
+                );
+            });
 
-            CollapsingHeader::new("Display Status (DISP_STAT)")
-                .default_open(true)
-                .show(ui, |ui| {
-                    ui.label(
-                        RichText::new(format!(
-                            "VBLANK IRQ Enabled: {}",
-                            self.registers.disp_stat.contains(DispStat::VBLANK_IRQ_ENABLE)
-                        ))
-                        .monospace(),
-                    );
-                    ui.label(
-                        RichText::new(format!(
-                            "HBLANK IRQ Enabled: {}",
-                            self.registers.disp_stat.contains(DispStat::HBLANK_IRQ_ENABLE)
-                        ))
-                        .monospace(),
-                    );
-                    ui.label(
-                        RichText::new(format!(
-                            "VBLANK: {}",
-                            self.registers.disp_stat.contains(DispStat::VBLANK_FLAG)
-                        ))
-                        .monospace(),
-                    );
-                    ui.label(
-                        RichText::new(format!(
-                            "HBLANK: {}",
-                            self.registers.disp_stat.contains(DispStat::HBLANK_FLAG)
-                        ))
-                        .monospace(),
-                    );
-                    ui.label(
-                        RichText::new(format!(
-                            "VCOUNT Enabled: {}",
-                            self.registers.disp_stat.contains(DispStat::V_COUNTER_ENABLE)
-                        ))
-                        .monospace(),
-                    );
-                });
+        CollapsingHeader::new("Display Status (DISP_STAT)")
+            .default_open(true)
+            .show(ui, |ui| {
+                ui.label(
+                    RichText::new(format!(
+                        "VBLANK IRQ Enabled: {}",
+                        self.registers.disp_stat.contains(DispStat::VBLANK_IRQ_ENABLE)
+                    ))
+                    .monospace(),
+                );
+                ui.label(
+                    RichText::new(format!(
+                        "HBLANK IRQ Enabled: {}",
+                        self.registers.disp_stat.contains(DispStat::HBLANK_IRQ_ENABLE)
+                    ))
+                    .monospace(),
+                );
+                ui.label(
+                    RichText::new(format!(
+                        "VBLANK: {}",
+                        self.registers.disp_stat.contains(DispStat::VBLANK_FLAG)
+                    ))
+                    .monospace(),
+                );
+                ui.label(
+                    RichText::new(format!(
+                        "HBLANK: {}",
+                        self.registers.disp_stat.contains(DispStat::HBLANK_FLAG)
+                    ))
+                    .monospace(),
+                );
+                ui.label(
+                    RichText::new(format!(
+                        "VCOUNT Enabled: {}",
+                        self.registers.disp_stat.contains(DispStat::V_COUNTER_ENABLE)
+                    ))
+                    .monospace(),
+                );
+            });
 
-            CollapsingHeader::new("Background Control (BGxCNT)")
-                .default_open(true)
-                .show(ui, |ui| {
-                    for (i, bg_cnt) in self.registers.bg_cnt.iter().enumerate() {
-                        ui.label(
-                            RichText::new(format!(
-                                "BG{}CNT Screen Size: {}",
-                                i,
-                                bg_cnt.screen_size(i, self.registers.disp_cnt.bg_mode())
-                            ))
-                            .monospace(),
-                        );
-                        ui.label(
-                            RichText::new(format!("BG{}CNT Tileset Address: {:08X}", i, bg_cnt.tileset_addr()))
-                                .monospace(),
-                        );
-                        ui.label(
-                            RichText::new(format!("BG{}CNT Tilemap Address: {:08X}", i, bg_cnt.tilemap_addr()))
-                                .monospace(),
-                        );
-                        ui.label(RichText::new(format!("BG{}CNT Priority: {}", i, bg_cnt.priority())).monospace());
-                        if i != 3 {
-                            ui.separator();
-                        }
+        CollapsingHeader::new("Background Control (BGxCNT)")
+            .default_open(true)
+            .show(ui, |ui| {
+                for (i, bg_cnt) in self.registers.bg_cnt.iter().enumerate() {
+                    ui.label(
+                        RichText::new(format!(
+                            "BG{}CNT Screen Size: {}",
+                            i,
+                            bg_cnt.screen_size(i, self.registers.disp_cnt.bg_mode())
+                        ))
+                        .monospace(),
+                    );
+                    ui.label(
+                        RichText::new(format!("BG{}CNT Tileset Address: {:08X}", i, bg_cnt.tileset_addr())).monospace(),
+                    );
+                    ui.label(
+                        RichText::new(format!("BG{}CNT Tilemap Address: {:08X}", i, bg_cnt.tilemap_addr())).monospace(),
+                    );
+                    ui.label(RichText::new(format!("BG{}CNT Priority: {}", i, bg_cnt.priority())).monospace());
+                    if i != 3 {
+                        ui.separator();
                     }
-                });
+                }
+            });
 
-            CollapsingHeader::new("Background Offsets (BGxVOFS/BGxHOFS)")
-                .default_open(true)
-                .show(ui, |ui| {
-                    for (i, (bg_vofs, bg_hofs)) in self
-                        .registers
-                        .bg_vofs
-                        .iter()
-                        .zip(self.registers.bg_hofs.iter())
-                        .enumerate()
-                    {
-                        ui.label(RichText::new(format!("BG{}VOFS: {}", i, bg_vofs.offset())).monospace());
-                        ui.label(RichText::new(format!("BG{}HOFS: {}", i, bg_hofs.offset())).monospace());
-                        if i != 3 {
-                            ui.separator();
-                        }
+        CollapsingHeader::new("Background Offsets (BGxVOFS/BGxHOFS)")
+            .default_open(true)
+            .show(ui, |ui| {
+                for (i, (bg_vofs, bg_hofs)) in self
+                    .registers
+                    .bg_vofs
+                    .iter()
+                    .zip(self.registers.bg_hofs.iter())
+                    .enumerate()
+                {
+                    ui.label(RichText::new(format!("BG{}VOFS: {}", i, bg_vofs.offset())).monospace());
+                    ui.label(RichText::new(format!("BG{}HOFS: {}", i, bg_hofs.offset())).monospace());
+                    if i != 3 {
+                        ui.separator();
                     }
-                });
+                }
+            });
     }
 
     pub fn render_video_content(&mut self, ui: &mut egui::Ui) {
-            CollapsingHeader::new("Tilemaps").default_open(true).show(ui, |ui| {
-                ui.horizontal(|ui| {
-                    for i in 0..4 {
-                        ui.selectable_value(&mut self.selected_tilemap, i, format!("Tilemap {}", i));
+        CollapsingHeader::new("Tilemaps").default_open(true).show(ui, |ui| {
+            ui.horizontal(|ui| {
+                for i in 0..4 {
+                    ui.selectable_value(&mut self.selected_tilemap, i, format!("Background {}", i));
+                }
+
+                if ui.button("View All").clicked() {
+                    self.show_all_tilemaps_popup = true;
+                }
+            });
+
+            if let Some(texture) = &self.tilemap_textures[self.selected_tilemap] {
+                ui.add(
+                    Image::from_texture(texture)
+                        .fit_to_exact_size(egui::vec2(200.0, 200.0))
+                        .texture_options(egui::TextureOptions::NEAREST),
+                );
+            }
+        });
+
+        CollapsingHeader::new("Palette").default_open(true).show(ui, |ui| {
+            ui.horizontal(|ui| {
+                let prev_enabled = self.palette_scroll_offset > 0;
+                let next_enabled = self.palette_scroll_offset + 256 < self.palette.len();
+
+                ui.add_enabled_ui(prev_enabled, |ui| {
+                    if ui.button("◀ Page 1").clicked() {
+                        self.palette_scroll_offset = 0;
                     }
                 });
-                
-                if let Some(texture) = &self.tilemap_textures[self.selected_tilemap] {
-                    ui.add(
-                        Image::from_texture(texture)
-                            .fit_to_exact_size(egui::vec2(200.0, 200.0))
-                            .texture_options(egui::TextureOptions::NEAREST)
-                    );
-                }
-            });
 
-            CollapsingHeader::new("Palette").default_open(true).show(ui, |ui| {
-                ui.horizontal(|ui| {
-                    let prev_enabled = self.palette_scroll_offset > 0;
-                    let next_enabled = self.palette_scroll_offset + 256 < self.palette.len();
-                    
-                    ui.add_enabled_ui(prev_enabled, |ui| {
-                        if ui.button("◀ Page 1").clicked() {
-                            self.palette_scroll_offset = 0;
-                        }
-                    });
-                    
-                    let current_page = if self.palette_scroll_offset == 0 { 1 } else { 2 };
-                    ui.label(format!("Page {} | Colors {:#04X}-{:#04X}", 
-                        current_page,
-                        self.palette_scroll_offset, 
-                        (self.palette_scroll_offset + 255).min(self.palette.len().saturating_sub(1))
-                    ));
-                    
-                    ui.add_enabled_ui(next_enabled, |ui| {
-                        if ui.button("Page 2 ▶").clicked() {
-                            self.palette_scroll_offset = 256;
-                        }
-                    });
+                let current_page = if self.palette_scroll_offset == 0 { 1 } else { 2 };
+                ui.label(format!(
+                    "Page {} | Colors {:#04X}-{:#04X}",
+                    current_page,
+                    self.palette_scroll_offset,
+                    (self.palette_scroll_offset + 255).min(self.palette.len().saturating_sub(1))
+                ));
+
+                ui.add_enabled_ui(next_enabled, |ui| {
+                    if ui.button("Page 2 ▶").clicked() {
+                        self.palette_scroll_offset = 256;
+                    }
                 });
-                
-                let end_idx = (self.palette_scroll_offset + 256).min(self.palette.len());
-                let visible_palette = &self.palette[self.palette_scroll_offset..end_idx];
-                
-                for (row_index, row) in visible_palette.chunks(16).enumerate() {
-                    ui.horizontal(|ui| {
-                        for (col_index, color) in row.iter().enumerate() {
-                            let i = self.palette_scroll_offset + row_index * 16 + col_index;
-                            if let Pixel::Rgb(r, g, b) = color {
-                                let color32 = Color32::from_rgb(*r, *g, *b);
-                                ui.add(
-                                    egui::widgets::Button::new(format!("{:02X}", i & 0xFF))
-                                        .fill(color32)
-                                        .min_size(egui::vec2(25.0, 20.0))
-                                ).on_hover_text(format!("Index: {:#04X}, RGB: ({}, {}, {})", i, r, g, b));
-                            }
-                        }
-                    });
-                }
             });
 
-            CollapsingHeader::new("Sprites").default_open(true).show(ui, |ui| {
+            let end_idx = (self.palette_scroll_offset + 256).min(self.palette.len());
+            let visible_palette = &self.palette[self.palette_scroll_offset..end_idx];
+
+            for (row_index, row) in visible_palette.chunks(16).enumerate() {
+                ui.horizontal(|ui| {
+                    for (col_index, color) in row.iter().enumerate() {
+                        let i = self.palette_scroll_offset + row_index * 16 + col_index;
+                        if let Pixel::Rgb(r, g, b) = color {
+                            let color32 = Color32::from_rgb(*r, *g, *b);
+                            ui.add(
+                                egui::widgets::Button::new(format!("{:02X}", i & 0xFF))
+                                    .fill(color32)
+                                    .min_size(egui::vec2(25.0, 20.0)),
+                            )
+                            .on_hover_text(format!("Index: {:#04X}, RGB: ({}, {}, {})", i, r, g, b));
+                        }
+                    }
+                });
+            }
+        });
+
+        CollapsingHeader::new("Sprites").default_open(true).show(ui, |ui| {
                 ui.horizontal_wrapped(|ui| {
                     for sprite in &self.sprites {
                         let texture = self.sprite_textures.get(sprite.id).and_then(|t| t.as_ref()).unwrap();
@@ -494,38 +488,58 @@ impl PpuWidget {
                 });
             });
 
-            CollapsingHeader::new("Internal Frames")
-                .default_open(false)
-                .show(ui, |ui| {
-                    ui.label("Background Mode 3");
-                    ui.horizontal(|ui| {
-                        if let Some(texture) = &self.bgmode3_frame0_texture {
-                            ui.image(texture);
-                        }
-                        if let Some(texture) = &self.bgmode3_frame1_texture {
-                            ui.image(texture);
-                        }
-                    });
-
-                    ui.label("Background Mode 4");
-                    ui.horizontal(|ui| {
-                        if let Some(texture) = &self.bgmode4_frame0_texture {
-                            ui.image(texture);
-                        }
-                        if let Some(texture) = &self.bgmode4_frame1_texture {
-                            ui.image(texture);
-                        }
-                    });
-
-                    ui.label("Background Mode 5");
-                    ui.horizontal(|ui| {
-                        if let Some(texture) = &self.bgmode5_frame0_texture {
-                            ui.image(texture);
-                        }
-                        if let Some(texture) = &self.bgmode5_frame1_texture {
-                            ui.image(texture);
-                        }
-                    });
+        CollapsingHeader::new("Internal Frames")
+            .default_open(false)
+            .show(ui, |ui| {
+                ui.label("Background Mode 3");
+                ui.horizontal(|ui| {
+                    if let Some(texture) = &self.bgmode3_frame0_texture {
+                        ui.image(texture);
+                    }
+                    if let Some(texture) = &self.bgmode3_frame1_texture {
+                        ui.image(texture);
+                    }
                 });
+
+                ui.label("Background Mode 4");
+                ui.horizontal(|ui| {
+                    if let Some(texture) = &self.bgmode4_frame0_texture {
+                        ui.image(texture);
+                    }
+                    if let Some(texture) = &self.bgmode4_frame1_texture {
+                        ui.image(texture);
+                    }
+                });
+
+                ui.label("Background Mode 5");
+                ui.horizontal(|ui| {
+                    if let Some(texture) = &self.bgmode5_frame0_texture {
+                        ui.image(texture);
+                    }
+                    if let Some(texture) = &self.bgmode5_frame1_texture {
+                        ui.image(texture);
+                    }
+                });
+            });
+
+        // Popup window for all tilemaps
+        if self.show_all_tilemaps_popup {
+            egui::Window::new("All Backgrounds")
+                .resizable(true)
+                .auto_sized()
+                .open(&mut self.show_all_tilemaps_popup)
+                .show(ui.ctx(), |ui| {
+                    for i in 0..4 {
+                        ui.heading(format!("Background {}", i));
+                        if let Some(texture) = &self.tilemap_textures[i] {
+                            ui.add(
+                                Image::from_texture(texture)
+                                    .fit_to_exact_size(egui::vec2(256.0, 256.0))
+                                    .texture_options(egui::TextureOptions::NEAREST),
+                            );
+                        }
+                    }
+                });
+        }
     }
 }
