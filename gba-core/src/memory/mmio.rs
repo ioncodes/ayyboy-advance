@@ -229,7 +229,7 @@ impl Mmio {
         let value = match addr {
             // I/O Registers & Hooks
             0x04000000..=0x04000056 => self.ppu.read(addr),    // PPU I/O
-            0x04000080..=0x0400008E => self.apu.read(addr),    // APU I/O
+            0x04000060..=0x040000A9 => self.apu.read(addr),    // APU I/O
             0x040000B0..=0x040000DF => self.dma.read(addr),    // DMA I/O, 0x40000E0 = unused
             0x04000100..=0x0400010F => self.timers.read(addr), // Timers I/O
             0x04000130..=0x04000133 => self.joypad.read(addr), // Joypad I/O
@@ -337,7 +337,7 @@ impl Mmio {
         match addr {
             0x00000000..=0x00003FFF => debug!(target: "mmio", "Writing to BIOS: {:02X} to {:08X}", value, addr),
             0x04000000..=0x04000056 => self.ppu.write(addr, value), // PPU I/O
-            0x04000080..=0x0400008E => self.apu.write(addr, value), // APU I/O
+            0x04000060..=0x040000A9 => self.apu.write(addr, value), // APU I/O
             0x040000B0..=0x040000DF => self.dma.write(addr, value), // DMA I/O
             0x04000100..=0x0400010F => self.timers.write(addr, value), // Timers I/O
             0x04000130..=0x04000133 => self.joypad.write(addr, value), // Joypad I/O

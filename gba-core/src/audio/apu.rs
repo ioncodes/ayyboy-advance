@@ -1,12 +1,12 @@
 use crate::memory::device::Addressable;
 
 pub struct Apu {
-    io: Box<[u8; (0x400008E - 0x4000080) + 1]>,
+    io: Box<[u8; (0x040000A9 - 0x04000060) + 1]>,
 }
 
 impl Apu {
     pub fn new() -> Apu {
-        let io = Box::<[u8; (0x400008E - 0x4000080) + 1]>::new_zeroed();
+        let io = Box::<[u8; (0x040000A9 - 0x04000060) + 1]>::new_zeroed();
 
         Apu {
             io: unsafe { io.assume_init() },
@@ -21,15 +21,13 @@ impl Addressable for Apu {
             0x04000088 => 0x00,
             0x04000089 => 0x02,
             // rest of the registers
-            0x4000080..=0x400008E => self.io[(addr - 0x4000080) as usize],
-            _ => unreachable!(),
+            _ => self.io[(addr - 0x4000060) as usize],
         }
     }
 
     fn write(&mut self, addr: u32, value: u8) {
         match addr {
-            0x4000080..=0x400008E => self.io[(addr - 0x4000080) as usize] = value,
-            _ => unreachable!(),
+            _ => self.io[(addr - 0x4000060) as usize] = value,
         }
     }
 }
