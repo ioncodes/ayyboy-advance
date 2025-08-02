@@ -126,7 +126,7 @@ impl Ppu {
             self.scanline.0 += 1;
             events.push(PpuEvent::HBlank);
             self.disp_stat.set_flags(DispStat::HBLANK_FLAG);
-            
+
             // Check for VCOUNT interrupt
             let vcount_setting = self.disp_stat.value().vcount_setting();
             if *self.scanline.value() == vcount_setting as u16 {
@@ -582,7 +582,6 @@ impl Ppu {
             let attr1 = ObjAttribute1::from_bits_truncate(self.read_u16(attr1_addr));
             let attr2 = ObjAttribute2::from_bits_truncate(self.read_u16(attr2_addr));
 
-            // disabled, TODO: check if affine?
             if attr0.disabled() {
                 continue;
             }
