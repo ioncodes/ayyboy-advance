@@ -1,6 +1,5 @@
 use super::{FRAME_0_ADDRESS, FRAME_1_ADDRESS, TILEMAP_ENTRY_SIZE, TILESET_ENTRY_SIZE};
 use bitflags::bitflags;
-use tracing::warn;
 
 bitflags! {
     #[derive(Default, Copy, Clone)]
@@ -59,6 +58,16 @@ impl std::fmt::Display for Dimension {
             Dimension::OneDimensional => write!(f, "1D"),
             Dimension::TwoDimensional => write!(f, "2D"),
         }
+    }
+}
+
+impl DispStat {
+    pub fn vcount_setting(&self) -> u8 {
+        ((self.bits() & DispStat::V_COUNT_SETTING.bits()) >> 8) as u8
+    }
+
+    pub fn vcount_irq_enabled(&self) -> bool {
+        self.contains(DispStat::V_COUNTER_ENABLE)
     }
 }
 
@@ -249,11 +258,7 @@ impl ObjAttribute0 {
     }
 
     pub fn disabled(&self) -> bool {
-        if self.contains(ObjAttribute0::ROTATION_SCALING) {
-            warn!(target: "ppu", "DISABLE flag cannot be used with rotation/scaling");
-        }
-
-        self.contains(ObjAttribute0::DISABLE_OR_DBL_SIZE)
+        self.contains(ObjAttribute0::DISABLE_OR_DBL_SIZE) && !self.is_affine()
     }
 
     pub fn bpp(&self) -> ColorDepth {

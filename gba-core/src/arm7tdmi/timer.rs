@@ -21,12 +21,19 @@ impl Timer {
         self.control.contains_flags(TimerControl::ENABLE)
     }
 
-    pub fn tick(&mut self) {
-        self.counter.set(self.counter.value().wrapping_add(1));
+    pub fn tick(&mut self) -> bool {
+        let old_counter = *self.counter.value();
+        self.counter.set(old_counter.wrapping_add(1));
 
-        if self.counter.0 == 0 {
-            self.counter.set(self.reload.0);
+        // Check for overflow (counter wrapped from 0xFFFF to 0x0000)
+        let overflowed = old_counter == 0xFFFF;
+        
+        if overflowed {
+            self.counter.set(*self.reload.value());
         }
+        
+        // Return true if overflow occurred and IRQ is enabled
+        overflowed && self.control.contains_flags(TimerControl::IRQ_ON_OVERFLOW)
     }
 }
 
@@ -42,12 +49,16 @@ impl Timers {
         }
     }
 
-    pub fn tick(&mut self) {
-        for timer in &mut self.timers {
+    pub fn tick(&mut self) -> [bool; 4] {
+        let mut timer_irqs = [false; 4];
+        
+        for (i, timer) in self.timers.iter_mut().enumerate() {
             if timer.is_enabled() {
-                timer.tick();
+                timer_irqs[i] = timer.tick();
             }
         }
+        
+        timer_irqs
     }
 }
 

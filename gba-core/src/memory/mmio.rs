@@ -83,8 +83,9 @@ impl Mmio {
 
     pub fn tick_components(&mut self) {
         let events = self.ppu.tick();
-        self.timers.tick();
+        let timer_irqs = self.timers.tick();
 
+        // PPU interrupts
         if events.contains(&PpuEvent::VBlank) && self.ppu.disp_stat.contains_flags(DispStat::VBLANK_IRQ_ENABLE) {
             self.io_if.set_flags(Interrupt::VBLANK);
             trace!(target: "irq", "VBLANK interrupt raised");
@@ -94,6 +95,39 @@ impl Mmio {
             self.io_if.set_flags(Interrupt::HBLANK);
             trace!(target: "irq", "HBLANK interrupt raised");
         }
+
+        if events.contains(&PpuEvent::VCount) {
+            self.io_if.set_flags(Interrupt::VCOUNT);
+            trace!(target: "irq", "VCOUNT interrupt raised");
+        }
+
+        // Timer interrupts
+        if timer_irqs[0] {
+            self.io_if.set_flags(Interrupt::TIMER0);
+            trace!(target: "irq", "TIMER0 interrupt raised");
+        }
+        if timer_irqs[1] {
+            self.io_if.set_flags(Interrupt::TIMER1);
+            trace!(target: "irq", "TIMER1 interrupt raised");
+        }
+        if timer_irqs[2] {
+            self.io_if.set_flags(Interrupt::TIMER2);
+            trace!(target: "irq", "TIMER2 interrupt raised");
+        }
+        if timer_irqs[3] {
+            self.io_if.set_flags(Interrupt::TIMER3);
+            trace!(target: "irq", "TIMER3 interrupt raised");
+        }
+
+        // Keypad interrupt
+        if self.joypad.check_keypad_interrupt() {
+            self.io_if.set_flags(Interrupt::KEYPAD);
+            trace!(target: "irq", "KEYPAD interrupt raised");
+        }
+
+        // Note: SERIAL and GAMEPAK interrupts are not implemented yet
+        // SERIAL interrupt would be triggered by serial communication completion
+        // GAMEPAK interrupt would be triggered by the game cartridge (very rarely used)
 
         self.process_dma_channels(&events);
     }

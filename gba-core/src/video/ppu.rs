@@ -21,6 +21,7 @@ enum WindowRegion {
 pub enum PpuEvent {
     VBlank,
     HBlank,
+    VCount,
 }
 
 #[derive(Clone)]
@@ -125,6 +126,17 @@ impl Ppu {
             self.scanline.0 += 1;
             events.push(PpuEvent::HBlank);
             self.disp_stat.set_flags(DispStat::HBLANK_FLAG);
+            
+            // Check for VCOUNT interrupt
+            let vcount_setting = self.disp_stat.value().vcount_setting();
+            if *self.scanline.value() == vcount_setting as u16 {
+                self.disp_stat.set_flags(DispStat::VCOUNTER_FLAG);
+                if self.disp_stat.value().vcount_irq_enabled() {
+                    events.push(PpuEvent::VCount);
+                }
+            } else {
+                self.disp_stat.clear_flags(DispStat::VCOUNTER_FLAG);
+            }
         }
 
         if self.scanline.0 == 228 {

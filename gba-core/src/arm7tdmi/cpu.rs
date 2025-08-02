@@ -8,7 +8,6 @@ use crate::arm7tdmi::error::CpuError;
 use crate::arm7tdmi::handlers::Handlers;
 use crate::memory::device::IoRegister;
 use crate::memory::mmio::Mmio;
-use crate::memory::registers::Interrupt;
 use std::fmt::Display;
 use tracing::*;
 
@@ -43,16 +42,14 @@ impl Cpu {
         self.pipeline.advance(self.get_pc(), self.is_thumb(), &mut self.mmio);
         trace!(target: "pipeline", "Pipeline: {}", self.pipeline);
 
-        let vblank_available =
-            self.mmio.io_if.contains_flags(Interrupt::VBLANK) && self.mmio.io_ie.contains_flags(Interrupt::VBLANK);
-        let hblank_available =
-            self.mmio.io_if.contains_flags(Interrupt::HBLANK) && self.mmio.io_ie.contains_flags(Interrupt::HBLANK);
+        // Check for any pending interrupts that are both requested (IF) and enabled (IE)
+        let pending_interrupts = self.mmio.io_if.value().bits() & self.mmio.io_ie.value().bits();
 
         // we need to make sure the pipeline is full before we trigger an IRQ
         // the IRQ always returns using subs pc, lr, #4, so if the pipeline has been flushed recently
         // PC = current instruction, so on return we get current instruction - 4 which is behind the current instruction
         if ime_value != 0
-            && (vblank_available || hblank_available)
+            && pending_interrupts != 0
             && !self.registers.cpsr.contains(Psr::I)
             && self.pipeline.is_full()
         {

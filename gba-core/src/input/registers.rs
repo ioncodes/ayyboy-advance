@@ -1,7 +1,7 @@
 use bitflags::bitflags;
 
 bitflags! {
-    #[derive(Debug)]
+    #[derive(Debug, PartialEq, Copy, Clone)]
     pub struct KeyInput: u16 {
         const A         = 1 << 0;
         const B         = 1 << 1;
@@ -17,6 +17,7 @@ bitflags! {
 }
 
 bitflags! {
+    #[derive(Copy, Clone)]
     pub struct KeyControl: u16 {
         const A             = 1 << 0;
         const B             = 1 << 1;

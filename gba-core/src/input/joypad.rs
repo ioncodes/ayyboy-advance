@@ -25,6 +25,25 @@ impl Joypad {
     pub fn is_key_pressed(&self, key: KeyInput) -> bool {
         !self.status.contains(key)
     }
+
+    pub fn check_keypad_interrupt(&self) -> bool {
+        if !self.irq_control.contains(KeyControl::IRQ_ENABLE) {
+            return false;
+        }
+
+        // Get the keys to check for interrupt
+        let keys_to_check = KeyInput::from_bits_truncate(self.irq_control.bits() & 0x03FF);
+
+        if self.irq_control.contains(KeyControl::IRQ_CONDITION) {
+            // ALL specified keys must be pressed
+            let pressed_keys = KeyInput::all() ^ self.status; // Invert to get pressed keys
+            (pressed_keys & keys_to_check) == keys_to_check
+        } else {
+            // ANY specified key must be pressed
+            let pressed_keys = KeyInput::all() ^ self.status; // Invert to get pressed keys
+            !(pressed_keys & keys_to_check).is_empty()
+        }
+    }
 }
 
 impl Addressable for Joypad {
