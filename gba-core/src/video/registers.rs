@@ -272,6 +272,10 @@ impl ObjAttribute0 {
     pub fn is_affine(&self) -> bool {
         self.contains(ObjAttribute0::ROTATION_SCALING)
     }
+
+    pub fn is_double_size(&self) -> bool {
+        self.is_affine() && self.contains(ObjAttribute0::DISABLE_OR_DBL_SIZE)
+    }
 }
 
 #[derive(Debug, PartialEq, Clone, Copy)]

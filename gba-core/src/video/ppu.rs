@@ -600,6 +600,12 @@ impl Ppu {
             let size = attr1.size(shape);
             let (w_px, h_px) = Self::obj_dimensions(shape, size);
 
+            // Adjust coordinates for affine sprites
+            if attr0.is_affine() {
+                x += (w_px as i32) / 2;
+                y += (h_px as i32) / 2;
+            }
+
             // unsupported
             if w_px == 0 {
                 continue;
