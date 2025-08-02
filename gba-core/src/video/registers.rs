@@ -354,6 +354,11 @@ impl ObjAttribute1 {
             _ => unreachable!("Invalid OBJ_SIZE bits"),
         }
     }
+
+    pub fn rotation_scaling_parameter(&self) -> usize {
+        // For affine sprites, bits 9-13 contain the rotation/scaling parameter index (0-31)
+        ((self.bits() >> 9) & 0x1F) as usize
+    }
 }
 
 bitflags! {

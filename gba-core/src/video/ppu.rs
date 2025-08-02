@@ -10,6 +10,10 @@ use crate::video::registers::{
 use crate::video::tile::TileInfo;
 use tracing::*;
 
+const OBJ_BASE: u32 = 0x0601_0000;
+const OAM_BASE: u32 = 0x0700_0000;
+const CHAR_UNIT_SIZE: u32 = 32;
+
 #[derive(Clone, Copy, PartialEq)]
 enum WindowRegion {
     Win0,
@@ -154,13 +158,14 @@ impl Ppu {
         events
     }
 
-    pub fn get_frame(&self) -> Frame {
-        let lcd_control = self.disp_cnt.value();
-        trace!(target: "ppu", "Grabbing internal frame buffer for PPU mode: {}", lcd_control.bg_mode());
+    pub fn get_frame(&mut self) -> Frame {
+        let bg_mode = self.disp_cnt.value().bg_mode();
+        trace!(target: "ppu", "Grabbing internal frame buffer for PPU mode: {}", bg_mode);
 
         let sprite_layer = self.render_sprites();
 
-        let bg_layers = match lcd_control.bg_mode() {
+        let lcd_control = self.disp_cnt.value();
+        let bg_layers = match bg_mode {
             0 => self.render_background_mode0_layers(),
             1..=2 => self.render_background_mode0_layers(), // TODO: should prob not deal with these modes inside of mode0
             3..=5 => {
@@ -399,10 +404,6 @@ impl Ppu {
     }
 
     pub fn create_sprite_debug_map(&self) -> Vec<Sprite> {
-        const OAM_BASE: u32 = 0x0700_0000;
-        const OBJ_BASE: u32 = 0x0601_0000;
-        const CHAR_UNIT_SIZE: u32 = 32;
-
         let mut sprites = Vec::with_capacity(128);
 
         let palette = self.fetch_palette();
@@ -556,12 +557,8 @@ impl Ppu {
         dims
     }
 
-    fn render_sprites(&self) -> Vec<(usize, Pixel)> {
-        const OAM_BASE: u32 = 0x0700_0000;
-        const OBJ_BASE: u32 = 0x0601_0000;
-        const CHAR_UNIT_SIZE: u32 = 32;
-
-        let mut frame = vec![(5, Pixel::Transparent); SCREEN_WIDTH * SCREEN_HEIGHT];
+    fn render_sprites(&mut self) -> Vec<(usize, Pixel)> {
+        let mut frame = vec![(5_usize, Pixel::Transparent); SCREEN_WIDTH * SCREEN_HEIGHT];
 
         let lcd_control = self.disp_cnt.value();
         let bg_mode = lcd_control.bg_mode();
@@ -600,10 +597,23 @@ impl Ppu {
             let size = attr1.size(shape);
             let (w_px, h_px) = Self::obj_dimensions(shape, size);
 
-            // Adjust coordinates for affine sprites
+            // Handle affine sprites differently
             if attr0.is_affine() {
-                x += (w_px as i32) / 2;
-                y += (h_px as i32) / 2;
+                self.render_affine_sprite(
+                    obj_id,
+                    &attr0,
+                    &attr1,
+                    &attr2,
+                    x,
+                    y,
+                    w_px as u32,
+                    h_px as u32,
+                    &obj_palette,
+                    &palette,
+                    &mut frame,
+                    bg_mode as u32,
+                );
+                continue;
             }
 
             // unsupported
@@ -699,6 +709,149 @@ impl Ppu {
         }
 
         frame
+    }
+
+    fn render_affine_sprite(
+        &mut self, _obj_id: u32, attr0: &ObjAttribute0, attr1: &ObjAttribute1, attr2: &ObjAttribute2, screen_x: i32,
+        screen_y: i32, sprite_w: u32, sprite_h: u32, obj_palette: &[Pixel], palette: &[Pixel],
+        frame: &mut [(usize, Pixel)], bg_mode: u32,
+    ) {
+        // Get rotation/scaling parameter index (0-31)
+        let param_idx = attr1.rotation_scaling_parameter();
+
+        // Read rotation/scaling parameters from OAM
+        // Each parameter set takes 4 entries (PA, PB, PC, PD) starting at OAM + 0x06
+        let param_base = OAM_BASE + 0x06 + (param_idx * 0x20) as u32; // Each param set is 32 bytes apart
+
+        let read_i16 = |addr: u32| -> i16 {
+            let low = self.read(addr) as u16;
+            let high = self.read(addr + 1) as u16;
+            ((high << 8) | low) as i16
+        };
+
+        let pa = read_i16(param_base + 0x00);
+        let pb = read_i16(param_base + 0x08);
+        let pc = read_i16(param_base + 0x10);
+        let pd = read_i16(param_base + 0x18);
+
+        // Determine sprite bounds (doubled if double size flag is set)
+        let bounds_w = if attr0.is_double_size() { sprite_w * 2 } else { sprite_w };
+        let bounds_h = if attr0.is_double_size() { sprite_h * 2 } else { sprite_h };
+
+        // Calculate the center of the sprite in screen coordinates
+        let sprite_center_x = screen_x + (bounds_w as i32) / 2;
+        let sprite_center_y = screen_y + (bounds_h as i32) / 2;
+
+        // Render the sprite by iterating over its bounding box
+        for screen_py in 0..bounds_h as i32 {
+            let sy = sprite_center_y - (bounds_h as i32) / 2 + screen_py;
+            if sy < 0 || sy >= SCREEN_HEIGHT as i32 {
+                continue;
+            }
+
+            for screen_px in 0..bounds_w as i32 {
+                let sx = sprite_center_x - (bounds_w as i32) / 2 + screen_px;
+                if sx < 0 || sx >= SCREEN_WIDTH as i32 {
+                    continue;
+                }
+
+                // Transform screen-relative coordinates to texture coordinates
+                // Offset from sprite center
+                let dx = screen_px - (bounds_w as i32) / 2;
+                let dy = screen_py - (bounds_h as i32) / 2;
+
+                // Apply inverse transformation matrix (fixed point 8.8)
+                let tex_x = (pa as i32 * dx + pb as i32 * dy) >> 8;
+                let tex_y = (pc as i32 * dx + pd as i32 * dy) >> 8;
+
+                // Offset to sprite texture center
+                let sprite_tex_x = tex_x + (sprite_w as i32) / 2;
+                let sprite_tex_y = tex_y + (sprite_h as i32) / 2;
+
+                // Check if we're within the original sprite bounds
+                if sprite_tex_x < 0
+                    || sprite_tex_x >= sprite_w as i32
+                    || sprite_tex_y < 0
+                    || sprite_tex_y >= sprite_h as i32
+                {
+                    continue;
+                }
+
+                // Get the color from the texture
+                let color = self.get_sprite_pixel_color(
+                    attr0,
+                    attr2,
+                    sprite_tex_x as u32,
+                    sprite_tex_y as u32,
+                    sprite_w,
+                    sprite_h,
+                    obj_palette,
+                    palette,
+                    bg_mode,
+                );
+
+                if color != Pixel::Transparent {
+                    let sprite_idx = (sy as usize) * SCREEN_WIDTH + (sx as usize);
+                    frame[sprite_idx] = (attr2.priority(), color);
+                }
+            }
+        }
+    }
+
+    fn get_sprite_pixel_color(
+        &mut self, attr0: &ObjAttribute0, attr2: &ObjAttribute2, tex_x: u32, tex_y: u32, sprite_w: u32, _sprite_h: u32,
+        obj_palette: &[Pixel], palette: &[Pixel], bg_mode: u32,
+    ) -> Pixel {
+        // Calculate tile coordinates
+        let tile_x = tex_x / 8;
+        let tile_y = tex_y / 8;
+        let pixel_x = tex_x % 8;
+        let pixel_y = tex_y % 8;
+
+        // Calculate which tile we're in
+        let tiles_x = sprite_w / 8;
+        let bpp_factor = if attr0.bpp() == ColorDepth::Bpp8 { 2 } else { 1 };
+
+        let obj_dimension = self.disp_cnt.value().dimension();
+        let row_stride = if obj_dimension == Dimension::OneDimensional {
+            tiles_x * bpp_factor
+        } else {
+            32
+        };
+
+        let char_num_base = if attr0.bpp() == ColorDepth::Bpp8 {
+            (attr2.tile_number() & !1) as u32 // even-align for 256-colour mode
+        } else {
+            attr2.tile_number() as u32 // leave 4-bpp numbers untouched
+        };
+
+        let char_offset = (tile_y * row_stride + tile_x * bpp_factor) as u32;
+        let tile_nr = char_num_base + char_offset;
+
+        // Check bitmap mode restriction
+        if (3..=5).contains(&bg_mode) && tile_nr < 512 {
+            return Pixel::Transparent;
+        }
+
+        let tile_addr = OBJ_BASE + (tile_nr * CHAR_UNIT_SIZE);
+        let tile_size = if attr0.bpp() == ColorDepth::Bpp8 { 0x40 } else { 0x20 };
+
+        // Fetch raw tile bytes
+        let mut tile_data = [0u8; 64];
+        for i in 0..tile_size {
+            tile_data[i] = self.read(tile_addr + i as u32);
+        }
+
+        // Extract the tile pixels using the given palette bank
+        let pal_slice = if attr0.bpp() == ColorDepth::Bpp4 {
+            &obj_palette[attr2.palette() * 16..][..16]
+        } else {
+            &palette[256..512]
+        };
+        let tile = Tile::from_bytes(&tile_data[..tile_size], pal_slice);
+
+        // Return the specific pixel
+        tile.pixels[(pixel_y * 8 + pixel_x) as usize]
     }
 
     fn render_background_mode0_layers(&self) -> Vec<Frame> {

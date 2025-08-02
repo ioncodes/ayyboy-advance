@@ -74,7 +74,7 @@ impl Emulator {
         let mut step = false;
 
         loop {
-            if exit_rx.try_recv().is_ok() {
+            if !exit_rx.is_empty() && exit_rx.try_recv().is_ok() {
                 break;
             }
 
