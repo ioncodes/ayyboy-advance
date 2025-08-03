@@ -109,7 +109,7 @@ impl Emulator {
 
     fn process_debug_events(&mut self) -> EventResult {
         let mut last_result = EventResult::None;
-        
+
         // Process all available debug events
         while let Ok(event) = self.dbg_req_rx.try_recv() {
             let result = match event {
@@ -241,13 +241,13 @@ impl Emulator {
                     EventResult::None
                 }
             };
-            
+
             // Keep track of the last significant result (prioritize Break/Continue/Step over None)
             if !matches!(result, EventResult::None) {
                 last_result = result;
             }
         }
-        
+
         last_result
     }
 

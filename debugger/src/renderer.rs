@@ -168,7 +168,8 @@ impl App for Renderer {
         } else {
             CentralPanel::default().show(ctx, |ui| {
                 let image = Image::new(&self.screen_texture);
-                let image = image.fit_to_exact_size(vec2((SCREEN_WIDTH * SCALE) as f32, (SCREEN_HEIGHT * SCALE) as f32));
+                let image =
+                    image.fit_to_exact_size(vec2((SCREEN_WIDTH * SCALE) as f32, (SCREEN_HEIGHT * SCALE) as f32));
                 image.paint_at(ui, ui.ctx().screen_rect());
             });
         }

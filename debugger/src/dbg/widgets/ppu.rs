@@ -236,7 +236,7 @@ impl PpuWidget {
             .show(ui, |ui| {
                 let bg_mode = self.registers.disp_cnt.bg_mode();
                 ui.label(RichText::new(format!("Background Mode: {}", bg_mode)).monospace());
-                
+
                 ui.horizontal(|ui| {
                     ui.label(
                         RichText::new(format!(
@@ -246,7 +246,7 @@ impl PpuWidget {
                         .monospace(),
                     );
                 });
-                
+
                 ui.horizontal(|ui| {
                     ui.label(
                         RichText::new(format!(
@@ -268,22 +268,36 @@ impl PpuWidget {
                             _ => false,
                         };
                         let mut enabled_checkbox = enabled;
-                        ui.add(egui::Checkbox::new(&mut enabled_checkbox, RichText::new(format!("BG{}", i)).monospace().color(ui.visuals().text_color())));
+                        ui.add(egui::Checkbox::new(
+                            &mut enabled_checkbox,
+                            RichText::new(format!("BG{}", i))
+                                .monospace()
+                                .color(ui.visuals().text_color()),
+                        ));
                     }
-                    
+
                     let obj_enabled = self.registers.disp_cnt.contains(DispCnt::OBJ_ON);
                     let mut obj_checkbox = obj_enabled;
-                    ui.add(egui::Checkbox::new(&mut obj_checkbox, RichText::new("OBJ").monospace().color(ui.visuals().text_color())));
+                    ui.add(egui::Checkbox::new(
+                        &mut obj_checkbox,
+                        RichText::new("OBJ").monospace().color(ui.visuals().text_color()),
+                    ));
                 });
-                
+
                 ui.horizontal(|ui| {
                     let win0_enabled = self.registers.disp_cnt.contains(DispCnt::WIN0_ON);
                     let mut win0_checkbox = win0_enabled;
-                    ui.add(egui::Checkbox::new(&mut win0_checkbox, RichText::new("WIN0").monospace().color(ui.visuals().text_color())));
-                    
+                    ui.add(egui::Checkbox::new(
+                        &mut win0_checkbox,
+                        RichText::new("WIN0").monospace().color(ui.visuals().text_color()),
+                    ));
+
                     let win1_enabled = self.registers.disp_cnt.contains(DispCnt::WIN1_ON);
                     let mut win1_checkbox = win1_enabled;
-                    ui.add(egui::Checkbox::new(&mut win1_checkbox, RichText::new("WIN1").monospace().color(ui.visuals().text_color())));
+                    ui.add(egui::Checkbox::new(
+                        &mut win1_checkbox,
+                        RichText::new("WIN1").monospace().color(ui.visuals().text_color()),
+                    ));
                 });
             });
 
@@ -294,38 +308,53 @@ impl PpuWidget {
                 ui.horizontal(|ui| {
                     let vblank = self.registers.disp_stat.contains(DispStat::VBLANK_FLAG);
                     let mut vblank_checkbox = vblank;
-                    ui.add(egui::Checkbox::new(&mut vblank_checkbox, RichText::new("VBLANK").monospace().color(ui.visuals().text_color())));
-                    
+                    ui.add(egui::Checkbox::new(
+                        &mut vblank_checkbox,
+                        RichText::new("VBLANK").monospace().color(ui.visuals().text_color()),
+                    ));
+
                     let hblank = self.registers.disp_stat.contains(DispStat::HBLANK_FLAG);
                     let mut hblank_checkbox = hblank;
-                    ui.add(egui::Checkbox::new(&mut hblank_checkbox, RichText::new("HBLANK").monospace().color(ui.visuals().text_color())));
-                    
+                    ui.add(egui::Checkbox::new(
+                        &mut hblank_checkbox,
+                        RichText::new("HBLANK").monospace().color(ui.visuals().text_color()),
+                    ));
+
                     let vcounter = self.registers.disp_stat.contains(DispStat::VCOUNTER_FLAG);
                     let mut vcounter_checkbox = vcounter;
-                    ui.add(egui::Checkbox::new(&mut vcounter_checkbox, RichText::new("VCOUNTER").monospace().color(ui.visuals().text_color())));
+                    ui.add(egui::Checkbox::new(
+                        &mut vcounter_checkbox,
+                        RichText::new("VCOUNTER").monospace().color(ui.visuals().text_color()),
+                    ));
                 });
-                
+
                 // IRQ enable flags with checkboxes
                 ui.horizontal(|ui| {
                     let vblank_irq = self.registers.disp_stat.contains(DispStat::VBLANK_IRQ_ENABLE);
                     let mut vblank_irq_checkbox = vblank_irq;
-                    ui.add(egui::Checkbox::new(&mut vblank_irq_checkbox, RichText::new("VBLANK IRQ").monospace().color(ui.visuals().text_color())));
-                    
+                    ui.add(egui::Checkbox::new(
+                        &mut vblank_irq_checkbox,
+                        RichText::new("VBLANK IRQ").monospace().color(ui.visuals().text_color()),
+                    ));
+
                     let hblank_irq = self.registers.disp_stat.contains(DispStat::HBLANK_IRQ_ENABLE);
                     let mut hblank_irq_checkbox = hblank_irq;
-                    ui.add(egui::Checkbox::new(&mut hblank_irq_checkbox, RichText::new("HBLANK IRQ").monospace().color(ui.visuals().text_color())));
-                    
+                    ui.add(egui::Checkbox::new(
+                        &mut hblank_irq_checkbox,
+                        RichText::new("HBLANK IRQ").monospace().color(ui.visuals().text_color()),
+                    ));
+
                     let vcount_irq = self.registers.disp_stat.contains(DispStat::V_COUNTER_ENABLE);
                     let mut vcount_irq_checkbox = vcount_irq;
-                    ui.add(egui::Checkbox::new(&mut vcount_irq_checkbox, RichText::new("VCOUNT IRQ").monospace().color(ui.visuals().text_color())));
+                    ui.add(egui::Checkbox::new(
+                        &mut vcount_irq_checkbox,
+                        RichText::new("VCOUNT IRQ").monospace().color(ui.visuals().text_color()),
+                    ));
                 });
-                
+
                 ui.horizontal(|ui| {
                     let vcount_setting = self.registers.disp_stat.vcount_setting();
-                    ui.label(
-                        RichText::new(format!("VCOUNT Setting: {}", vcount_setting))
-                            .monospace(),
-                    );
+                    ui.label(RichText::new(format!("VCOUNT Setting: {}", vcount_setting)).monospace());
                 });
             });
 
@@ -337,36 +366,24 @@ impl PpuWidget {
                         .default_open(true)
                         .show(ui, |ui| {
                             ui.horizontal(|ui| {
-                                ui.label(
-                                    RichText::new(format!("Priority: {}", bg_cnt.priority()))
-                                        .monospace(),
-                                );
-                                ui.label(
-                                    RichText::new(format!("Colors: {}", bg_cnt.bpp()))
-                                        .monospace(),
-                                );
+                                ui.label(RichText::new(format!("Priority: {}", bg_cnt.priority())).monospace());
+                                ui.label(RichText::new(format!("Colors: {}", bg_cnt.bpp())).monospace());
                                 let mosaic = bg_cnt.contains(BgCnt::MOSAIC);
                                 let mut mosaic_checkbox = mosaic;
-                                ui.add(egui::Checkbox::new(&mut mosaic_checkbox, RichText::new("Mosaic").monospace().color(ui.visuals().text_color())));
+                                ui.add(egui::Checkbox::new(
+                                    &mut mosaic_checkbox,
+                                    RichText::new("Mosaic").monospace().color(ui.visuals().text_color()),
+                                ));
                             });
-                            
+
                             ui.horizontal(|ui| {
-                                ui.label(
-                                    RichText::new(format!("Tileset: {:08X}", bg_cnt.tileset_addr()))
-                                        .monospace(),
-                                );
-                                ui.label(
-                                    RichText::new(format!("Tilemap: {:08X}", bg_cnt.tilemap_addr()))
-                                        .monospace(),
-                                );
+                                ui.label(RichText::new(format!("Tileset: {:08X}", bg_cnt.tileset_addr())).monospace());
+                                ui.label(RichText::new(format!("Tilemap: {:08X}", bg_cnt.tilemap_addr())).monospace());
                             });
-                            
+
                             ui.horizontal(|ui| {
                                 let screen_size = bg_cnt.screen_size(i, self.registers.disp_cnt.bg_mode());
-                                ui.label(
-                                    RichText::new(format!("Size: {}", screen_size))
-                                        .monospace(),
-                                );
+                                ui.label(RichText::new(format!("Size: {}", screen_size)).monospace());
                             });
                         });
                 }
@@ -430,7 +447,8 @@ impl PpuWidget {
                         current_page,
                         self.palette_scroll_offset,
                         (self.palette_scroll_offset + 255).min(self.palette.len().saturating_sub(1))
-                    )).monospace()
+                    ))
+                    .monospace(),
                 );
 
                 ui.add_enabled_ui(next_enabled, |ui| {
