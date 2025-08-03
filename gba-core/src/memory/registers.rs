@@ -2,7 +2,7 @@ use bitflags::{Flags, bitflags};
 use tracing::warn;
 
 bitflags! {
-    #[derive(Default, Copy, Clone)]
+    #[derive(Default, Copy, Clone, PartialEq)]
     pub struct Interrupt: u16 {
         const VBLANK = 1 << 0;
         const HBLANK = 1 << 1;

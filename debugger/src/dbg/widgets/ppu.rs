@@ -234,134 +234,141 @@ impl PpuWidget {
         CollapsingHeader::new("Display Control (DISP_CNT)")
             .default_open(true)
             .show(ui, |ui| {
-                ui.label(RichText::new(format!("Background Mode: {}", self.registers.disp_cnt.bg_mode())).monospace());
-                ui.label(
-                    RichText::new(format!(
-                        "Frame Address: {:08X}",
-                        self.registers.disp_cnt.frame_address()
-                    ))
-                    .monospace(),
-                );
-                ui.label(
-                    RichText::new(format!(
-                        "OBJ Character Mapping: {}",
-                        self.registers.disp_cnt.dimension()
-                    ))
-                    .monospace(),
-                );
-                ui.label(
-                    RichText::new(format!(
-                        "BG 0 Enabled: {}",
-                        self.registers.disp_cnt.contains(DispCnt::BG0_ON)
-                    ))
-                    .monospace(),
-                );
-                ui.label(
-                    RichText::new(format!(
-                        "BG 1 Enabled: {}",
-                        self.registers.disp_cnt.contains(DispCnt::BG1_ON)
-                    ))
-                    .monospace(),
-                );
-                ui.label(
-                    RichText::new(format!(
-                        "BG 2 Enabled: {}",
-                        self.registers.disp_cnt.contains(DispCnt::BG2_ON)
-                    ))
-                    .monospace(),
-                );
-                ui.label(
-                    RichText::new(format!(
-                        "BG 3 Enabled: {}",
-                        self.registers.disp_cnt.contains(DispCnt::BG3_ON)
-                    ))
-                    .monospace(),
-                );
-                ui.label(
-                    RichText::new(format!(
-                        "OBJ Enabled: {}",
-                        self.registers.disp_cnt.contains(DispCnt::OBJ_ON)
-                    ))
-                    .monospace(),
-                );
-                ui.label(
-                    RichText::new(format!(
-                        "WIN 0 Enabled: {}",
-                        self.registers.disp_cnt.contains(DispCnt::WIN0_ON)
-                    ))
-                    .monospace(),
-                );
-                ui.label(
-                    RichText::new(format!(
-                        "WIN 1 Enabled: {}",
-                        self.registers.disp_cnt.contains(DispCnt::WIN1_ON)
-                    ))
-                    .monospace(),
-                );
+                let bg_mode = self.registers.disp_cnt.bg_mode();
+                ui.label(RichText::new(format!("Background Mode: {}", bg_mode)).monospace());
+                
+                ui.horizontal(|ui| {
+                    ui.label(
+                        RichText::new(format!(
+                            "Frame Address: {:08X}",
+                            self.registers.disp_cnt.frame_address()
+                        ))
+                        .monospace(),
+                    );
+                });
+                
+                ui.horizontal(|ui| {
+                    ui.label(
+                        RichText::new(format!(
+                            "OBJ Character Mapping: {}",
+                            self.registers.disp_cnt.dimension()
+                        ))
+                        .monospace(),
+                    );
+                });
+
+                // Background enable status with checkboxes
+                ui.horizontal(|ui| {
+                    for i in 0..4 {
+                        let enabled = match i {
+                            0 => self.registers.disp_cnt.contains(DispCnt::BG0_ON),
+                            1 => self.registers.disp_cnt.contains(DispCnt::BG1_ON),
+                            2 => self.registers.disp_cnt.contains(DispCnt::BG2_ON),
+                            3 => self.registers.disp_cnt.contains(DispCnt::BG3_ON),
+                            _ => false,
+                        };
+                        let mut enabled_checkbox = enabled;
+                        ui.add(egui::Checkbox::new(&mut enabled_checkbox, RichText::new(format!("BG{}", i)).monospace().color(ui.visuals().text_color())));
+                    }
+                    
+                    let obj_enabled = self.registers.disp_cnt.contains(DispCnt::OBJ_ON);
+                    let mut obj_checkbox = obj_enabled;
+                    ui.add(egui::Checkbox::new(&mut obj_checkbox, RichText::new("OBJ").monospace().color(ui.visuals().text_color())));
+                });
+                
+                ui.horizontal(|ui| {
+                    let win0_enabled = self.registers.disp_cnt.contains(DispCnt::WIN0_ON);
+                    let mut win0_checkbox = win0_enabled;
+                    ui.add(egui::Checkbox::new(&mut win0_checkbox, RichText::new("WIN0").monospace().color(ui.visuals().text_color())));
+                    
+                    let win1_enabled = self.registers.disp_cnt.contains(DispCnt::WIN1_ON);
+                    let mut win1_checkbox = win1_enabled;
+                    ui.add(egui::Checkbox::new(&mut win1_checkbox, RichText::new("WIN1").monospace().color(ui.visuals().text_color())));
+                });
             });
 
         CollapsingHeader::new("Display Status (DISP_STAT)")
             .default_open(true)
             .show(ui, |ui| {
-                ui.label(
-                    RichText::new(format!(
-                        "VBLANK IRQ Enabled: {}",
-                        self.registers.disp_stat.contains(DispStat::VBLANK_IRQ_ENABLE)
-                    ))
-                    .monospace(),
-                );
-                ui.label(
-                    RichText::new(format!(
-                        "HBLANK IRQ Enabled: {}",
-                        self.registers.disp_stat.contains(DispStat::HBLANK_IRQ_ENABLE)
-                    ))
-                    .monospace(),
-                );
-                ui.label(
-                    RichText::new(format!(
-                        "VBLANK: {}",
-                        self.registers.disp_stat.contains(DispStat::VBLANK_FLAG)
-                    ))
-                    .monospace(),
-                );
-                ui.label(
-                    RichText::new(format!(
-                        "HBLANK: {}",
-                        self.registers.disp_stat.contains(DispStat::HBLANK_FLAG)
-                    ))
-                    .monospace(),
-                );
-                ui.label(
-                    RichText::new(format!(
-                        "VCOUNT Enabled: {}",
-                        self.registers.disp_stat.contains(DispStat::V_COUNTER_ENABLE)
-                    ))
-                    .monospace(),
-                );
+                // Status flags with checkboxes
+                ui.horizontal(|ui| {
+                    let vblank = self.registers.disp_stat.contains(DispStat::VBLANK_FLAG);
+                    let mut vblank_checkbox = vblank;
+                    ui.add(egui::Checkbox::new(&mut vblank_checkbox, RichText::new("VBLANK").monospace().color(ui.visuals().text_color())));
+                    
+                    let hblank = self.registers.disp_stat.contains(DispStat::HBLANK_FLAG);
+                    let mut hblank_checkbox = hblank;
+                    ui.add(egui::Checkbox::new(&mut hblank_checkbox, RichText::new("HBLANK").monospace().color(ui.visuals().text_color())));
+                    
+                    let vcounter = self.registers.disp_stat.contains(DispStat::VCOUNTER_FLAG);
+                    let mut vcounter_checkbox = vcounter;
+                    ui.add(egui::Checkbox::new(&mut vcounter_checkbox, RichText::new("VCOUNTER").monospace().color(ui.visuals().text_color())));
+                });
+                
+                // IRQ enable flags with checkboxes
+                ui.horizontal(|ui| {
+                    let vblank_irq = self.registers.disp_stat.contains(DispStat::VBLANK_IRQ_ENABLE);
+                    let mut vblank_irq_checkbox = vblank_irq;
+                    ui.add(egui::Checkbox::new(&mut vblank_irq_checkbox, RichText::new("VBLANK IRQ").monospace().color(ui.visuals().text_color())));
+                    
+                    let hblank_irq = self.registers.disp_stat.contains(DispStat::HBLANK_IRQ_ENABLE);
+                    let mut hblank_irq_checkbox = hblank_irq;
+                    ui.add(egui::Checkbox::new(&mut hblank_irq_checkbox, RichText::new("HBLANK IRQ").monospace().color(ui.visuals().text_color())));
+                    
+                    let vcount_irq = self.registers.disp_stat.contains(DispStat::V_COUNTER_ENABLE);
+                    let mut vcount_irq_checkbox = vcount_irq;
+                    ui.add(egui::Checkbox::new(&mut vcount_irq_checkbox, RichText::new("VCOUNT IRQ").monospace().color(ui.visuals().text_color())));
+                });
+                
+                ui.horizontal(|ui| {
+                    let vcount_setting = self.registers.disp_stat.vcount_setting();
+                    ui.label(
+                        RichText::new(format!("VCOUNT Setting: {}", vcount_setting))
+                            .monospace(),
+                    );
+                });
             });
 
         CollapsingHeader::new("Background Control (BGxCNT)")
             .default_open(true)
             .show(ui, |ui| {
                 for (i, bg_cnt) in self.registers.bg_cnt.iter().enumerate() {
-                    ui.label(
-                        RichText::new(format!(
-                            "BG{}CNT Screen Size: {}",
-                            i,
-                            bg_cnt.screen_size(i, self.registers.disp_cnt.bg_mode())
-                        ))
-                        .monospace(),
-                    );
-                    ui.label(
-                        RichText::new(format!("BG{}CNT Tileset Address: {:08X}", i, bg_cnt.tileset_addr())).monospace(),
-                    );
-                    ui.label(
-                        RichText::new(format!("BG{}CNT Tilemap Address: {:08X}", i, bg_cnt.tilemap_addr())).monospace(),
-                    );
-                    ui.label(RichText::new(format!("BG{}CNT Priority: {}", i, bg_cnt.priority())).monospace());
-                    if i != 3 {
-                        ui.separator();
-                    }
+                    CollapsingHeader::new(format!("Background {} Control", i))
+                        .default_open(true)
+                        .show(ui, |ui| {
+                            ui.horizontal(|ui| {
+                                ui.label(
+                                    RichText::new(format!("Priority: {}", bg_cnt.priority()))
+                                        .monospace(),
+                                );
+                                ui.label(
+                                    RichText::new(format!("Colors: {}", bg_cnt.bpp()))
+                                        .monospace(),
+                                );
+                                let mosaic = bg_cnt.contains(BgCnt::MOSAIC);
+                                let mut mosaic_checkbox = mosaic;
+                                ui.add(egui::Checkbox::new(&mut mosaic_checkbox, RichText::new("Mosaic").monospace().color(ui.visuals().text_color())));
+                            });
+                            
+                            ui.horizontal(|ui| {
+                                ui.label(
+                                    RichText::new(format!("Tileset: {:08X}", bg_cnt.tileset_addr()))
+                                        .monospace(),
+                                );
+                                ui.label(
+                                    RichText::new(format!("Tilemap: {:08X}", bg_cnt.tilemap_addr()))
+                                        .monospace(),
+                                );
+                            });
+                            
+                            ui.horizontal(|ui| {
+                                let screen_size = bg_cnt.screen_size(i, self.registers.disp_cnt.bg_mode());
+                                ui.label(
+                                    RichText::new(format!("Size: {}", screen_size))
+                                        .monospace(),
+                                );
+                            });
+                        });
                 }
             });
 
@@ -417,12 +424,14 @@ impl PpuWidget {
                 });
 
                 let current_page = if self.palette_scroll_offset == 0 { 1 } else { 2 };
-                ui.label(format!(
-                    "Page {} | Colors {:#04X}-{:#04X}",
-                    current_page,
-                    self.palette_scroll_offset,
-                    (self.palette_scroll_offset + 255).min(self.palette.len().saturating_sub(1))
-                ));
+                ui.label(
+                    RichText::new(format!(
+                        "Page {} | Colors {:#04X}-{:#04X}",
+                        current_page,
+                        self.palette_scroll_offset,
+                        (self.palette_scroll_offset + 255).min(self.palette.len().saturating_sub(1))
+                    )).monospace()
+                );
 
                 ui.add_enabled_ui(next_enabled, |ui| {
                     if ui.button("Page 2 ▶").clicked() {

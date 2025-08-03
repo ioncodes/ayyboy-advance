@@ -117,6 +117,9 @@ impl Emulator {
                         cpsr: self.gba.cpu.registers.cpsr,
                         dma: self.gba.cpu.mmio.dma,
                         timers: self.gba.cpu.mmio.timers,
+                        ime: *self.gba.cpu.mmio.io_ime.value() != 0,
+                        ie: *self.gba.cpu.mmio.io_ie.value(),
+                        if_reg: *self.gba.cpu.mmio.io_if.value(),
                     }));
                     EventResult::None
                 }

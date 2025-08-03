@@ -6,7 +6,7 @@ use egui::{CollapsingHeader, ComboBox, RichText, TextEdit};
 use gba_core::arm7tdmi::registers::Psr;
 use gba_core::arm7tdmi::timer::Timers;
 use gba_core::memory::dma::Dma;
-use gba_core::memory::registers::TimerControl;
+use gba_core::memory::registers::{TimerControl, Interrupt};
 
 #[derive(Default, Copy, Clone)]
 pub struct TrackedCpu {
@@ -14,6 +14,9 @@ pub struct TrackedCpu {
     cpsr: TrackedValue<Psr>,
     dma: TrackedValue<Dma>,
     timers: TrackedValue<Timers>,
+    ime: TrackedValue<bool>,
+    ie: TrackedValue<Interrupt>,
+    if_reg: TrackedValue<Interrupt>,
 }
 
 pub struct Cpu {
@@ -21,6 +24,9 @@ pub struct Cpu {
     pub cpsr: Psr,
     pub dma: Dma,
     pub timers: Timers,
+    pub ime: bool,
+    pub ie: Interrupt,
+    pub if_reg: Interrupt,
 }
 
 pub struct CpuWidget {
@@ -51,6 +57,9 @@ impl CpuWidget {
         self.cpu.cpsr.set(cpu.cpsr);
         self.cpu.dma.set(cpu.dma);
         self.cpu.timers.set(cpu.timers);
+        self.cpu.ime.set(cpu.ime);
+        self.cpu.ie.set(cpu.ie);
+        self.cpu.if_reg.set(cpu.if_reg);
     }
 
     pub fn render_content(&mut self, ui: &mut egui::Ui) {
@@ -168,69 +177,246 @@ impl CpuWidget {
 
         ui.separator();
 
-        for i in 0..4 {
-            CollapsingHeader::new(format!("DMA Channel {}", i))
-                .default_open(if i == 1 || i == 2 { false } else { true })
-                .show(ui, |ui| {
-                    ui.horizontal(|ui| {
-                        ui.label(
-                            RichText::new(format!(
-                                "{:08X} -> {:08X}, {:04X} bytes",
-                                self.cpu.dma.get().channels[i].src.value(),
-                                self.cpu.dma.get().channels[i].dst.value(),
-                                self.cpu.dma.get().channels[i].transfer_units()
-                            ))
-                            .monospace(),
-                        );
-                        ui.checkbox(
-                            &mut self.cpu.dma.get().channels[i].is_enabled(),
-                            RichText::new("Enabled").monospace(),
-                        );
-                    });
-                    ui.horizontal(|ui| {
-                        ui.label(
-                            RichText::new(format!(
-                                "Trigger: {:?}, Repeat: {}",
-                                self.cpu.dma.get().channels[i].trigger(),
-                                self.cpu.dma.get().channels[i].is_repeat()
-                            ))
-                            .monospace(),
-                        );
-                    });
-                    ui.horizontal(|ui| {
-                        ui.label(
-                            RichText::new(format!(
-                                "Src Ctrl: {:?}, Dst Ctrl: {:?}",
-                                self.cpu.dma.get().channels[i].src_addr_control(),
-                                self.cpu.dma.get().channels[i].dst_addr_control()
-                            ))
-                            .monospace(),
-                        );
-                    });
+        // Interrupt section
+        CollapsingHeader::new("Interrupt Status")
+            .default_open(true)
+            .show(ui, |ui| {
+                ui.horizontal(|ui| {
+                    let ime_text = if self.cpu.ime.has_changed() {
+                        RichText::new(format!("IME: {}", if self.cpu.ime.get() { "Enabled" } else { "Disabled" }))
+                            .monospace()
+                            .color(DIRTY_COLOR)
+                    } else {
+                        RichText::new(format!("IME: {}", if self.cpu.ime.get() { "Enabled" } else { "Disabled" }))
+                            .monospace()
+                    };
+                    ui.label(ime_text);
                 });
-        }
+                
+                ui.horizontal(|ui| {
+                    let ie_text = if self.cpu.ie.has_changed() {
+                        RichText::new(format!("IE: {:016b} ({:04X})", self.cpu.ie.get().bits(), self.cpu.ie.get().bits()))
+                            .monospace()
+                            .color(DIRTY_COLOR)
+                    } else {
+                        RichText::new(format!("IE: {:016b} ({:04X})", self.cpu.ie.get().bits(), self.cpu.ie.get().bits()))
+                            .monospace()
+                    };
+                    ui.label(ie_text);
+                });
+                
+                ui.horizontal(|ui| {
+                    let if_text = if self.cpu.if_reg.has_changed() {
+                        RichText::new(format!("IF: {:016b} ({:04X})", self.cpu.if_reg.get().bits(), self.cpu.if_reg.get().bits()))
+                            .monospace()
+                            .color(DIRTY_COLOR)
+                    } else {
+                        RichText::new(format!("IF: {:016b} ({:04X})", self.cpu.if_reg.get().bits(), self.cpu.if_reg.get().bits()))
+                            .monospace()
+                    };
+                    ui.label(if_text);
+                });
+
+                // Show individual interrupt flags with colored labels in organized layout
+                let display_interrupt = |ui: &mut egui::Ui, name: &str, flag: Interrupt| {
+                    let enabled = self.cpu.ie.get().contains(flag);
+                    let pending = self.cpu.if_reg.get().contains(flag);
+                    
+                    let color = if enabled && pending {
+                        egui::Color32::from_rgb(255, 182, 193)  // Light pink - both enabled and pending
+                    } else if enabled {
+                        egui::Color32::from_rgb(144, 238, 144)  // Light green - enabled but not pending
+                    } else if pending {
+                        egui::Color32::from_rgb(255, 255, 182)  // Light yellow - pending but not enabled
+                    } else {
+                        ui.visuals().text_color()  // Default text color - neither
+                    };
+                    
+                    ui.colored_label(color, RichText::new(name).monospace());
+                };
+
+                // VBLANK HBLANK VCOUNT
+                ui.horizontal(|ui| {
+                    display_interrupt(ui, "VBLANK", Interrupt::VBLANK);
+                    display_interrupt(ui, "HBLANK", Interrupt::HBLANK);
+                    display_interrupt(ui, "VCOUNT", Interrupt::VCOUNT);
+                });
+                
+                // TIMER0-3
+                ui.horizontal(|ui| {
+                    display_interrupt(ui, "TIMER0", Interrupt::TIMER0);
+                    display_interrupt(ui, "TIMER1", Interrupt::TIMER1);
+                    display_interrupt(ui, "TIMER2", Interrupt::TIMER2);
+                    display_interrupt(ui, "TIMER3", Interrupt::TIMER3);
+                });
+                
+                // DMA0-3
+                ui.horizontal(|ui| {
+                    display_interrupt(ui, "DMA0", Interrupt::DMA0);
+                    display_interrupt(ui, "DMA1", Interrupt::DMA1);
+                    display_interrupt(ui, "DMA2", Interrupt::DMA2);
+                    display_interrupt(ui, "DMA3", Interrupt::DMA3);
+                });
+                
+                // SERIAL KEYPAD GAMEPAK
+                ui.horizontal(|ui| {
+                    display_interrupt(ui, "SERIAL", Interrupt::SERIAL);
+                    display_interrupt(ui, "KEYPAD", Interrupt::KEYPAD);
+                    display_interrupt(ui, "GAMEPAK", Interrupt::GAMEPAK);
+                });
+            });
 
         ui.separator();
 
-        for i in 0..4 {
-            ui.horizontal(|ui| {
-                ui.label(
-                    RichText::new(format!(
-                        "TIMER {}: {:08X} ({:08X})",
-                        i,
-                        self.cpu.timers.get().timers[i].counter.value(),
-                        self.cpu.timers.get().timers[i].reload.value(),
-                    ))
-                    .monospace(),
-                );
-                ui.checkbox(
-                    &mut self.cpu.timers.get().timers[i]
-                        .control
-                        .value()
-                        .contains(TimerControl::ENABLE),
-                    RichText::new("Enabled").monospace(),
-                );
+        CollapsingHeader::new("DMA Status")
+            .default_open(true)
+            .show(ui, |ui| {
+                for i in 0..4 {
+                    let channel = &self.cpu.dma.get().channels[i];
+                    let enabled = channel.is_enabled();
+                    
+                    CollapsingHeader::new(format!("DMA Channel {}", i))
+                        .default_open(i == 0 || i == 3)
+                        .show(ui, |ui| {
+                            ui.horizontal(|ui| {
+                                let mut enabled_checkbox = enabled;
+                                ui.add(egui::Checkbox::new(&mut enabled_checkbox, RichText::new("Enabled").monospace().color(ui.visuals().text_color())));
+                                
+                                let repeat = channel.is_repeat();
+                                let mut repeat_checkbox = repeat;
+                                ui.add(egui::Checkbox::new(&mut repeat_checkbox, RichText::new("Repeat").monospace().color(ui.visuals().text_color())));
+                                
+                                let irq = channel.trigger_irq();
+                                let mut irq_checkbox = irq;
+                                ui.add(egui::Checkbox::new(&mut irq_checkbox, RichText::new("IRQ").monospace().color(ui.visuals().text_color())));
+                            });
+                            
+                            ui.horizontal(|ui| {
+                                ui.label(
+                                    RichText::new(format!("Source: {:08X}", channel.src.value()))
+                                        .monospace(),
+                                );
+                                ui.label(
+                                    RichText::new(format!("Dest: {:08X}", channel.dst.value()))
+                                        .monospace(),
+                                );
+                            });
+                            
+                            ui.horizontal(|ui| {
+                                ui.label(
+                                    RichText::new(format!("Units: {:04X}", channel.transfer_units()))
+                                        .monospace(),
+                                );
+                                let transfer_size = if channel.transfer_size() == 4 { "32-bit" } else { "16-bit" };
+                                ui.label(
+                                    RichText::new(format!("Size: {}", transfer_size))
+                                        .monospace(),
+                                );
+                            });
+                            
+                            ui.label(
+                                RichText::new(format!("Trigger: {:?}", channel.trigger()))
+                                    .monospace(),
+                            );
+                            
+                            ui.horizontal(|ui| {
+                                ui.label(
+                                    RichText::new(format!("Src Ctrl: {:?}", channel.src_addr_control()))
+                                        .monospace(),
+                                );
+                                ui.label(
+                                    RichText::new(format!("Dst Ctrl: {:?}", channel.dst_addr_control()))
+                                        .monospace(),
+                                );
+                            });
+                            
+                            // Calculate total bytes and show progress if enabled
+                            if enabled {
+                                let total_bytes = channel.transfer_units() as u64 * channel.transfer_size() as u64;
+                                ui.horizontal(|ui| {
+                                    ui.label(
+                                        RichText::new(format!("Total Bytes: {}", total_bytes))
+                                            .monospace()
+                                            .color(egui::Color32::LIGHT_BLUE),
+                                    );
+                                    
+                                    // Show memory regions
+                                    let src_region = match channel.src.value() {
+                                        0x00000000..=0x00003FFF => "BIOS",
+                                        0x02000000..=0x0203FFFF => "EWRAM",
+                                        0x03000000..=0x03007FFF => "IWRAM",
+                                        0x04000000..=0x040003FE => "I/O",
+                                        0x05000000..=0x050003FF => "Palette",
+                                        0x06000000..=0x06017FFF => "VRAM",
+                                        0x07000000..=0x070003FF => "OAM",
+                                        0x08000000..=0x09FFFFFF => "ROM0",
+                                        0x0A000000..=0x0BFFFFFF => "ROM1",
+                                        0x0C000000..=0x0DFFFFFF => "ROM2",
+                                        0x0E000000..=0x0E00FFFF => "SRAM",
+                                        _ => "Unknown",
+                                    };
+                                    
+                                    let dst_region = match channel.dst.value() {
+                                        0x00000000..=0x00003FFF => "BIOS",
+                                        0x02000000..=0x0203FFFF => "EWRAM",
+                                        0x03000000..=0x03007FFF => "IWRAM",
+                                        0x04000000..=0x040003FE => "I/O",
+                                        0x05000000..=0x050003FF => "Palette",
+                                        0x06000000..=0x06017FFF => "VRAM",
+                                        0x07000000..=0x070003FF => "OAM",
+                                        0x08000000..=0x09FFFFFF => "ROM0",
+                                        0x0A000000..=0x0BFFFFFF => "ROM1",
+                                        0x0C000000..=0x0DFFFFFF => "ROM2",
+                                        0x0E000000..=0x0E00FFFF => "SRAM",
+                                        _ => "Unknown",
+                                    };
+                                    
+                                    ui.label(
+                                        RichText::new(format!("{} → {}", src_region, dst_region))
+                                            .monospace()
+                                            .color(egui::Color32::LIGHT_GREEN),
+                                    );
+                                });
+                            }
+                        });
+                }
             });
-        }
+
+        ui.separator();
+
+        CollapsingHeader::new("Timer Status")
+            .default_open(true)
+            .show(ui, |ui| {
+                for i in 0..4 {
+                    let timer = &self.cpu.timers.get().timers[i];
+                    let control = timer.control.value();
+                    
+                    CollapsingHeader::new(format!("Timer {}", i))
+                        .default_open(true)
+                        .show(ui, |ui| {
+                            ui.horizontal(|ui| {
+                                ui.label(
+                                    RichText::new(format!("Counter: {:04X}", timer.counter.value()))
+                                        .monospace(),
+                                );
+                                ui.label(
+                                    RichText::new(format!("Reload: {:04X}", timer.reload.value()))
+                                        .monospace(),
+                                );
+                            });
+                            
+                            ui.horizontal(|ui| {
+                                let enabled = control.contains(TimerControl::ENABLE);
+                                let mut enabled_checkbox = enabled;
+                                ui.add(egui::Checkbox::new(&mut enabled_checkbox, RichText::new("Enabled").monospace().color(ui.visuals().text_color())));
+                                
+                                let irq_enabled = control.contains(TimerControl::IRQ_ON_OVERFLOW);
+                                let mut irq_checkbox = irq_enabled;
+                                ui.add(egui::Checkbox::new(&mut irq_checkbox, RichText::new("IRQ").monospace().color(ui.visuals().text_color())));
+                            });
+                            
+                        });
+                }
+            });
     }
 }
