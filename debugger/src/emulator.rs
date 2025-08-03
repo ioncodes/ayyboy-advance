@@ -108,9 +108,11 @@ impl Emulator {
     }
 
     fn process_debug_events(&mut self) -> EventResult {
-        self.dbg_req_rx
-            .try_recv()
-            .map(|event| match event {
+        let mut last_result = EventResult::None;
+        
+        // Process all available debug events
+        while let Ok(event) = self.dbg_req_rx.try_recv() {
+            let result = match event {
                 RequestEvent::UpdateCpu => {
                     let _ = self.dbg_resp_tx.send(ResponseEvent::Cpu(widgets::cpu::Cpu {
                         registers: self.gba.cpu.registers.r,
@@ -238,8 +240,15 @@ impl Emulator {
                     ));
                     EventResult::None
                 }
-            })
-            .unwrap_or(EventResult::None)
+            };
+            
+            // Keep track of the last significant result (prioritize Break/Continue/Step over None)
+            if !matches!(result, EventResult::None) {
+                last_result = result;
+            }
+        }
+        
+        last_result
     }
 
     fn do_tick(&mut self, tick: &mut bool) -> Option<Instruction> {

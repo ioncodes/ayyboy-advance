@@ -98,7 +98,6 @@ impl Renderer {
             // Toggle debugger window
             if i.key_pressed(Key::F1) {
                 self.debugger.toggle_window();
-                self.running = false;
             }
 
             // Take a screenshot

@@ -35,6 +35,7 @@ pub struct CpuWidget {
     breakpoint: String,
     selected_breakpoint: String,
     breakpoints: Vec<String>,
+    should_auto_update: bool,
 }
 
 impl CpuWidget {
@@ -47,7 +48,12 @@ impl CpuWidget {
             breakpoint: String::new(),
             selected_breakpoint: String::new(),
             breakpoints: Vec::new(),
+            should_auto_update: false,
         }
+    }
+
+    pub fn request_initial_update(&mut self) {
+        let _ = self.event_tx.send(RequestEvent::UpdateCpu);
     }
 
     pub fn update(&mut self, cpu: Cpu) {
@@ -60,6 +66,11 @@ impl CpuWidget {
         self.cpu.ime.set(cpu.ime);
         self.cpu.ie.set(cpu.ie);
         self.cpu.if_reg.set(cpu.if_reg);
+        
+        // Request another CPU update only if auto-updating is enabled
+        if self.should_auto_update {
+            let _ = self.event_tx.send(RequestEvent::UpdateCpu);
+        }
     }
 
     pub fn render_content(&mut self, ui: &mut egui::Ui) {
@@ -67,27 +78,24 @@ impl CpuWidget {
             ui.with_layout(egui::Layout::left_to_right(egui::Align::TOP), |ui| {
                 if ui.button(format!("{} Run", egui_phosphor::regular::PLAY)).clicked() {
                     let _ = self.event_tx.send(RequestEvent::Run);
+                    let _ = self.event_tx.send(RequestEvent::UpdateCpu); // Start the update chain
+                    self.should_auto_update = true;
                 }
 
                 if ui.button(format!("{} Step", egui_phosphor::regular::STEPS)).clicked() {
                     let _ = self.event_tx.send(RequestEvent::Step);
                     let _ = self.event_tx.send(RequestEvent::UpdateCpu);
+                    self.should_auto_update = false;
                 }
 
                 if ui.button(format!("{} Break", egui_phosphor::regular::PAUSE)).clicked() {
                     let _ = self.event_tx.send(RequestEvent::Break);
                     let _ = self.event_tx.send(RequestEvent::UpdateCpu);
+                    self.should_auto_update = false;
                 }
             });
 
-            ui.with_layout(egui::Layout::right_to_left(egui::Align::TOP), |ui| {
-                if ui
-                    .button(format!("{} Refresh", egui_phosphor::regular::ARROW_CLOCKWISE))
-                    .clicked()
-                {
-                    let _ = self.event_tx.send(RequestEvent::UpdateCpu);
-                }
-            });
+            // Remove refresh button - it's now obsolete since updates are automatic
         });
 
         ui.separator();

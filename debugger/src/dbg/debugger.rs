@@ -143,5 +143,10 @@ impl Debugger {
 
     pub fn toggle_window(&mut self) {
         self.open = !self.open;
+        
+        // When opening the debugger, request an initial CPU update
+        if self.open {
+            self.cpu_widget.request_initial_update();
+        }
     }
 }
