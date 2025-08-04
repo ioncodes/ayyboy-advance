@@ -81,9 +81,12 @@ impl Mmio {
         }
     }
 
-    pub fn tick_components(&mut self) {
-        let events = self.ppu.tick();
-        let timer_irqs = self.timers.tick();
+    /// Tick all components by the specified number of cycles
+    pub fn tick_components_cycles(&mut self, cycles: u32) {
+        let events = self.ppu.tick_cycles(cycles);
+
+        // Update timers with cycle-accurate timing
+        let timer_overflows = self.timers.tick_cycles(cycles);
 
         // PPU interrupts
         if events.contains(&PpuEvent::VBlank) && self.ppu.disp_stat.contains_flags(DispStat::VBLANK_IRQ_ENABLE) {
@@ -101,22 +104,19 @@ impl Mmio {
             trace!(target: "irq", "VCOUNT interrupt raised");
         }
 
-        // Timer interrupts
-        if timer_irqs[0] {
-            self.io_if.set_flags(Interrupt::TIMER0);
-            trace!(target: "irq", "TIMER0 interrupt raised");
-        }
-        if timer_irqs[1] {
-            self.io_if.set_flags(Interrupt::TIMER1);
-            trace!(target: "irq", "TIMER1 interrupt raised");
-        }
-        if timer_irqs[2] {
-            self.io_if.set_flags(Interrupt::TIMER2);
-            trace!(target: "irq", "TIMER2 interrupt raised");
-        }
-        if timer_irqs[3] {
-            self.io_if.set_flags(Interrupt::TIMER3);
-            trace!(target: "irq", "TIMER3 interrupt raised");
+        // Handle timer interrupts
+        for (i, &overflow) in timer_overflows.iter().enumerate() {
+            if overflow {
+                let timer_interrupt = match i {
+                    0 => Interrupt::TIMER0,
+                    1 => Interrupt::TIMER1,
+                    2 => Interrupt::TIMER2,
+                    3 => Interrupt::TIMER3,
+                    _ => unreachable!(),
+                };
+                self.io_if.set_flags(timer_interrupt);
+                trace!(target: "irq", "TIMER{} interrupt raised", i);
+            }
         }
 
         // Keypad interrupt

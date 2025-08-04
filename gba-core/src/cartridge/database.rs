@@ -51,7 +51,7 @@ pub static TITLE_DATABASE: phf::Map<&'static str, (u8, bool, &'static str)> = ph
     "3690c0fd" => (0, false, r#"Jimmy Neutron vs. Jimmy Negatron (Germany)"#),
     "220ccf25" => (0, false, r#"Jimmy Neutron vs. Jimmy Negatron (Germany, prototype)"#),
     "d59d753b" => (1, false, r#"The Adventures of Jimmy Neutron Boy Genius - Attack of the Twonkies (Europe,
-			USA)"#),
+            USA)"#),
     "33816e51" => (1, false, r#"Jimmy Neutron un Garcon Genial - L'Attaque des Twonkies (France)"#),
     "67756000" => (0, false, r#"The Adventures of Jimmy Neutron Boy Genius - Jet Fusion (Europe, USA)"#),
     "6f3ea564" => (1, false, r#"Aero the Acro-Bat - Rascal Rival Revenge (Europe, prototype 20020327)"#),
@@ -155,9 +155,9 @@ pub static TITLE_DATABASE: phf::Map<&'static str, (u8, bool, &'static str)> = ph
     "9030515d" => (3, false, r#"Bakunetsu Dodge Ball Fighters (Japan)"#),
     "7f2e0320" => (3, false, r#"Bakuten Shoot Beyblade - Gekitou! Saikyou Blader (Japan)"#),
     "f01ee06c" => (3, false, r#"Bakuten Shoot Beyblade 2002 - Gekisen! Team Battle!! Kouryuu no Shou - Daichi
-			Hen (Japan)"#),
+            Hen (Japan)"#),
     "8778b36a" => (3, false, r#"Bakuten Shoot Beyblade 2002 - Gekisen! Team Battle!! Seiryuu no Shou - Takao
-			Hen (Japan)"#),
+            Hen (Japan)"#),
     "1d1bb02b" => (3, false, r#"Bakuten Shoot Beyblade 2002 - Ikuze! Bakutou! Chou Jiryoku Battle!! (Japan)"#),
     "494492dc" => (1, false, r#"Baldur's Gate - Dark Alliance (Europe)"#),
     "deedd7d9" => (1, false, r#"Baldur's Gate - Dark Alliance (USA)"#),
@@ -315,7 +315,7 @@ pub static TITLE_DATABASE: phf::Map<&'static str, (u8, bool, &'static str)> = ph
     "3a23efd7" => (2, false, r#"Broken Sword - The Shadow of the Templars (Europe)"#),
     "3278ce51" => (2, false, r#"Broken Sword - The Shadow of the Templars (USA)"#),
     "fd814097" => (1, false, r#"Disney's Brother Bear (Europe, French / German / Italian / Spanish / Dutch /
-			Danish / Swedish)"#),
+            Danish / Swedish)"#),
     "6220a4b8" => (1, false, r#"Disney's Brother Bear (Europe, English)"#),
     "342de1d6" => (1, false, r#"Brother Bear (USA)"#),
     "b5ff39dc" => (1, false, r#"Bruce Lee - Return of the Legend (Europe)"#),
@@ -648,9 +648,9 @@ pub static TITLE_DATABASE: phf::Map<&'static str, (u8, bool, &'static str)> = ph
     "b3297d59" => (2, false, r#"Dragon Ball Z - The Legacy of Goku II International (Japan)"#),
     "e5a571ad" => (3, false, r#"Dragon Drive - World D Break (Japan)"#),
     "2b077791" => (5, false, r#"Dragon Quest Characters - Torneko no Daibouken 2 Advance - Fushigi no Dungeon
-			(Japan)"#),
+            (Japan)"#),
     "c891b2a0" => (4, false, r#"Dragon Quest Characters - Torneko no Daibouken 3 Advance - Fushigi no Dungeon
-			(Japan)"#),
+            (Japan)"#),
     "3c24abcc" => (2, false, r#"Dragon Quest Monsters - Caravan Heart (Japan)"#),
     "8af23450" => (0, false, r#"Dragon Tales - Dragon Adventures (USA)"#),
     "f0ca6d70" => (1, false, r#"Dragon's Rock (Europe)"#),
@@ -787,10 +787,10 @@ pub static TITLE_DATABASE: phf::Map<&'static str, (u8, bool, &'static str)> = ph
     "f311edac" => (2, false, r#"Famicom Mini 24 - Hikari Shinwa - Palthena no Kagami (Japan)"#),
     "1cbe712a" => (2, false, r#"Famicom Mini 25 - The Legend of Zelda 2 - Link no Bouken (Japan)"#),
     "63b51337" => (1, false, r#"Famicom Mini 26 - Famicom Mukashibanashi - Shin Onigashima - Zen, Kouhen
-			(Japan)"#),
+            (Japan)"#),
     "3cf43405" => (1, false, r#"Famicom Mini 27 - Famicom Tantei Club - Kieta Koukeisha - Zen, Kouhen (Japan)"#),
     "75e1b220" => (1, false, r#"Famicom Mini 28 - Famicom Tantei Club Part II - Ushiro ni Tatsu Shoujo - Zen,
-			Kouhen (Japan)"#),
+            Kouhen (Japan)"#),
     "012fa057" => (1, false, r#"Famicom Mini 29 - Akumajou Dracula (Japan)"#),
     "9ed2daeb" => (2, false, r#"Famicom Mini 30 - SD Gundam World - Gachapon Senshi Scramble Wars (Japan)"#),
     "ec36a3df" => (0, false, r#"Family Feud (USA)"#),
@@ -805,7 +805,7 @@ pub static TITLE_DATABASE: phf::Map<&'static str, (u8, bool, &'static str)> = ph
     "ddde4295" => (1, false, r#"Fantastic 4 - Flame On (USA)"#),
     "fefe25be" => (2, false, r#"Fantastic Children (Japan)"#),
     "ec60d573" => (2, false, r#"Fantastic Märchen - Cake-ya-san Monogatari + Doubutsu Chara Navi Uranai Kosei
-			Shinri Gaku (Japan)"#),
+            Shinri Gaku (Japan)"#),
     "3dfe6d2b" => (0, false, r#"Farbe (Germany)"#),
     "bf91c27d" => (1, false, r#"Fear Factor Unleashed (USA)"#),
     "4fd9c349" => (3, false, r#"Field of Nine - Digital Edition 2001 (Japan)"#),
@@ -846,7 +846,7 @@ pub static TITLE_DATABASE: phf::Map<&'static str, (u8, bool, &'static str)> = ph
     "4f9aca4f" => (0, false, r#"Finding Nemo - The Continuing Adventures (Europe, USA)"#),
     "4c77eda6" => (1, false, r#"Finding Nemo - Aratanaru Bouken (Japan)"#),
     "45bc9c37" => (0, false, r#"Finding Nemo - The Continuing Adventures (Europe, English / Italian / Spanish /
-			Danish / Swedish)"#),
+            Danish / Swedish)"#),
     "1e8cefe9" => (0, false, r#"Finding Nemo - The Continuing Adventures (Europe, French / German / Dutch)"#),
     "8698f50a" => (0, false, r#"Fire Eaters - Zero Bandits (Europe, demo)"#),
     "4a805ed1" => (3, false, r#"Fire Emblem (Europe, English / French / German)"#),
@@ -914,7 +914,7 @@ pub static TITLE_DATABASE: phf::Map<&'static str, (u8, bool, &'static str)> = ph
     "8cb61158" => (3, false, r#"Gakuen Alice - Dokidoki Fushigi Taiken (Japan, rev. 1)"#),
     "82983321" => (1, false, r#"Gakuen Senki Muryou (Japan)"#),
     "b99e2333" => (1, false, r#"Galaxy Angel Game Boy Advance - Moridakusan Tenshi no Full-Course - Okawari
-			Jiyuu (Japan)"#),
+            Jiyuu (Japan)"#),
     "4d8f49f9" => (1, false, r#"Galidor - Defenders of the Outer Dimension (USA)"#),
     "8a879018" => (2, false, r#"Gambler Densetsu Tetsuya - Yomigaeru Densetsu (Japan)"#),
     "85c837af" => (3, false, r#"Game & Watch Gallery Advance (Europe)"#),
@@ -925,11 +925,11 @@ pub static TITLE_DATABASE: phf::Map<&'static str, (u8, bool, &'static str)> = ph
     "71154d42" => (0, false, r#"Game Boy Advance Video - Cartoon Network Collection - Edition Speciale (France)"#),
     "5d918b2d" => (0, false, r#"Game Boy Advance Video - Cartoon Network Collection - Limited Edition (USA)"#),
     "6443554b" => (0, false, r#"Game Boy Advance Video - Cartoon Network Collection - Platinum Edition (Europe,
-			USA)"#),
+            USA)"#),
     "f2825729" => (0, false, r#"Game Boy Advance Video - Cartoon Network Collection - Premium Edition (Europe,
-			USA)"#),
+            USA)"#),
     "e9b7b8a4" => (0, false, r#"Game Boy Advance Video - Cartoon Network Collection - Special Edition (Europe,
-			USA)"#),
+            USA)"#),
     "91f39447" => (0, false, r#"Game Boy Advance Video - Cartoon Network Collection - Volume 1 (USA)"#),
     "4bfaa8de" => (0, false, r#"Game Boy Advance Video - Cartoon Network Collection - Volume 2 (Europe, USA)"#),
     "4463f345" => (0, false, r#"Game Boy Advance Video - Codename - Kids Next Door - Volume 1 (Europe, USA)"#),
@@ -941,12 +941,12 @@ pub static TITLE_DATABASE: phf::Map<&'static str, (u8, bool, &'static str)> = ph
     "5d47676f" => (0, false, r#"Game Boy Advance Video - Nicktoon's Collection - Volume 1 (USA)"#),
     "65deeeb6" => (0, false, r#"Game Boy Advance Video - Nicktoon's Collection - Volume 2 (USA)"#),
     "a59ef954" => (0, false, r#"Game Boy Advance Video - Pokémon: For Ho-Oh the Bells Toll! + A Hot Water
-			Battle (USA)"#),
+            Battle (USA)"#),
     "0da1a383" => (0, false, r#"Game Boy Advance Video - Pokémon: Johto Photo Finish + Playing with Fire! (USA)"#),
     "a36aa9c5" => (0, false, r#"Game Boy Advance Video - Pokémon: Pokémon - I Choose You + Here Comes the
-			Squirtle Squad (USA)"#),
+            Squirtle Squad (USA)"#),
     "be468496" => (0, false, r#"Game Boy Advance Video - Pokémon: Beach Blank-out Blastoise + Go West Young
-			Meowth (USA)"#),
+            Meowth (USA)"#),
     "d2cf417a" => (0, false, r#"Game Boy Advance Video - Shark Tale (USA, rev. 6)"#),
     "01468820" => (0, false, r#"Game Boy Advance Video - Shark Tale (USA, rev. 5)"#),
     "4010e9fa" => (0, false, r#"Game Boy Advance Video - Shrek (USA, rev. 6)"#),
@@ -960,13 +960,13 @@ pub static TITLE_DATABASE: phf::Map<&'static str, (u8, bool, &'static str)> = ph
     "9772ca45" => (0, false, r#"Game Boy Advance Video - SpongeBob SquarePants - Volume 3 (USA)"#),
     "ff7582ef" => (0, false, r#"Game Boy Advance Video - Strawberry Shortcake - Volume 1 (USA)"#),
     "d743a070" => (0, false, r#"Game Boy Advance Video - Super Robot Monkey Team - Hyper Force Go! - Volume 1
-			(USA)"#),
+            (USA)"#),
     "1ee78166" => (0, false, r#"Game Boy Advance Video - Teenage Mutant Ninja Turtles - Le Demenagement
-			(France)"#),
+            (France)"#),
     "046589c8" => (0, false, r#"Game Boy Advance Video - Teenage Mutant Ninja Turtles - Things Change (Europe,
-			USA)"#),
+            USA)"#),
     "0e556edf" => (0, false, r#"Game Boy Advance Video - The Adventures of Jimmy Neutron Boy Genius - Volume 1
-			(USA)"#),
+            (USA)"#),
     "7958df20" => (0, false, r#"Game Boy Advance Video - The Fairly OddParents! - Volume 1 (USA)"#),
     "bbcbc6fd" => (0, false, r#"Game Boy Advance Video - The Fairly OddParents! - Volume 2 (USA, rev. 1)"#),
     "c6a91365" => (0, false, r#"Game Boy Advance Video - The Proud Family - Volume 1 (USA)"#),
@@ -1178,7 +1178,7 @@ pub static TITLE_DATABASE: phf::Map<&'static str, (u8, bool, &'static str)> = ph
     "fc6ccadb" => (0, false, r#"Los Increibles (Spain)"#),
     "2d806290" => (0, false, r#"The Incredibles - Rise of the Underminer (Europe, USA)"#),
     "096f98b6" => (0, false, r#"The Incredibles - Rise of the Underminer (Europe, English / French / German /
-			Italian / Dutch / Spanish / Portuguese)"#),
+            Italian / Dutch / Spanish / Portuguese)"#),
     "23110a94" => (3, false, r#"Initial D - Another Stage (Japan)"#),
     "406aa0c6" => (0, false, r#"Inspector Gadget - Advance Mission (Europe)"#),
     "ef131209" => (0, false, r#"Inspector Gadget - Advance Mission (USA)"#),
@@ -1286,7 +1286,7 @@ pub static TITLE_DATABASE: phf::Map<&'static str, (u8, bool, &'static str)> = ph
     "fa946fc6" => (1, false, r#"Disney's Kim Possible 2 - Drakken's Demise (USA)"#),
     "fdec60ec" => (1, false, r#"Disney's Kim Possible III - Team Possible (USA)"#),
     "37387b19" => (1, false, r#"King Kong - The Official Game of the Movie (Europe, English / French / German /
-			Spanish / Italian / Dutch)"#),
+            Spanish / Italian / Dutch)"#),
     "17e66b52" => (1, false, r#"The King of Fighters EX - NeoBlood (Europe)"#),
     "811ffcfa" => (0, false, r#"The King of Fighters EX - NeoBlood (Japan, prototype)"#),
     "0814c78d" => (1, false, r#"The King of Fighters EX - NeoBlood (Japan)"#),
@@ -1481,7 +1481,7 @@ pub static TITLE_DATABASE: phf::Map<&'static str, (u8, bool, &'static str)> = ph
     "f9652b4d" => (1, false, r#"Mahou no Pumpkin - Ann to Greg no Daibouken (Japan)"#),
     "79d04dad" => (3, false, r#"Mahou Sensei Negima! - Private Lesson - Damedesuu Toshokan-jima (Japan)"#),
     "6357c53b" => (3, false, r#"Mahou Sensei Negima! - Private Lesson 2 - Ojamashimasuu Parasite de Chuu
-			(Japan)"#),
+            (Japan)"#),
     "3b984291" => (5, false, r#"Mail de Cute (Japan)"#),
     "4fbc3f62" => (0, false, r#"Rec Room Challenge (Europe)"#),
     "aafc9afa" => (0, false, r#"Rec Room Challenge (USA)"#),
@@ -1649,7 +1649,7 @@ pub static TITLE_DATABASE: phf::Map<&'static str, (u8, bool, &'static str)> = ph
     "c0ba281d" => (3, false, r#"Minna no Shiiku Series 2 - Boku no Kuwagata (Japan)"#),
     "d0ef2bc4" => (1, false, r#"Minna no Soft Series - Happy Trump 20 (Japan)"#),
     "481d1d5f" => (1, false, r#"Minna no Soft Series - Hyokkori Hyoutan-jima - Don Gabacho Daikatsuyaku no Maki
-			(Japan)"#),
+            (Japan)"#),
     "66b779b0" => (1, false, r#"Minna no Soft Series - Minna no Mahjong (Japan)"#),
     "c62c15c6" => (1, false, r#"Minna no Soft Series - Minna no Shougi (Japan, rev. 1)"#),
     "08b62391" => (1, false, r#"Minna no Soft Series - Minna no Shougi (Japan)"#),
@@ -1745,7 +1745,7 @@ pub static TITLE_DATABASE: phf::Map<&'static str, (u8, bool, &'static str)> = ph
     "89fbeb55" => (2, false, r#"Nakayoshi Pet Advance Series 3 - Kawaii Koneko (Japan, rev. 1)"#),
     "0290dfb5" => (2, false, r#"Nakayoshi Pet Advance Series 3 - Kawaii Koneko (Japan)"#),
     "ae2a69f3" => (2, false, r#"Nakayoshi Pet Advance Series 4 - Kawaii Koinu Mini - Wankoto Asobou!!
-			Kogata-ken (Japan)"#),
+            Kogata-ken (Japan)"#),
     "b46daca0" => (2, false, r#"Nakayoshi Youchien - Sukoyaka Enji Ikusei Game (Japan, rev. 1)"#),
     "1276a95c" => (2, false, r#"Nakayoshi Youchien - Sukoyaka Enji Ikusei Game (Japan)"#),
     "bb82460a" => (0, false, r#"Namco Museum (Europe)"#),
@@ -1783,7 +1783,7 @@ pub static TITLE_DATABASE: phf::Map<&'static str, (u8, bool, &'static str)> = ph
     "4f1adf75" => (1, false, r#"NHL Hitz 20-03 (USA)"#),
     "dda9a035" => (0, false, r#"Nicktoons - Attack of the Toybots (USA)"#),
     "f0b0f53c" => (0, false, r#"Nicktoons - Attack of the Toybots ~ SpongeBob und seine Freunde - Angriff der
-			Spielzeugroboter (Germany)"#),
+            Spielzeugroboter (Germany)"#),
     "feafbd72" => (1, false, r#"Nicktoons - Battle for Volcano Island (USA)"#),
     "a8b6766e" => (1, false, r#"Nicktoons - Freeze Frame Frenzy (USA)"#),
     "babccefd" => (1, false, r#"Nicktoons Racing (Europe)"#),
@@ -1818,7 +1818,7 @@ pub static TITLE_DATABASE: phf::Map<&'static str, (u8, bool, &'static str)> = ph
     "70475d7f" => (2, false, r#"Onimusha Tactics (USA)"#),
     "66c29472" => (2, false, r#"Onmyou Taisenki Zeroshiki (Japan)"#),
     "4c8f6fdc" => (1, false, r#"Open Season (Europe, English / French / German / Italian / Spanish /
-			Scandinavia)"#),
+            Scandinavia)"#),
     "51b0a94b" => (1, false, r#"Open Season (Europe, English / French / Spanish / Dutch)"#),
     "e6a1d5b2" => (1, false, r#"Open Season (USA)"#),
     "8f289e0b" => (0, false, r#"Operation Armored Liberty (USA)"#),
@@ -1871,9 +1871,9 @@ pub static TITLE_DATABASE: phf::Map<&'static str, (u8, bool, &'static str)> = ph
     "9f0e4a6a" => (3, false, r#"Petz - Hamsterz Life 2 (USA)"#),
     "1dbf4d3d" => (2, false, r#"Petz Vet (USA)"#),
     "aa02cb0c" => (2, false, r#"Pferd & Pony - Best Friends - Mein Pferd ~ Best Friends - My Horse
-			(Germany)"#),
+            (Germany)"#),
     "6217469f" => (2, false, r#"Pferd & Pony - Lass Uns Reiten 2 ~ Horse & Pony - Let's Ride 2
-			(Germany)"#),
+            (Germany)"#),
     "2819bdf5" => (2, false, r#"Pferd & Pony - Mein Gestuet ~ My Stud Farm (Germany)"#),
     "cc74b433" => (2, false, r#"Pferd & Pony - Mein Pferdehof (Germany)"#),
     "dfcfe06c" => (1, false, r#"Phalanx - The Enforce Fighter A-144 (Europe)"#),
@@ -2171,7 +2171,7 @@ pub static TITLE_DATABASE: phf::Map<&'static str, (u8, bool, &'static str)> = ph
     "e5261946" => (1, false, r#"Scooby-Doo (Spain)"#),
     "22d993c6" => (1, false, r#"Scooby-Doo (USA)"#),
     "7bdab2cf" => (0, false, r#"Scooby-Doo 2 - Monsters Unleashed (Europe, English / French / German / Italian
-			/ Spanish)"#),
+            / Spanish)"#),
     "9ff01ddd" => (0, false, r#"Scooby-Doo 2 - Monsters Unleashed (Europe, USA)"#),
     "cf2dba97" => (0, false, r#"Scooby-Doo and the Cyber Chase (Europe, USA)"#),
     "8b0079cb" => (0, false, r#"Scooby-Doo and the Cyber Chase (Europe, English / French / German)"#),
@@ -2186,7 +2186,7 @@ pub static TITLE_DATABASE: phf::Map<&'static str, (u8, bool, &'static str)> = ph
     "5d31a1f9" => (0, false, r#"Scrabble Blast! (USA)"#),
     "0ed5f375" => (0, false, r#"Scrabble Scramble! (Europe, English)"#),
     "e8eb2e3a" => (0, false, r#"Scrabble Scramble! (Europe, English / French / German / Italian / Dutch /
-			Spanish)"#),
+            Spanish)"#),
     "b17532ee" => (0, false, r#"Screw Breaker - Goushin DoriRureRo (Japan)"#),
     "2c119783" => (1, false, r#"Scurge - Hive (Europe)"#),
     "1ae38ac0" => (1, false, r#"Scurge - Hive (USA)"#),
@@ -2285,23 +2285,23 @@ pub static TITLE_DATABASE: phf::Map<&'static str, (u8, bool, &'static str)> = ph
     "097e8628" => (2, false, r#"Sim City 2000 (USA, rev. 1)"#),
     "733751b3" => (2, false, r#"Sim City 2000 (USA)"#),
     "8b72ba3c" => (1, false, r#"Simple 2960 Tomodachi Series Vol. 1 - The Table Game Collection - Mahjong
-			Shougi Hanafuda Reversi (Japan)"#),
+            Shougi Hanafuda Reversi (Japan)"#),
     "180901e3" => (1, false, r#"Simple 2960 Tomodachi Series Vol. 2 - The Block Kuzushi (Japan, rev. 1)"#),
     "e731fd45" => (1, false, r#"Simple 2960 Tomodachi Series Vol. 2 - The Block Kuzushi (Japan)"#),
     "49b92627" => (1, false, r#"Simple 2960 Tomodachi Series Vol. 3 - The Itsudemo Puzzle - Massugu Soroete
-			Straws (Japan)"#),
+            Straws (Japan)"#),
     "07c2d7ed" => (1, false, r#"Simple 2960 Tomodachi Series Vol. 4 - The Trump - Minna de Asoberu 12 Shurui no
-			Trump Game (Japan, rev. 1)"#),
+            Trump Game (Japan, rev. 1)"#),
     "a6fc701f" => (1, false, r#"Simple 2960 Tomodachi Series Vol. 4 - The Trump - Minna de Asoberu 12 Shurui no
-			Trump Game (Japan)"#),
+            Trump Game (Japan)"#),
     "44548b33" => (0, false, r#"The Simpsons - Road Rage (Europe, English / French / German / Italian /
-			Spanish)"#),
+            Spanish)"#),
     "409e8252" => (0, false, r#"The Simpsons - Road Rage (Europe, USA)"#),
     "abaf519c" => (2, false, r#"The Sims - Bustin' Out (Europe, USA)"#),
     "89956199" => (2, false, r#"The Sims (Japan)"#),
     "8b1bc7df" => (4, false, r#"The Sims 2 (Europe, USA)"#),
     "87f8599c" => (4, false, r#"The Sims 2 - Pets (Europe, English / French / German / Italian / Spanish /
-			Dutch)"#),
+            Dutch)"#),
     "ec1f4029" => (4, false, r#"The Sims 2 - Pets (Europe, USA)"#),
     "6845c671" => (1, false, r#"Sister Princess - RePure (Japan)"#),
     "b92a8a88" => (0, false, r#"Sitting Ducks (Europe)"#),
@@ -2533,9 +2533,9 @@ pub static TITLE_DATABASE: phf::Map<&'static str, (u8, bool, &'static str)> = ph
     "11a0af49" => (4, false, r#"Sword of Mana (Europe, Italian / Spanish)"#),
     "7f1eac75" => (4, false, r#"Sword of Mana (USA, Australia)"#),
     "58dc532e" => (2, false, r#"Sylvanian Families - Fashion Designer ni Naritai! - Kurumi-risu no Onnanoko
-			(Japan)"#),
+            (Japan)"#),
     "00911694" => (2, false, r#"Sylvanian Families - Yousei no Stick to Fushigi no Ki - Marron-inu no Onnanoko
-			(Japan)"#),
+            (Japan)"#),
     "3bfbf110" => (2, false, r#"Sylvanian Families 4 - Meguru Kisetsu no Tapestry (Japan)"#),
     "6649d2ce" => (5, false, r#"Tactics Ogre - The Knight of Lodis (USA)"#),
     "0167a878" => (5, false, r#"Tactics Ogre Gaiden - The Knight of Lodis (Japan)"#),
@@ -2601,7 +2601,7 @@ pub static TITLE_DATABASE: phf::Map<&'static str, (u8, bool, &'static str)> = ph
     "9a6cb678" => (0, false, r#"Thunderbirds - International Rescue (Europe)"#),
     "0e38108b" => (1, false, r#"Tiger Woods PGA Tour 2004 (Europe, USA)"#),
     "38934732" => (1, false, r#"Tiger Woods PGA Tour Golf (Europe, English / French / German / Italian /
-			Spanish)"#),
+            Spanish)"#),
     "f3f26acc" => (1, false, r#"Tiger Woods PGA Tour Golf (Europe, USA)"#),
     "9f16857d" => (1, false, r#"Tim Burton's The Nightmare Before Christmas - The Pumpkin King (Japan)"#),
     "3c247c14" => (1, false, r#"Tim Burton's The Nightmare Before Christmas - The Pumpkin King (Europe, USA)"#),
@@ -2715,7 +2715,7 @@ pub static TITLE_DATABASE: phf::Map<&'static str, (u8, bool, &'static str)> = ph
     "8a0831bd" => (2, false, r#"Ultimate Card Games (Europe, USA)"#),
     "bb85ad55" => (1, false, r#"Ultimate Muscle - The Kinnikuman Legacy - The Path of the Superhero (USA)"#),
     "65e2295b" => (1, false, r#"Ultimate Muscle - The Kinnikuman Legacy - The Path of the Superhero (USA,
-			prototype, 20030429)"#),
+            prototype, 20030429)"#),
     "a13f76a5" => (1, false, r#"Ultimate Puzzle Games (USA)"#),
     "97e1727f" => (1, false, r#"Ultimate Spider-Man (Europe, English)"#),
     "61a74634" => (1, false, r#"Ultimate Spider-Man (Europe, French / German / Italian / Spanish)"#),
@@ -2863,16 +2863,16 @@ pub static TITLE_DATABASE: phf::Map<&'static str, (u8, bool, &'static str)> = ph
     "3c42e84c" => (3, false, r#"Yu-Gi-Oh! - World Championship Tournament 2004 (Europe)"#),
     "69b6f229" => (3, false, r#"Shonen Jump's Yu-Gi-Oh! - World Championship Tournament 2004 (USA)"#),
     "17988e9b" => (3, false, r#"Shonen Jump's Yu-Gi-Oh! - Day of the Duelist - World Championship Tournament
-			2005 (Europe)"#),
+            2005 (Europe)"#),
     "584db6a6" => (3, false, r#"Shonen Jump's Yu-Gi-Oh! - 7 Trials to Glory - World Championship Tournament
-			2005 (USA)"#),
+            2005 (USA)"#),
     "1becf9d3" => (3, false, r#"Yu-Gi-Oh! Duel Monsters International - Worldwide Edition (Japan, rev. 1)"#),
     "6dcfb879" => (3, false, r#"Yu-Gi-Oh! Duel Monsters International 2 (Japan)"#),
     "dfd07a36" => (3, false, r#"Yu-Gi-Oh! - The Eternal Duelist Soul (USA)"#),
     "cede4060" => (3, false, r#"Shonen Jump's Yu-Gi-Oh! - Ultimate Masters Edition - World Championship
-			Tournament 2006 (Europe)"#),
+            Tournament 2006 (Europe)"#),
     "f968a196" => (3, false, r#"Shonen Jump's Yu-Gi-Oh! - Ultimate Masters - World Championship Tournament 2006
-			(USA)"#),
+            (USA)"#),
     "aca5ffc6" => (3, false, r#"Yu-Gi-Oh! - Worldwide Edition - Stairway to the Destined Duel (Europe)"#),
     "39b5e771" => (3, false, r#"Yu-Gi-Oh! - Worldwide Edition - Stairway to the Destined Duel (USA)"#),
     "98507497" => (3, false, r#"Yu-Gi-Oh! Duel Monsters International - Worldwide Edition (Japan)"#),
@@ -2900,7 +2900,7 @@ pub static TITLE_DATABASE: phf::Map<&'static str, (u8, bool, &'static str)> = ph
     "fd6ce886" => (2, false, r#"Zero One SP (Japan)"#),
     "de7c1ae8" => (5, false, r#"Zero-Tours (Japan)"#),
     "00328bb3" => (3, false, r#"Zettaizetsumei Dangerous Jiisan - Naki no 1-kai Zettaifukujuu Violence Kouchou
-			- Wagahai ga 1-ban Erainjai!! (Japan)"#),
+            - Wagahai ga 1-ban Erainjai!! (Japan)"#),
     "7da6cc69" => (3, false, r#"Zettaizetsumei Dangerous Jiisan - Shijou Saikyou no Dogeza (Japan)"#),
     "5be52fb7" => (3, false, r#"Zettaizetsumei Dangerous Jiisan 3 - Hateshinaki Mamonogatari (Japan)"#),
     "99273ee3" => (3, false, r#"Zettaizetsumei Dangerous Jiisan Tsuu - Ikari no Oshioki Blues (Japan)"#),
@@ -2927,16 +2927,16 @@ pub static TITLE_DATABASE: phf::Map<&'static str, (u8, bool, &'static str)> = ph
     "954d2619" => (0, false, r#"Sample Yoshi Game (prototype, 20010214)"#),
     "34f2ef47" => (0, false, r#"Sample Yoshi Game (prototype, 20000601)"#),
     "183a2207" => (1, false, r#"2 in 1: Astérix & Obélix - Bash Them All! + Astérix & Obélix XXL
-			(Europe)"#),
+            (Europe)"#),
     "2c3862c3" => (0, false, r#"Barbie Superpack: Groovy Games + Secret Agent (Europe)"#),
     "c99db2a1" => (0, false, r#"Barbie Superpack: Groovy Games + Secret Agent (USA)"#),
     "d720bdca" => (0, false, r#"2 Games in 1: Bionicle + Knights' Kingdom (Europe)"#),
     "3a4f8e4d" => (0, false, r#"Double Game!: Cartoon Network Block Party + Cartoon Network Speedway (Europe)"#),
     "b3d323e4" => (0, false, r#"2 Games in 1: Cartoon Network Block Party + Cartoon Network Speedway (USA)"#),
     "ee495897" => (3, false, r#"Castlevania Double Pack: Castlevania - Harmony of Dissonance + Castlevania -
-			Aria of Sorrow (Europe)"#),
+            Aria of Sorrow (Europe)"#),
     "dbcecc7d" => (3, false, r#"Castlevania Double Pack: Castlevania - Harmony of Dissonance + Castlevania -
-			Aria of Sorrow (USA)"#),
+            Aria of Sorrow (USA)"#),
     "0beaa2f4" => (4, false, r#"2 Games in 1: Columns Crown + ChuChu Rocket! (Europe)"#),
     "2c38bae2" => (2, false, r#"Crash Superpack: Crash Bandicoot 2 - N-Tranced + Crash Nitro Kart (USA)"#),
     "99c96067" => (2, false, r#"2 Games in 1: Disney Princess + Lizzie McGuire (Europe)"#),
@@ -2953,37 +2953,37 @@ pub static TITLE_DATABASE: phf::Map<&'static str, (u8, bool, &'static str)> = ph
     "6472ac25" => (1, false, r#"2 Games in 1: Disney Princesas + Disney's El Rey Leon (Spain)"#),
     "9e5f961b" => (1, false, r#"2 Games in 1: Disney's Brother Bear + Disney's The Lion King (Europe)"#),
     "c8cdb4ed" => (3, false, r#"2 Disney Games: Disney Sports - Football + Disney Sports - Skateboarding
-			(Europe)"#),
+            (Europe)"#),
     "75703943" => (1, false, r#"2 Disney Games: Disney's Lilo & Stitch 2 + Disney's Peter Pan - Return to
-			Neverland (Europe)"#),
+            Neverland (Europe)"#),
     "1f9d002e" => (0, false, r#"2 Games in One: Dora the Explorer Double Pack (USA)"#),
     "ace78c4f" => (2, false, r#"2 Games in 1: Dragon Ball Z I & II (USA)"#),
     "280587f2" => (2, false, r#"2 Games in 1!: Dragon Ball Z - Buu's Fury + Dragon Ball GT - Transformation
-			(USA)"#),
+            (USA)"#),
     "d5a37aa8" => (0, false, r#"2 Games in 1: Finding Nemo - The Continuing Adventures + The Incredibles (USA)"#),
     "60a35c6e" => (0, false, r#"2 Games in 1: Findet Nemo + Findet Nemo - Das Abenteuer Geht Weiter (Germany)"#),
     "72d5f428" => (0, false, r#"2 Games in 1: Finding Nemo + Finding Nemo - The Continuing Adventures (Europe)"#),
     "73444273" => (0, false, r#"2 Games in 1: Finding Nemo + Finding Nemo - The Continuing Adventures (Italy?,
-			Spain?)"#),
+            Spain?)"#),
     "2e5eda0d" => (0, false, r#"2 Games in 1: Finding Nemo + Finding Nemo - The Continuing Adventures (France?,
-			Netherlands?)"#),
+            Netherlands?)"#),
     "9702abce" => (0, false, r#"2 Games in 1: Finding Nemo + The Incredibles (Europe, English)"#),
     "2d4d69fa" => (0, false, r#"2 Games in 1: Finding Nemo + The Incredibles (Europe, French / Dutch)"#),
     "5db86e1c" => (0, false, r#"2 Games in 1: Findet Nemo + Die Unglaublichen (Germany)"#),
     "9ea46982" => (0, false, r#"2 Games in 1: Alla Ricerca di Nemo + Gli Incredibili - Una 'Normale' Famiglia
-			di Supereroi (Italy)"#),
+            di Supereroi (Italy)"#),
     "d7ac0697" => (0, false, r#"2 Games in 1: Buscando a Nemo + Los Increibles (Spain)"#),
     "cff20829" => (0, false, r#"Double Game!: Golden Nugget Casino - Texas Hold 'em Poker (Europe)"#),
     "6f88e088" => (0, false, r#"2 Games in 1: Golden Nugget Casino - Texas Hold 'em Poker (USA)"#),
     "20929ec1" => (0, false, r#"2 Game Pack!: Hot Wheels - Stunt Track Challenge + Hot Wheels - World Race
-			(Europe, USA)"#),
+            (Europe, USA)"#),
     "b3c2cf9f" => (0, false, r#"2 Games in 1: Hot Wheels - Velocity X + Hot Wheels - World Race (Europe)"#),
     "a440a760" => (0, false, r#"2 Games in 1: Hot Wheels - Velocity X + Hot Wheels - World Race (USA)"#),
     "8eae8860" => (1, false, r#"Hugo 2 in 1 (Europe)"#),
     "0a907f58" => (0, false, r#"2 Game Pack! - Matchbox Missions: Emergency Response + Air, Land & Sea
-			Rescue (Europe)"#),
+            Rescue (Europe)"#),
     "4080aac1" => (0, false, r#"2 Game Pack! - Matchbox Missions: Emergency Response + Air, Land & Sea
-			Rescue (USA)"#),
+            Rescue (USA)"#),
     "6cb47552" => (0, false, r#"2 Games in 1: Monsters, Inc. + Finding Nemo (Europe)"#),
     "8f66cad4" => (0, false, r#"2 Games in 1: Monsters en Co. + Finding Nemo (Netherlands)"#),
     "20298a03" => (0, false, r#"2 Games in 1: Monstres & Cie + Le Monde de Nemo (France)"#),
@@ -2995,29 +2995,29 @@ pub static TITLE_DATABASE: phf::Map<&'static str, (u8, bool, &'static str)> = ph
     "b68b84c1" => (1, false, r#"Pac-Man World & Ms. Pac-Man - Maze Madness (Europe)"#),
     "851127d4" => (1, false, r#"2 Great Games!: Pac-Man World + Ms. Pac-Man - Maze Madness (USA)"#),
     "965391ea" => (1, false, r#"Pferd & Pony 2 in 1: Pferd & Pony - Mein Pferdehof + Pferd & Pony -
-			Lass Uns Reiten 2 (Germany)"#),
+            Lass Uns Reiten 2 (Germany)"#),
     "1b6956d0" => (0, false, r#"2 Games in 1: Power Rangers - Ninja Storm + Power Rangers - Time Force (Europe)"#),
     "14aa2642" => (0, false, r#"2 Games in 1: Power Rangers - Ninja Storm + Power Rangers - La Force du Temps
-			(France)"#),
+            (France)"#),
     "a5e872d7" => (0, false, r#"2 Games in 1: Power Rangers - Ninja Storm + Power Rangers - Time Force
-			(Germany)"#),
+            (Germany)"#),
     "994e7629" => (0, false, r#"2 Games in 1 Double Pack: Power Rangers - Ninja Storm + Power Rangers - Time
-			Force (USA)"#),
+            Force (USA)"#),
     "2a3e1a8d" => (1, false, r#"Prince of Persia - The Sands of Time & Lara Croft Tomb Raider - The
-			Prophecy (Europe)"#),
+            Prophecy (Europe)"#),
     "0db22e8c" => (0, false, r#"Double Game!: Quad Desert Fury + Monster Trucks (Europe)"#),
     "f9ec06a9" => (0, false, r#"2 Games in 1: Quad Desert Fury + Monster Trucks (USA)"#),
     "e5ac73bb" => (0, false, r#"2 Games in 1: Rugrats - Go Wild + SpongeBob SquarePants - SuperSponge (Europe)"#),
     "b3bb9a45" => (0, false, r#"2 Games in 1: Les Razmoket Rencontrent les Delajungle + SpongeBob SquarePants -
-			SuperSponge (France)"#),
+            SuperSponge (France)"#),
     "bfcd892e" => (1, false, r#"2 Games in 1: Scooby-Doo + Scooby-Doo 2 - Monsters Unleashed (Europe)"#),
     "d21582d0" => (1, false, r#"2 Games in 1: Scooby-Doo + Scooby-Doo 2 - Desatado (Spain)"#),
     "802c9234" => (1, false, r#"2 Games in 1: Scooby-Doo + Scooby-Doo 2 - Les Monstres Se Dechainent (France)"#),
     "1f023dbe" => (1, false, r#"2 Games in 1: Scooby-Doo + Scooby-Doo 2 - Monsters Unleashed (USA)"#),
     "99566698" => (1, false, r#"2 Games in 1 Double Pack: Scooby-Doo! - Mystery Mayhem + Scooby-Doo and the
-			Cyber Chase (Europe)"#),
+            Cyber Chase (Europe)"#),
     "5318df13" => (1, false, r#"2 Games in 1 Double Pack: Scooby-Doo! - Mystery Mayhem + Scooby-Doo and the
-			Cyber Chase (USA)"#),
+            Cyber Chase (USA)"#),
     "63bb643f" => (1, false, r#"2-in-1 Fun Pack: Shrek 2 + Madagascar (Europe)"#),
     "39d68733" => (1, false, r#"2-in-1 Fun Pack: Shrek 2 + Madagascar (USA)"#),
     "3535b2bf" => (1, false, r#"2-in-1 Fun Pack: Shrek 2 + Madagascar - Operation Penguin (Europe)"#),
@@ -3037,59 +3037,59 @@ pub static TITLE_DATABASE: phf::Map<&'static str, (u8, bool, &'static str)> = ph
     "d732e52d" => (1, false, r#"2 in 1 Game Pack: Spider-Man & Spider-Man 2 (Europe)"#),
     "0ae3637f" => (1, false, r#"2 in 1 Game Pack: Spider-Man + Spider-Man 2 (USA)"#),
     "e7baa5b9" => (1, false, r#"2 in 1 Game Pack: Spider-Man - Mysterio's Menace + X2 - Wolverine's Revenge
-			(Europe, USA)"#),
+            (Europe, USA)"#),
     "4ba7f7cb" => (0, false, r#"2 Games in 1: SpongeBob SquarePants - Battle for Bikini Bottom + Jimmy Neutron
-			Boy Genius (Europe)"#),
+            Boy Genius (Europe)"#),
     "5802cafd" => (1, false, r#"2 Games in 1: SpongeBob SquarePants - Battle for Bikini Bottom + Nicktoons -
-			Freeze Frame Frenzy (USA)"#),
+            Freeze Frame Frenzy (USA)"#),
     "82c21322" => (0, false, r#"2 Games in 1 Double Pack: SpongeBob SquarePants - Battle for Bikini Bottom +
-			The Fairly OddParents! - Breakin' da Rules (USA)"#),
+            The Fairly OddParents! - Breakin' da Rules (USA)"#),
     "111d6997" => (0, false, r#"2 Games in 1: SpongeBob SquarePants - Revenge of the Flying Dutchman +
-			SpongeBob SquarePants - SuperSponge (Europe)"#),
+            SpongeBob SquarePants - SuperSponge (Europe)"#),
     "d515c0e4" => (0, false, r#"2 Games in 1 Double Pack: SpongeBob SquarePants - Revenge of the Flying
-			Dutchman + SpongeBob SquarePants - SuperSponge (USA)"#),
+            Dutchman + SpongeBob SquarePants - SuperSponge (USA)"#),
     "71d52c61" => (0, false, r#"2 Games in 1: SpongeBob SquarePants - SuperSponge & Battle for Bikini
-			Bottom (Europe)"#),
+            Bottom (Europe)"#),
     "06f0f43c" => (0, false, r#"2 Games in 1: SpongeBob SquarePants - SuperSponge & Battle for Bikini
-			Bottom (Europe, alt)"#),
+            Bottom (Europe, alt)"#),
     "a04cebfe" => (1, false, r#"2 Games in 1: The SpongeBob SquarePants Movie + SpongeBob SquarePants and
-			Friends in Freeze Frame Frenzy (Europe)"#),
+            Friends in Freeze Frame Frenzy (Europe)"#),
     "d8382427" => (2, false, r#"Spyro - Season of Ice + Crash Bandicoot 2 - N-Tranced (Europe)"#),
     "7b3c4f90" => (2, false, r#"Spyro 2 - Season of Flame + Crash Nitro Kart (Europe)"#),
     "0510b70f" => (2, false, r#"Spyro - Fusion + Crash Bandicoot - Fusion (Europe)"#),
     "cdbe00e3" => (2, false, r#"Spyro - Season of Ice + Crash Bandicoot - The Huge Adventure (USA)"#),
     "5940906e" => (2, false, r#"Spyro Orange - The Cortex Conspiracy + Crash Bandicoot Purple - Ripto's Rampage
-			(USA)"#),
+            (USA)"#),
     "7ef359ed" => (2, false, r#"Spyro Superpack: Spyro - Season of Ice + Spyro - Season of Flame (USA)"#),
     "e902880f" => (2, false, r#"Teenage Mutant Ninja Turtles Double Pack (Europe)"#),
     "176a42e5" => (2, false, r#"Teenage Mutant Ninja Turtles Double Pack (USA)"#),
     "0a5965f4" => (0, false, r#"2 Jeux en 1: Titeuf - Ze Gagmachine + Titeuf Méga Compet (France)"#),
     "6d8ef48a" => (2, false, r#"2 in 1 Game Pack: Tony Hawk's Underground + Kelly Slater's Pro Surfer (Europe,
-			USA)"#),
+            USA)"#),
     "5813810f" => (2, false, r#"2 in 1: V-Rally 3 + Stuntman (Europe)"#),
     "c2fc12e5" => (1, false, r#"Winnie the Pooh's Rumbly Tumbly Adventure & Rayman 3 (Europe)"#),
     "7ea28a99" => (3, false, r#"Yu-Gi-Oh! Double Pack (Europe)"#),
     "f3df5758" => (3, false, r#"Yu-Gi-Oh! Double Pack (USA)"#),
     "2cb399d0" => (3, false, r#"Yu-Gi-Oh! Double Pack 2 (USA)"#),
     "164a75ac" => (0, false, r#"Ignition Collection: Volume 1- 3 Games in 1: Animal Snap + World Tennis Stars +
-			Super Dropzone (Europe)"#),
+            Super Dropzone (Europe)"#),
     "6721794b" => (1, false, r#"3 Games in 1: Rugrats - I Gotta Go Party + SpongeBob SquarePants - SuperSponge
-			+ Tak and the Power of Juju (Europe)"#),
+            + Tak and the Power of Juju (Europe)"#),
     "cac0c0d8" => (3, false, r#"4 Games on One Game Pak (Nicktoons) (USA)"#),
     "04a40017" => (3, false, r#"4 Games on One Game Pak (Racing) (USA)"#),
     "09f5e672" => (1, false, r#"Twin Series 1 - Mezase Debut! - Fashion Designer Monogatari + Kawaii Pet Game
-			Gallery 2 (Japan)"#),
+            Gallery 2 (Japan)"#),
     "8b0eb948" => (1, false, r#"Twin Series 2 - Oshare Princess 4 + Renai Uranai Daisakusen! + Renai Party Game
-			- Sweet Heart (Japan)"#),
+            - Sweet Heart (Japan)"#),
     "68237519" => (1, false, r#"Twin Series 3 - Konchuu Monster - Ouja Ketteisen + Super Chinese Labyrinth
-			(Japan)"#),
+            (Japan)"#),
     "fa643377" => (2, false, r#"Twin Series 4 - Hamu Hamu Monster EX - Hamster Monogatari RPG + Fantasy Puzzle
-			- Hamster Monogatari - Mahou no Meikyuu 1.2.3 (Japan)"#),
+            - Hamster Monogatari - Mahou no Meikyuu 1.2.3 (Japan)"#),
     "2c582ff3" => (2, false, r#"Twin Series 5 - Mahou no Kuni no Cake-ya-san Monogatari + Wanwan Meitantei EX
-			(Japan)"#),
+            (Japan)"#),
     "9370623d" => (1, false, r#"Twin Series 6 - Wannyan Idol Gakuen + Koinu to Issho Special (Japan)"#),
     "3c91b0a0" => (1, false, r#"Twin Series 7 - Twin Puzzle - Kisekae Wanko EX + Nyaa to Chuu no Rainbow Magic
-			2 (Japan)"#),
+            2 (Japan)"#),
     "a4ef4e95" => (5, false, r#"Card e-Reader (Japan)"#),
     "4139e7c3" => (5, false, r#"Card e-Reader+ (Japan)"#),
     "8b27cd67" => (5, false, r#"e-Reader (USA)"#),
@@ -3119,7 +3119,7 @@ pub static TITLE_DATABASE: phf::Map<&'static str, (u8, bool, &'static str)> = ph
     "b2100fed" => (0, false, r#"Dog Trainer 2 (Europe)"#),
     "d72c620f" => (0, false, r#"Rayman IV (Rayman - Sunshine of Trip) (unlicensed) (protection hacked)"#),
     "8ee6b303" => (0, false, r#"Rayman IV (Rayman - Puteshestviye Solnechnogo Sveta) (unlicensed) (Russian)
-			(protection hacked)"#),
+            (protection hacked)"#),
     "d05c8414" => (0, false, r#"Leiman IV - Guangming Zhi Lv (unlicensed) (Chinese) (protection hacked)"#),
     "9255c170" => (0, false, r#"Super Mario DX (unlicensed) (protection hacked)"#),
     "2c7af7e8" => (0, false, r#"Chaoji Maliou DX (unlicensed) (Chinese) (protection hacked)"#),
@@ -3129,9 +3129,9 @@ pub static TITLE_DATABASE: phf::Map<&'static str, (u8, bool, &'static str)> = ph
     "8e0a9112" => (0, false, r#"Sonic 3 - Fighter Sonic (unlicensed) (protection hacked)"#),
     "8ee6d3d5" => (0, false, r#"Teenage Mutant Ninja Turtles 2 (unlicensed) (protection hacked)"#),
     "09c7c895" => (0, false, r#"The Lord of the Rings IV - The Fellowship of the Ring (unlicensed) (protection
-			hacked)"#),
+            hacked)"#),
     "4683dbb5" => (0, false, r#"Ultraman - Confrontation Between Justice And Evil (Ul'traman - Konfrontatsiya
-			mezhdu spravedlivost'yu i zlom) (unlicensed) (Russian) (protection hacked)"#),
+            mezhdu spravedlivost'yu i zlom) (unlicensed) (Russian) (protection hacked)"#),
     "e14c9b78" => (0, false, r#"X-Man - Armour of Might (X-men) (unlicensed) (Russian) (protection hacked)"#),
 
 };
