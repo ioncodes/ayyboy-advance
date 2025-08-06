@@ -1,4 +1,3 @@
-use super::cycles::{CycleInfo, InstructionTiming};
 use super::decoder::{Instruction, Register};
 use super::mode::ProcessorMode;
 use super::pipeline::{Pipeline, State};
@@ -17,9 +16,6 @@ pub struct Cpu {
     pub pipeline: Pipeline,
     pub mmio: Mmio,
     symbolizer: Symbolizer,
-    // Cycle tracking
-    pub cycle_count: u64,
-    pub pending_cycles: u32,
 }
 
 impl Cpu {
@@ -29,8 +25,6 @@ impl Cpu {
             pipeline: Pipeline::new(),
             mmio,
             symbolizer: Symbolizer::new(buffer),
-            cycle_count: 0,
-            pending_cycles: 0,
         }
     }
 
@@ -54,12 +48,12 @@ impl Cpu {
         // we need to make sure the pipeline is full before we trigger an IRQ
         // the IRQ always returns using subs pc, lr, #4, so if the pipeline has been flushed recently
         // PC = current instruction, so on return we get current instruction - 4 which is behind the current instruction
-        if ime_value != 0 && pending_interrupts != 0 && !self.registers.cpsr.contains(Psr::I) && self.pipeline.is_full()
+        if ime_value != 0
+            && pending_interrupts != 0
+            && !self.registers.cpsr.contains(Psr::I)
+            && self.pipeline.is_full()
         {
             trace!(target: "irq", "IRQ available, switching to IRQ mode");
-
-            // Interrupt handling takes cycles
-            self.add_cycles(2); // Pipeline flush + branch
 
             // copy CPSR to SPSR and switch to IRQ mode
             self.write_to_spsr(ProcessorMode::Irq, self.registers.cpsr);
@@ -93,8 +87,6 @@ impl Cpu {
         // another IRQ during halt
         if halt_cnt == 0 {
             trace!(target: "cpu", "CPU is halted");
-            // CPU is halted but still consumes cycles while waiting for interrupts
-            self.add_cycles(1);
             return Err(CpuError::CpuPaused);
         }
 
@@ -121,13 +113,6 @@ impl Cpu {
 
             // clear the last read/write addresses
             self.mmio.last_rw_addr.clear();
-
-            // Calculate and add instruction cycles
-            let instruction_cycles = self.calculate_instruction_cycles(&instruction, state.pc);
-            self.add_cycles(instruction_cycles);
-
-            trace!(target: "cycles", "Instruction {} took {} cycles (total: {})", 
-                   instruction, instruction_cycles, self.cycle_count);
 
             match instruction.opcode {
                 Opcode::B | Opcode::Bl | Opcode::Bx => Handlers::branch(&instruction, self),
@@ -181,9 +166,6 @@ impl Cpu {
         } else {
             self.registers.r[15] += 4;
         }
-
-        // PC increment takes 1 cycle
-        self.add_cycles(1);
 
         Err(CpuError::NothingToDo)
     }
@@ -526,61 +508,6 @@ impl Cpu {
 
     pub fn is_thumb(&self) -> bool {
         self.registers.cpsr.contains(Psr::T)
-    }
-
-    // Cycle management methods
-    pub fn add_cycles(&mut self, cycles: u32) {
-        self.pending_cycles += cycles;
-        self.cycle_count += cycles as u64;
-    }
-
-    pub fn add_cycle_info(&mut self, cycle_info: CycleInfo) {
-        self.add_cycles(cycle_info.cycles);
-    }
-
-    pub fn get_pending_cycles(&self) -> u32 {
-        self.pending_cycles
-    }
-
-    pub fn consume_cycles(&mut self, cycles: u32) -> u32 {
-        let consumed = cycles.min(self.pending_cycles);
-        self.pending_cycles -= consumed;
-        consumed
-    }
-
-    pub fn consume_all_cycles(&mut self) -> u32 {
-        let cycles = self.pending_cycles;
-        self.pending_cycles = 0;
-        cycles
-    }
-
-    pub fn calculate_instruction_cycles(&self, instruction: &Instruction, _pc: u32) -> u32 {
-        let mut total_cycles = 0;
-
-        // Base instruction cycles
-        let base_cycles = InstructionTiming::get_base_cycles(&instruction.opcode, self.is_thumb());
-        total_cycles += base_cycles;
-
-        // Memory access cycles (simplified for now)
-        match instruction.opcode {
-            Opcode::Ldr | Opcode::Str => {
-                // Load/Store: 1I + 1N cycles
-                total_cycles += 1; // Additional cycle for memory access
-            }
-            Opcode::Ldm | Opcode::Stm => {
-                // Block transfer: estimate based on register count
-                // This should be more sophisticated in a full implementation
-                total_cycles += 1; // Simplified
-            }
-            Opcode::B | Opcode::Bl | Opcode::Bx => {
-                // Branch: pipeline flush cost already included in base cycles
-            }
-            _ => {
-                // Most other instructions don't need additional memory access cycles
-            }
-        }
-
-        total_cycles
     }
 }
 

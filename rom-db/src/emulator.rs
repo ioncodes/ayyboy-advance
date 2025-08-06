@@ -46,15 +46,7 @@ impl Emulator {
                 Err(CpuError::FailedToDecode) => return None,
                 _ => {}
             }
-
-            // Always consume CPU cycles and tick components, even if CPU had an error
-            let cycles = self.gba.cpu.consume_all_cycles();
-            if cycles > 0 {
-                self.gba.cpu.mmio.tick_components_cycles(cycles);
-            } else {
-                // If no cycles to consume, tick by 1 to keep components running
-                self.gba.cpu.mmio.tick_components_cycles(1);
-            }
+            self.gba.cpu.mmio.tick_components();
 
             if self.gba.cpu.mmio.ppu.scanline.0 == 160 && !self.frame_rendered {
                 self.frame_rendered = true;

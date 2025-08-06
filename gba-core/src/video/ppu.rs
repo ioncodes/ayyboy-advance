@@ -51,7 +51,6 @@ pub struct Sprite {
 
 pub struct Ppu {
     pub h_counter: u16,
-    pub cycle_counter: u32, // Track cycles within current scanline
     pub vram: Box<[u8; (0x07FFFFFF - 0x05000000) + 1]>,
     io: Box<[u8; (0x4000056 - 0x4000000) + 1]>,
     vblank_raised_for_frame: bool,
@@ -88,7 +87,6 @@ impl Ppu {
 
         Ppu {
             h_counter: 0,
-            cycle_counter: 0,
             vram: unsafe { vram.assume_init() },
             io: unsafe { io.assume_init() },
             vblank_raised_for_frame: false,
@@ -155,68 +153,6 @@ impl Ppu {
             self.vblank_raised_for_frame = true;
             events.push(PpuEvent::VBlank);
             self.disp_stat.set_flags(DispStat::VBLANK_FLAG);
-        }
-
-        events
-    }
-
-    /// Tick the PPU by the specified number of cycles
-    /// GBA PPU timing:
-    /// - 4 cycles per pixel
-    /// - 240 pixels visible per scanline (960 cycles)
-    /// - 68 pixels H-blank per scanline (272 cycles)
-    /// - Total: 308 pixels = 1232 cycles per scanline
-    /// - 160 visible scanlines + 68 V-blank scanlines = 228 total
-    pub fn tick_cycles(&mut self, cycles: u32) -> Vec<PpuEvent> {
-        let mut events = Vec::new();
-        let mut remaining_cycles = cycles;
-
-        while remaining_cycles > 0 {
-            let cycles_to_process = remaining_cycles.min(1);
-            remaining_cycles -= cycles_to_process;
-
-            self.cycle_counter += cycles_to_process;
-
-            // Check for H-blank transition (after 960 cycles = 240 pixels)
-            if self.cycle_counter == 960 {
-                events.push(PpuEvent::HBlank);
-                self.disp_stat.set_flags(DispStat::HBLANK_FLAG);
-            }
-
-            // Check for end of scanline (after 1232 cycles total)
-            if self.cycle_counter >= 1232 {
-                self.cycle_counter = 0;
-                self.scanline.0 += 1;
-                self.disp_stat.clear_flags(DispStat::HBLANK_FLAG);
-
-                // Check for VCOUNT interrupt
-                let vcount_setting = self.disp_stat.value().vcount_setting();
-                if *self.scanline.value() == vcount_setting as u16 {
-                    self.disp_stat.set_flags(DispStat::VCOUNTER_FLAG);
-                    if self.disp_stat.value().vcount_irq_enabled() {
-                        events.push(PpuEvent::VCount);
-                    }
-                } else {
-                    self.disp_stat.clear_flags(DispStat::VCOUNTER_FLAG);
-                }
-
-                // Check for V-blank transition (after 160 visible scanlines)
-                if self.scanline.0 == 160 && !self.vblank_raised_for_frame {
-                    self.vblank_raised_for_frame = true;
-                    events.push(PpuEvent::VBlank);
-                    self.disp_stat.set_flags(DispStat::VBLANK_FLAG);
-                }
-
-                // Check for end of frame (after 228 total scanlines)
-                if self.scanline.0 >= 228 {
-                    self.scanline.0 = 0;
-                    self.vblank_raised_for_frame = false;
-                    self.disp_stat.clear_flags(DispStat::VBLANK_FLAG);
-                }
-            }
-
-            // Update h_counter based on cycle position within scanline
-            self.h_counter = (self.cycle_counter / 4) as u16;
         }
 
         events

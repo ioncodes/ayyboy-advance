@@ -254,36 +254,24 @@ impl Emulator {
     fn do_tick(&mut self, tick: &mut bool) -> Option<Instruction> {
         let mut executed_instr: Option<Instruction> = None;
 
-        match self.gba.cpu.tick() {
-            Ok((instr, state)) => {
-                if BREAKPOINTS
-                    .lock()
-                    .unwrap()
-                    .contains(&(state.pc + if self.gba.cpu.is_thumb() { 2 } else { 4 }))
-                {
-                    *tick = false;
-                }
-
-                self.gba.try_execute_breakpoint(state.pc, state.pc);
-                for addr in self.gba.cpu.mmio.last_rw_addr.clone() {
-                    self.gba.try_execute_breakpoint(addr, state.pc);
-                }
-
-                executed_instr = Some(instr);
+        if let Ok((instr, state)) = self.gba.cpu.tick() {
+            if BREAKPOINTS
+                .lock()
+                .unwrap()
+                .contains(&(state.pc + if self.gba.cpu.is_thumb() { 2 } else { 4 }))
+            {
+                *tick = false;
             }
-            Err(_) => {
-                // CPU encountered an error, but may have still consumed cycles
+
+            self.gba.try_execute_breakpoint(state.pc, state.pc);
+            for addr in self.gba.cpu.mmio.last_rw_addr.clone() {
+                self.gba.try_execute_breakpoint(addr, state.pc);
             }
+
+            executed_instr = Some(instr);
         }
 
-        // Always consume CPU cycles and tick components, even if CPU had an error
-        let cycles = self.gba.cpu.consume_all_cycles();
-        if cycles > 0 {
-            self.gba.cpu.mmio.tick_components_cycles(cycles);
-        } else {
-            // If no cycles to consume, tick by 1 to keep components running
-            self.gba.cpu.mmio.tick_components_cycles(1);
-        }
+        self.gba.cpu.mmio.tick_components();
 
         executed_instr
     }

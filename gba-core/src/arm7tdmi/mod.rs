@@ -1,5 +1,4 @@
 pub mod cpu;
-pub mod cycles;
 pub mod decoder;
 pub mod error;
 mod handlers;

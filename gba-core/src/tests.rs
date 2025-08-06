@@ -23,23 +23,10 @@ mod tests {
         let mut trace: Vec<(u32, Instruction)> = Vec::new();
 
         loop {
-            match cpu.tick() {
-                Ok((instr, state)) => {
-                    trace.push((state.pc, instr));
-                }
-                Err(_) => {
-                    // CPU encountered an error, but may have still consumed cycles
-                }
+            if let Ok((instr, state)) = cpu.tick() {
+                trace.push((state.pc, instr));
             }
-
-            // Always consume CPU cycles and tick components, even if CPU had an error
-            let cycles = cpu.consume_all_cycles();
-            if cycles > 0 {
-                cpu.mmio.tick_components_cycles(cycles);
-            } else {
-                // If no cycles to consume, tick by 1 to keep components running
-                cpu.mmio.tick_components_cycles(1);
-            }
+            cpu.mmio.tick_components();
 
             if cpu.registers.r[15] == 0x08001e18 {
                 // arm.gba SWI to extract failed test
