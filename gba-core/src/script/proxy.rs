@@ -1,9 +1,11 @@
 use crate::arm7tdmi::cpu::Cpu;
 use crate::arm7tdmi::decoder::Register;
+use crate::vibration::VibrationManager;
 use std::marker::PhantomData;
 
 pub struct Proxy {
     cpu_ptr: *mut Cpu,
+    vibration_ptr: *const VibrationManager,
     _marker: PhantomData<Cpu>,
 }
 
@@ -14,15 +16,17 @@ impl Clone for Proxy {
     fn clone(&self) -> Self {
         Self {
             cpu_ptr: self.cpu_ptr,
+            vibration_ptr: self.vibration_ptr,
             _marker: PhantomData,
         }
     }
 }
 
 impl Proxy {
-    pub fn new(cpu: &mut Cpu) -> Self {
+    pub fn new(cpu: &mut Cpu, vibration_manager: &VibrationManager) -> Self {
         Self {
             cpu_ptr: cpu as *mut Cpu,
+            vibration_ptr: vibration_manager as *const VibrationManager,
             _marker: PhantomData,
         }
     }
@@ -91,5 +95,9 @@ impl Proxy {
 
     pub fn is_thumb(&self) -> bool {
         unsafe { (*self.cpu_ptr).is_thumb() }
+    }
+
+    pub fn vibrate(&self, duration_ms: i64) {
+        unsafe { (*self.vibration_ptr).vibrate(duration_ms as u64) }
     }
 }

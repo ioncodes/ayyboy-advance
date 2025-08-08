@@ -7,6 +7,7 @@ pub mod gba;
 pub mod input;
 pub mod memory;
 pub mod script;
+pub mod vibration;
 pub mod video;
 
 #[cfg(test)]

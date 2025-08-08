@@ -3,12 +3,14 @@ use crate::cartridge::database::TITLE_DATABASE;
 use crate::cartridge::storage::BackupType;
 use crate::memory::mmio::Mmio;
 use crate::script::engine::ScriptEngine;
+use crate::vibration::VibrationManager;
 use std::path::Path;
 use tracing::{error, info};
 
 pub struct Gba {
     pub cpu: Cpu,
     pub script_engine: Option<ScriptEngine>,
+    pub vibration_manager: VibrationManager,
     pub rom_title: String,
     pub crc32: String,
 }
@@ -44,6 +46,7 @@ impl Gba {
         Gba {
             cpu,
             script_engine: None,
+            vibration_manager: VibrationManager::new(),
             rom_title,
             crc32,
         }
@@ -62,8 +65,13 @@ impl Gba {
 
     pub fn try_execute_breakpoint(&mut self, address: u32, pc: u32) {
         if let Some(engine) = &mut self.script_engine {
-            engine.handle_breakpoint(address, pc, &mut self.cpu);
+            engine.handle_breakpoint(address, pc, &mut self.cpu, &self.vibration_manager);
         }
+    }
+
+    pub fn shutdown(&self) {
+        // Stop any ongoing vibration when shutting down
+        self.vibration_manager.stop_all_vibration();
     }
 
     pub fn save_devices(&self, base_path: &Path) {

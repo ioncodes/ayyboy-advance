@@ -1,6 +1,7 @@
 use crate::arm7tdmi::cpu::Cpu;
 use crate::arm7tdmi::decoder::Instruction;
 use crate::script::proxy::Proxy;
+use crate::vibration::VibrationManager;
 use core::panic;
 use rhai::{AST, Dynamic, Engine, Map, Scope};
 use std::collections::HashMap;
@@ -76,6 +77,9 @@ impl ScriptEngine {
         });
         engine.register_fn("read_cpsr", |proxy: &mut Proxy| -> i64 { proxy.read_cpsr() as i64 });
         engine.register_fn("is_thumb", |proxy: &mut Proxy| -> bool { proxy.is_thumb() });
+        engine.register_fn("vibrate", |proxy: &mut Proxy, duration_ms: i64| {
+            proxy.vibrate(duration_ms);
+        });
 
         Self {
             engine,
@@ -127,7 +131,7 @@ impl ScriptEngine {
         }
     }
 
-    pub fn handle_breakpoint(&mut self, address: u32, instr_addr: u32, cpu: &mut Cpu) {
+    pub fn handle_breakpoint(&mut self, address: u32, instr_addr: u32, cpu: &mut Cpu, vibration_manager: &VibrationManager) {
         if !self.loaded || !self.breakpoint_handlers.contains_key(&address) {
             return;
         }
@@ -139,7 +143,7 @@ impl ScriptEngine {
 
         if let Some(ast) = &self.script {
             let mut scope = Scope::new();
-            scope.push("emu", Proxy::new(cpu));
+            scope.push("emu", Proxy::new(cpu, vibration_manager));
             scope.push("addr", instr_addr as i64);
 
             // call the handler
