@@ -18,6 +18,7 @@ const CHAR_UNIT_SIZE: u32 = 32;
 enum WindowRegion {
     Win0,
     Win1,
+    ObjWindow,
     Outside,
 }
 
@@ -162,7 +163,7 @@ impl Ppu {
         let bg_mode = self.disp_cnt.value().bg_mode();
         trace!(target: "ppu", "Grabbing internal frame buffer for PPU mode: {}", bg_mode);
 
-        let sprite_layer = self.render_sprites();
+        let (sprite_layer, obj_window_mask) = self.render_sprites();
 
         let lcd_control = self.disp_cnt.value();
         let bg_layers = match bg_mode {
@@ -187,18 +188,20 @@ impl Ppu {
             _ => unreachable!(),
         };
 
-        self.compose_layers(&bg_layers, &sprite_layer)
+        self.compose_layers(&bg_layers, &sprite_layer, &obj_window_mask)
     }
 
     pub fn get_background_frame(&self, mode: usize, base_addr: u32) -> Frame {
         match mode {
             0 => {
                 let layers = self.render_background_mode0_layers();
-                self.compose_layers(&layers, &vec![(5, Pixel::Transparent); SCREEN_WIDTH * SCREEN_HEIGHT])
+                let dummy_obj_window = vec![false; SCREEN_WIDTH * SCREEN_HEIGHT];
+                self.compose_layers(&layers, &vec![(5, Pixel::Transparent); SCREEN_WIDTH * SCREEN_HEIGHT], &dummy_obj_window)
             }
             1..=2 => {
                 let layers = self.render_background_mode0_layers();
-                self.compose_layers(&layers, &vec![(5, Pixel::Transparent); SCREEN_WIDTH * SCREEN_HEIGHT])
+                let dummy_obj_window = vec![false; SCREEN_WIDTH * SCREEN_HEIGHT];
+                self.compose_layers(&layers, &vec![(5, Pixel::Transparent); SCREEN_WIDTH * SCREEN_HEIGHT], &dummy_obj_window)
             }
             3 => self.render_background_mode3(base_addr),
             4 => self.render_background_mode4(base_addr),
@@ -557,8 +560,9 @@ impl Ppu {
         dims
     }
 
-    fn render_sprites(&mut self) -> Vec<(usize, Pixel)> {
+    fn render_sprites(&mut self) -> (Vec<(usize, Pixel)>, Vec<bool>) {
         let mut frame = vec![(5_usize, Pixel::Transparent); SCREEN_WIDTH * SCREEN_HEIGHT];
+        let mut obj_window_mask = vec![false; SCREEN_WIDTH * SCREEN_HEIGHT];
 
         let lcd_control = self.disp_cnt.value();
         let bg_mode = lcd_control.bg_mode();
@@ -611,6 +615,7 @@ impl Ppu {
                     &obj_palette,
                     &palette,
                     &mut frame,
+                    &mut obj_window_mask,
                     bg_mode as u32,
                 );
                 continue;
@@ -700,7 +705,25 @@ impl Ppu {
                             let color = tile.pixels[py * 8 + px];
                             if color != Pixel::Transparent {
                                 let sprite_idx = (sy as usize) * SCREEN_WIDTH + (sx as usize);
-                                frame[sprite_idx] = (attr2.priority(), color);
+                                
+                                // Check sprite mode: 0=normal, 1=semi-transparent, 2=object window, 3=forbidden
+                                match attr0.obj_mode() {
+                                    0 => {
+                                        // Normal sprite
+                                        frame[sprite_idx] = (attr2.priority(), color);
+                                    }
+                                    1 => {
+                                        // Semi-transparent sprite (alpha blending)
+                                        frame[sprite_idx] = (attr2.priority(), color);
+                                    }
+                                    2 => {
+                                        // Object window - just mark the mask, don't render
+                                        obj_window_mask[sprite_idx] = true;
+                                    }
+                                    _ => {
+                                        // Mode 3 is forbidden, ignore sprite
+                                    }
+                                }
                             }
                         }
                     }
@@ -708,13 +731,13 @@ impl Ppu {
             }
         }
 
-        frame
+        (frame, obj_window_mask)
     }
 
     fn render_affine_sprite(
         &mut self, _obj_id: u32, attr0: &ObjAttribute0, attr1: &ObjAttribute1, attr2: &ObjAttribute2, screen_x: i32,
         screen_y: i32, sprite_w: u32, sprite_h: u32, obj_palette: &[Pixel], palette: &[Pixel],
-        frame: &mut [(usize, Pixel)], bg_mode: u32,
+        frame: &mut [(usize, Pixel)], obj_window_mask: &mut [bool], bg_mode: u32,
     ) {
         // Get rotation/scaling parameter index (0-31)
         let param_idx = attr1.rotation_scaling_parameter();
@@ -792,7 +815,25 @@ impl Ppu {
 
                 if color != Pixel::Transparent {
                     let sprite_idx = (sy as usize) * SCREEN_WIDTH + (sx as usize);
-                    frame[sprite_idx] = (attr2.priority(), color);
+                    
+                    // Check sprite mode: 0=normal, 1=semi-transparent, 2=object window, 3=forbidden
+                    match attr0.obj_mode() {
+                        0 => {
+                            // Normal sprite
+                            frame[sprite_idx] = (attr2.priority(), color);
+                        }
+                        1 => {
+                            // Semi-transparent sprite (alpha blending)
+                            frame[sprite_idx] = (attr2.priority(), color);
+                        }
+                        2 => {
+                            // Object window - just mark the mask, don't render
+                            obj_window_mask[sprite_idx] = true;
+                        }
+                        _ => {
+                            // Mode 3 is forbidden, ignore sprite
+                        }
+                    }
                 }
             }
         }
@@ -1001,7 +1042,7 @@ impl Ppu {
         inside_x && inside_y
     }
 
-    fn window_region_for_pixel(&self, x: usize, y: usize) -> WindowRegion {
+    fn window_region_for_pixel(&self, x: usize, y: usize, obj_window_mask: &[bool]) -> WindowRegion {
         let disp = self.disp_cnt.value();
 
         if disp.contains(DispCnt::WIN0_ON) && self.point_in_window(x, y, self.win0_h.value(), self.win0_v.value()) {
@@ -1012,10 +1053,14 @@ impl Ppu {
             return WindowRegion::Win1;
         }
 
+        if disp.contains(DispCnt::OBJ_WIN_ON) && obj_window_mask[y * SCREEN_WIDTH + x] {
+            return WindowRegion::ObjWindow;
+        }
+
         WindowRegion::Outside
     }
 
-    fn compose_layers(&self, bg_layers: &Vec<Frame>, sprite_frame: &Vec<(usize, Pixel)>) -> Frame {
+    fn compose_layers(&self, bg_layers: &Vec<Frame>, sprite_frame: &Vec<(usize, Pixel)>, obj_window_mask: &[bool]) -> Frame {
         assert_eq!(bg_layers.len(), 4, "Expected 4 background layers");
 
         let palette = self.fetch_palette();
@@ -1050,6 +1095,7 @@ impl Ppu {
             match region {
                 WindowRegion::Win0 => winin.is_bg_enabled_win0(id),
                 WindowRegion::Win1 => winin.is_bg_enabled_win1(id),
+                WindowRegion::ObjWindow => winout.is_bg_enabled_out(id),
                 WindowRegion::Outside => winout.is_bg_enabled_out(id),
             }
         };
@@ -1066,6 +1112,7 @@ impl Ppu {
             match region {
                 WindowRegion::Win0 => winin.obj_enabled_win0(),
                 WindowRegion::Win1 => winin.obj_enabled_win1(),
+                WindowRegion::ObjWindow => winout.obj_enabled_out(),
                 WindowRegion::Outside => winout.obj_enabled_out(),
             }
         };
@@ -1086,7 +1133,7 @@ impl Ppu {
             let frame_row = &mut frame[y];
 
             for x in 0..SCREEN_WIDTH {
-                let region = self.window_region_for_pixel(x, y);
+                let region = self.window_region_for_pixel(x, y, obj_window_mask);
 
                 // Collect visible surfaces at this pixel
                 let mut surfaces: Vec<(usize, Pixel, usize, usize)> = Vec::new();
@@ -1125,30 +1172,47 @@ impl Ppu {
                 let second = surfaces.get(1).copied().unwrap_or((5, Pixel::Transparent, 4, 5));
                 let (second_layer, second_color, _, _) = second;
 
+                // Check if blending is enabled in the current window region
+                let blend_enabled = if windows_active {
+                    match region {
+                        WindowRegion::Win0 => winin.blend_enabled_win0(),
+                        WindowRegion::Win1 => winin.blend_enabled_win1(),
+                        WindowRegion::ObjWindow => winout.blend_enabled_out(),
+                        WindowRegion::Outside => winout.blend_enabled_out(),
+                    }
+                } else {
+                    true // Blending always enabled when no windows are active
+                };
+
                 let bld_cnt = self.bld_cnt.value();
-                let final_color = match bld_cnt.sfx() {
-                    Sfx::AlphaBlend => {
-                        if bld_cnt.is_first_target(top_layer) && bld_cnt.is_second_target(second_layer) {
-                            top_color.blend(second_color, self.bld_alpha.value().eva(), self.bld_alpha.value().evb())
-                        } else {
-                            top_color
+                let final_color = if blend_enabled {
+                    match bld_cnt.sfx() {
+                        Sfx::AlphaBlend => {
+                            if bld_cnt.is_first_target(top_layer) && bld_cnt.is_second_target(second_layer) {
+                                top_color.blend(second_color, self.bld_alpha.value().eva(), self.bld_alpha.value().evb())
+                            } else {
+                                top_color
+                            }
                         }
-                    }
-                    Sfx::IncreaseBrightness => {
-                        if bld_cnt.is_first_target(top_layer) {
-                            top_color.brighten(self.bld_y.value().evy())
-                        } else {
-                            top_color
+                        Sfx::IncreaseBrightness => {
+                            if bld_cnt.is_first_target(top_layer) {
+                                top_color.brighten(self.bld_y.value().evy())
+                            } else {
+                                top_color
+                            }
                         }
-                    }
-                    Sfx::DecreaseBrightness => {
-                        if bld_cnt.is_first_target(top_layer) {
-                            top_color.darken(self.bld_y.value().evy())
-                        } else {
-                            top_color
+                        Sfx::DecreaseBrightness => {
+                            if bld_cnt.is_first_target(top_layer) {
+                                top_color.darken(self.bld_y.value().evy())
+                            } else {
+                                top_color
+                            }
                         }
+                        Sfx::None => top_color,
                     }
-                    Sfx::None => top_color,
+                } else {
+                    // Blending disabled in this window region
+                    top_color
                 };
                 frame_row[x] = final_color;
             }

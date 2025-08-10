@@ -276,6 +276,10 @@ impl ObjAttribute0 {
     pub fn is_double_size(&self) -> bool {
         self.is_affine() && self.contains(ObjAttribute0::DISABLE_OR_DBL_SIZE)
     }
+
+    pub fn obj_mode(&self) -> u16 {
+        (self.bits() & ObjAttribute0::OBJ_MODE.bits()) >> 10
+    }
 }
 
 #[derive(Debug, PartialEq, Clone, Copy)]
@@ -430,7 +434,7 @@ impl WindowControl {
     }
 
     pub fn obj_enabled_out(&self) -> bool {
-        self.obj_enabled_win0()
+        self.contains(WindowControl::WIN0_OBJ_ENABLE_BIT)
     }
 
     pub fn is_bg_enabled_win0(&self, bg: usize) -> bool {
@@ -452,7 +456,24 @@ impl WindowControl {
     }
 
     pub fn is_bg_enabled_out(&self, id: usize) -> bool {
-        self.is_bg_enabled_win0(id)
+        if id > 3 {
+            panic!("Invalid background index: {}", id);
+        }
+
+        let mask = 1 << id;
+        self.bits() & mask != 0
+    }
+
+    pub fn blend_enabled_win0(&self) -> bool {
+        self.contains(WindowControl::WIN0_COLOR_SPECIAL)
+    }
+
+    pub fn blend_enabled_win1(&self) -> bool {
+        self.contains(WindowControl::WIN1_COLOR_SPECIAL)
+    }
+
+    pub fn blend_enabled_out(&self) -> bool {
+        self.contains(WindowControl::WIN0_COLOR_SPECIAL)
     }
 }
 
